@@ -5,7 +5,7 @@ DEBUG       =
 INCLUDEDIR  = $(INCCUD) $(INCMAG)
 LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(MPI) $(CUDA) $(MAGMA) $(F90_LIBS)
 
-CC_FILES   = Utilities.o RGF.o main.o
+CC_FILES   = Utilities.o main.o
 CU_FILES   = CWC_utility.o
 
 RGFSolver: $(CC_FILES) $(CU_FILES)

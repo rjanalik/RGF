@@ -9,6 +9,14 @@
 #include "RGF.H"
 using namespace std;
 
+#if 0
+typedef CPX T;
+#define assign_T(val) CPX(val, 0.0)
+#else
+typedef double T;
+#define assign_T(val) val
+#endif
+
 /*
 Start simulations with RGF NBlock Bmin.dat Bmax.dat M.dat
 NBlock: number of blocks of the matrix
@@ -27,14 +35,13 @@ int main(int argc, char *argv[])
     FILE *F1,*F2;
     int i;
     int size,rank;
-    int NBlock;
-    int Bsize;
-    int *Bmin,*Bmax;
     double data;
     double t0;
-    TCSR<CPX> *M;
-    CPX *GR;
-    RGF *solver;
+    TCSR<T> *M;
+    T *GR;
+    T *b;
+    int nrhs;
+    RGF<T> *solver;
 
     MPI_Init(&argc,&argv);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
@@ -49,47 +56,106 @@ int main(int argc, char *argv[])
       printf ("The current date/time is: %s\n",asctime(timeinfo));
     }
 
-    NBlock = atoi(argv[1]);
-
-    F1     = fopen(argv[2],"r");
-    F2     = fopen(argv[3],"r");
-
-    Bmin   = new int[NBlock];
-    Bmax   = new int[NBlock];
-    Bsize  = 0;
+    int ns = atoi(argv[1]);
+    int nt = atoi(argv[2]);
     
-    for(i=0;i<NBlock;i++){
-      
-        fscanf(F1,"%lg",&data);
-	Bmin[i] = Round(data);
-	
-	fscanf(F2,"%lg",&data);
-	Bmax[i] = Round(data);
-	
-	if((Bmax[i]-Bmin[i])>Bsize){
-	    Bsize = Bmax[i]-Bmin[i];
-	}
+
+    // load matrix from file
+    FILE *F = fopen(argv[3],"r");
+   
+    int fn, fnnz;
+    int *ia, *ja;
+    T *a;
+    double val;
+
+    /* read in matrix A, sparse matrix in CSR format */
+    fscanf(F,"%i",&fn);
+    fscanf(F,"%i",&fn);
+    fscanf(F,"%i",&fnnz);
+
+    // allocate memory
+    ia = new int[fn+1];
+    ja = new int[fnnz];
+    a = new T[fnnz];
+  
+    for (i = 0; i <= fn; i++){
+       fscanf(F,"%i",&ia[i]);
     }
 
-    fclose(F1);
-    fclose(F2);
+    for (i = 0; i < ia[fn]; i++){
+       fscanf(F,"%i",&ja[i]);
+    }
 
-    M      = new TCSR<CPX>(argv[4]);
-    GR     = new CPX[Bmax[NBlock-1]*Bsize];
+    for (i = 0; i < ia[fn]; i++){
+       fscanf(F,"%lf",&val);
+       a[i] = assign_T(val);
+    }
+
+    fclose(F);
+
+    M      = new TCSR<T>(ia, ja, a, ns, nt);
+    GR     = new T[3*(nt-1)*(ns*ns) + (ns*ns)];
+    nrhs   = 2;
+    b      = new T[nrhs*ns*nt];
+
+    for (int i = 0; i < nrhs*ns*nt; i++)
+       b[i] = assign_T(i+1);
     
-    solver = new RGF(M);
+    solver = new RGF<T>(M);
 
     t0 = get_time(0.0);
-    solver->solve_equation(GR,Bmin,Bmax,NBlock);
+    //solver->solve_equation(GR);
+    solver->factorize();
+    solver->solve(b, nrhs);
     t0 = get_time(t0);
 
     printf("RGF time: %lg\n",t0);
+
+    //// extract diag from GR
+    //// for Lisa begin
+    //int *GRdiag_ind;
+    //T *GRdiag;
+    //GRdiag_ind = new int[ns*nt];
+    //GRdiag = new T[ns*nt];
+    //int ind = 0;
+    //for(int i_nt = 0; i_nt < nt; i_nt++)
+    //{
+    //   for(int i_ns = 0; i_ns < ns-1; i_ns++)
+    //   {
+    //      int i = i_nt*ns + i_ns;
+    //      GRdiag_ind[i] = ind;
+    //      ind += ns+1;
+    //   }
+    //   int i = (i_nt+1)*ns - 1;
+    //   GRdiag_ind[i] = ind;
+    //   ind++;
+    //}
+    //for (int i = 0; i < ns*nt; i++)
+    //{
+    //   GRdiag[i] = GR[GRdiag_ind[i]];
+    //}
+    //// print diag
+    //for (int i = 0; i < ns*nt; i++)
+    //{
+    //   printf("GRdiag[%d] = %f\n", i, GRdiag[i]);
+    //}
+    //delete[] GRdiag_ind;
+    //delete[] GRdiag;
+    //// for Lisa end
+    for (int i = 0; i < nrhs*ns*nt; i++)
+    {
+       printf("x[%d] = %f\n", i, b[i]);
+    }
     
-    delete[] Bmin;
-    delete[] Bmax;
     delete[] GR;
+    delete[] b;
     delete M;
     delete solver;
+    
+    // free memory
+    delete[] ia;
+    delete[] ja;
+    delete[] a;
     
     MPI_Finalize();
     

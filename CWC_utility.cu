@@ -155,6 +155,12 @@ void zgemm_on_dev(void *handle,char transa,char transb,int m,int n,int k,CPX alp
 }
 
 extern "C"
+void daxpy_on_dev(void *handle,int n,double alpha,double *x,int incx,double *y,int incy){
+  
+    cublasDaxpy((cublasHandle_t)handle,n,&alpha,x,incx,y,incy);
+}
+
+extern "C"
 void zaxpy_on_dev(void *handle,int n,CPX alpha,CPX *x,int incx,CPX *y,int incy){
   
     cublasZaxpy((cublasHandle_t)handle,n,(cuDoubleComplex*)&alpha,(cuDoubleComplex*)x,\
@@ -303,7 +309,7 @@ void change_sign_imag_on_dev(CPX *var,int N){
     change_sign_imaginary_part_on_dev<<< i_N/BLOCK_DIM, BLOCK_DIM >>>((cuDoubleComplex*)var,N);
 }
 
-__global__ void d_extract_diag(double *D,int *edge_i,int *index_j,cuDoubleComplex *nnz,\
+__global__ void d_extract_diag(double *D,int *edge_i,int *index_j,double *nnz,\
 	   int NR,int imin,int imax,int shift,int findx){
 
      int j;
@@ -314,7 +320,8 @@ __global__ void d_extract_diag(double *D,int *edge_i,int *index_j,cuDoubleComple
 	  for(j=edge_i[idx+imin]-findx;j<edge_i[idx+imin+1]-findx;j++){
 	      ind_j = index_j[j]-findx-shift-imin;
 	      if((ind_j>=0)&&(ind_j<NR)){
-	          D[idx+ind_j*NR] = nnz[j].x;
+	          //D[idx+ind_j*NR] = nnz[j].x;
+	          D[idx+ind_j*NR] = nnz[j];
 	      }
 	  }
      }	   
@@ -323,15 +330,15 @@ __global__ void d_extract_diag(double *D,int *edge_i,int *index_j,cuDoubleComple
 }
 
 extern "C"
-void d_extract_diag_on_dev(double *D,int *edge_i,int *index_j,CPX *nnz,int NR,\
+void d_extract_diag_on_dev(double *D,int *edge_i,int *index_j,double *nnz,int NR,\
      int imin,int imax,int shift,int findx,cudaStream_t stream){
 
     uint i_N = NR + (BLOCK_DIM-(NR%BLOCK_DIM));
 
-    d_extract_diag<<< i_N/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(D,edge_i,index_j,(cuDoubleComplex*)nnz,NR,imin,imax,shift,findx);
+    d_extract_diag<<< i_N/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(D,edge_i,index_j,nnz,NR,imin,imax,shift,findx);
 }
 
-__global__ void d_extract_not_diag(double *D,int *edge_i,int *index_j,cuDoubleComplex *nnz,\
+__global__ void d_extract_not_diag(double *D,int *edge_i,int *index_j,double *nnz,\
 	   int NR,int imin,int imax,int jmin,int side,int shift,int findx){
 
      int j;
@@ -347,7 +354,8 @@ __global__ void d_extract_not_diag(double *D,int *edge_i,int *index_j,cuDoubleCo
 	  for(j=edge_i[idx+imin]-findx;j<edge_i[idx+imin+1]-findx;j++){
 	      ind_j = index_j[j]-findx-jmin;
 	      if(side*ind_j>=limit){
-	          D[idx+ind_j*NR] = nnz[j].x;
+	          //D[idx+ind_j*NR] = nnz[j].x;
+	          D[idx+ind_j*NR] = nnz[j];
 	      }
 	  }
      }	   
@@ -356,12 +364,12 @@ __global__ void d_extract_not_diag(double *D,int *edge_i,int *index_j,cuDoubleCo
 }
 
 extern "C"
-void d_extract_not_diag_on_dev(double *D,int *edge_i,int *index_j,CPX *nnz,int NR,\
+void d_extract_not_diag_on_dev(double *D,int *edge_i,int *index_j,double *nnz,int NR,\
      int imin,int imax,int jmin,int side,int shift,int findx,cudaStream_t stream){
 
     uint i_N = NR + (BLOCK_DIM-(NR%BLOCK_DIM));
 
-    d_extract_not_diag<<< i_N/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(D,edge_i,index_j,(cuDoubleComplex*)nnz,NR,imin,imax,jmin,side,shift,findx);
+    d_extract_not_diag<<< i_N/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(D,edge_i,index_j,nnz,NR,imin,imax,jmin,side,shift,findx);
 }
 
 __global__ void z_extract_diag(cuDoubleComplex *D,int *edge_i,int *index_j,cuDoubleComplex *nnz,\
@@ -449,50 +457,113 @@ extern "C"
 void d_csr_mult_f(void *handle,int m,int n,int k,int n_nonzeros,int *Aedge_i,int *Aindex_j,\
                   double *Annz,double alpha,double *B,double beta,double *C){
 
-    cusparseMatDescr_t descra;
+    cusparseSpMatDescr_t descra;
+    cusparseCreateCsr(&descra,m,k,n_nonzeros,Aedge_i,Aindex_j,Annz,CUSPARSE_INDEX_64I,CUSPARSE_INDEX_64I,\
+                      CUSPARSE_INDEX_BASE_ONE,CUDA_R_64F);
 
-    cusparseCreateMatDescr(&descra);
-    cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
-    cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ONE);
+    cusparseDnMatDescr_t descrb;
+    cusparseCreateDnMat(&descrb,k,n,k,B,CUDA_R_64F,CUSPARSE_ORDER_COL);
 
-    cusparseDcsrmm((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,m,n,k,n_nonzeros,\
-                   &alpha,descra,Annz,Aedge_i,Aindex_j,B,k,&beta,C,m);
+    cusparseDnMatDescr_t descrc;
+    cusparseCreateDnMat(&descrc,m,n,m,C,CUDA_R_64F,CUSPARSE_ORDER_COL);
 
-    cusparseDestroyMatDescr(descra);
+    void *dBuffer;
+    size_t bufferSize;
+    cusparseSpMM_bufferSize((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,\
+                 &alpha,descra,descrb,&beta,descrc,CUDA_R_64F,CUSPARSE_MM_ALG_DEFAULT,&bufferSize);
+    cudaMalloc(&dBuffer,bufferSize);
+
+    //cusparseCreateMatDescr(&descra);
+    //cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
+    //cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ONE);
+
+    //cusparseDcsrmm((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,m,n,k,n_nonzeros,\
+    //               &alpha,descra,Annz,Aedge_i,Aindex_j,B,k,&beta,C,m);
+    cusparseSpMM((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,\
+                 &alpha,descra,descrb,&beta,descrc,CUDA_R_64F,CUSPARSE_MM_ALG_DEFAULT,dBuffer);
+
+    cusparseDnMatGetValues(descrc,(void**)&C);
+
+    cusparseDestroySpMat(descra);
+    cusparseDestroyDnMat(descrb);
+    cusparseDestroyDnMat(descrc);
+    cudaFree(dBuffer);
 }
 
 extern "C"
 void z_csr_mult_f(void *handle,int m,int n,int k,int n_nonzeros,int *Aedge_i,int *Aindex_j,\
                   CPX *Annz,CPX alpha,CPX *B,CPX beta,CPX *C){
 
-    cusparseMatDescr_t descra;
+    cusparseSpMatDescr_t descra;
+    cusparseCreateCsr(&descra,m,k,n_nonzeros,Aedge_i,Aindex_j,Annz,CUSPARSE_INDEX_64I,CUSPARSE_INDEX_64I,\
+                      CUSPARSE_INDEX_BASE_ONE,CUDA_C_64F);
 
-    cusparseCreateMatDescr(&descra);
-    cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
-    cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ONE);
+    cusparseDnMatDescr_t descrb;
+    cusparseCreateDnMat(&descrb,k,n,k,B,CUDA_C_64F,CUSPARSE_ORDER_COL);
 
-    cusparseZcsrmm((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,m,n,k,n_nonzeros,\
-                   (cuDoubleComplex*)&alpha,descra,(cuDoubleComplex*)Annz,Aedge_i,Aindex_j,\
-		   (cuDoubleComplex*)B,k,(cuDoubleComplex*)&beta,(cuDoubleComplex*)C,m);
+    cusparseDnMatDescr_t descrc;
+    cusparseCreateDnMat(&descrc,m,n,m,C,CUDA_C_64F,CUSPARSE_ORDER_COL);
 
-    cusparseDestroyMatDescr(descra);
+    void *dBuffer;
+    size_t bufferSize;
+    cusparseSpMM_bufferSize((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,\
+                 &alpha,descra,descrb,&beta,descrc,CUDA_C_64F,CUSPARSE_MM_ALG_DEFAULT,&bufferSize);
+    cudaMalloc(&dBuffer,bufferSize);
+
+    //cusparseCreateMatDescr(&descra);
+    //cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
+    //cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ONE);
+
+    //cusparseZcsrmm((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,m,n,k,n_nonzeros,\
+    //               (cuDoubleComplex*)&alpha,descra,(cuDoubleComplex*)Annz,Aedge_i,Aindex_j,\
+		//   (cuDoubleComplex*)B,k,(cuDoubleComplex*)&beta,(cuDoubleComplex*)C,m);
+    cusparseSpMM((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,\
+                 &alpha,descra,descrb,&beta,descrc,CUDA_C_64F,CUSPARSE_MM_ALG_DEFAULT,dBuffer);
+
+    cusparseDnMatGetValues(descrc,(void**)&C);
+
+    cusparseDestroySpMat(descra);
+    cusparseDestroyDnMat(descrb);
+    cusparseDestroyDnMat(descrc);
+    cudaFree(dBuffer);
 }
 
 extern "C"
 void z_csr_mult_fo(void *handle,int m,int n,int k,int n_nonzeros,int *Aedge_i,int *Aindex_j,\
                    CPX *Annz,CPX alpha,CPX *B,CPX beta,CPX *C){
 
-    cusparseMatDescr_t descra;
+    cusparseSpMatDescr_t descra;
+    cusparseCreateCsr(&descra,m,k,n_nonzeros,Aedge_i,Aindex_j,Annz,CUSPARSE_INDEX_64I,CUSPARSE_INDEX_64I,\
+                      CUSPARSE_INDEX_BASE_ZERO,CUDA_C_64F);
 
-    cusparseCreateMatDescr(&descra);
-    cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
-    cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ZERO);
+    cusparseDnMatDescr_t descrb;
+    cusparseCreateDnMat(&descrb,k,n,k,B,CUDA_C_64F,CUSPARSE_ORDER_COL);
 
-    cusparseZcsrmm((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,m,n,k,n_nonzeros,\
-                   (cuDoubleComplex*)&alpha,descra,(cuDoubleComplex*)Annz,Aedge_i,Aindex_j,\
-		   (cuDoubleComplex*)B,k,(cuDoubleComplex*)&beta,(cuDoubleComplex*)C,m);
+    cusparseDnMatDescr_t descrc;
+    cusparseCreateDnMat(&descrc,m,n,m,C,CUDA_C_64F,CUSPARSE_ORDER_COL);
 
-    cusparseDestroyMatDescr(descra);
+    void *dBuffer;
+    size_t bufferSize;
+    cusparseSpMM_bufferSize((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,\
+                 &alpha,descra,descrb,&beta,descrc,CUDA_C_64F,CUSPARSE_MM_ALG_DEFAULT,&bufferSize);
+    cudaMalloc(&dBuffer,bufferSize);
+
+    //cusparseCreateMatDescr(&descra);
+    //cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
+    //cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ZERO);
+
+    //cusparseZcsrmm((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,m,n,k,n_nonzeros,\
+    //               (cuDoubleComplex*)&alpha,descra,(cuDoubleComplex*)Annz,Aedge_i,Aindex_j,\
+		//   (cuDoubleComplex*)B,k,(cuDoubleComplex*)&beta,(cuDoubleComplex*)C,m);
+    cusparseSpMM((cusparseHandle_t)handle,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,\
+                 &alpha,descra,descrb,&beta,descrc,CUDA_C_64F,CUSPARSE_MM_ALG_DEFAULT,dBuffer);
+
+    cusparseDnMatGetValues(descrc,(void**)&C);
+
+    cusparseDestroySpMat(descra);
+    cusparseDestroyDnMat(descrb);
+    cusparseDestroyDnMat(descrc);
+    cudaFree(dBuffer);
 }
 
 // This kernel is optimized to ensure all global reads and writes are coalesced,

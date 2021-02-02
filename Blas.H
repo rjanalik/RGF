@@ -352,6 +352,23 @@ inline void tgemm_dev(void *handle,char transa, char transb, int m, int n, int k
     zgemm_on_dev(handle,transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc);
 }
 
+/************************************************************************************************/
+
+template <typename T>
+inline void taxpy_dev(void *handle,int n,T alpha,T *x,int incx,T *y,int incy);
+
+template <>
+inline void taxpy_dev(void *handle,int n,double alpha,double *x,int incx,double *y,int incy)
+{
+    daxpy_on_dev(handle,n,alpha,x,incx,y,incy);
+}
+
+template <>
+inline void taxpy_dev(void *handle,int n,CPX alpha,CPX *x,int incx,CPX *y,int incy)
+{
+    zaxpy_on_dev(handle,n,alpha,x,incx,y,incy);
+}
+
 /*magma*****************************************************************************************/
 
 template <typename T>
@@ -488,6 +505,132 @@ inline void zgetrs_nopiv_dev(char transa,int n,int nrhs,CPX *a,int lda,CPX *b,in
 
     magma_zgetrs_nopiv_gpu(magma_opa,n,nrhs,(magmaDoubleComplex_ptr)a,lda,\
 			   (magmaDoubleComplex_ptr)b,ldb,info);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void tpotrf_dev(char uplo,int n,T *a,int lda,int *info);
+
+template <>
+inline void tpotrf_dev(char uplo,int n,double *a,int lda,int *info)
+{
+    magma_uplo_t magma_uplo;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper; 
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+
+    magma_dpotrf_gpu(magma_uplo,n,a,lda,info);
+}
+
+template <>
+inline void tpotrf_dev(char uplo,int n,CPX *a,int lda,int *info)
+{
+    magma_uplo_t magma_uplo;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper; 
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+
+    magma_zpotrf_gpu(magma_uplo,n,(magmaDoubleComplex_ptr)a,lda,info);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, T alpha, T *a, int lda, T *b, int ldb);
+
+template <>
+inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, double alpha, double *a, int lda, double *b, int ldb)
+{
+    magma_side_t magma_side;
+    magma_uplo_t magma_uplo;
+    magma_trans_t magma_trans;
+    magma_diag_t magma_diag;
+
+    if(side=='L'){
+        magma_side = MagmaLeft; 
+    }
+    if(side=='R'){
+        magma_side = MagmaRight;
+    }
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper; 
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+
+    if(trans=='N'){
+        magma_trans = MagmaNoTrans; 
+    }
+    if(trans=='T'){
+        magma_trans = MagmaTrans;
+    }
+    if(trans=='C'){
+        magma_trans = MagmaConjTrans;
+    }
+
+    if(diag=='U'){
+        magma_diag = MagmaUnit; 
+    }
+    if(diag=='N'){
+        magma_diag = MagmaNonUnit;
+    }
+
+    //magma_dtrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, alpha, a, lda, b, ldb, queue);
+    magma_dtrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, alpha, a, lda, b, ldb);
+}
+
+template <>
+inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, CPX alpha, CPX *a, int lda, CPX *b, int ldb)
+{
+    magma_side_t magma_side;
+    magma_uplo_t magma_uplo;
+    magma_trans_t magma_trans;
+    magma_diag_t magma_diag;
+
+    if(side=='L'){
+        magma_side = MagmaLeft; 
+    }
+    if(side=='R'){
+        magma_side = MagmaRight;
+    }
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper; 
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+
+    if(trans=='N'){
+        magma_trans = MagmaNoTrans; 
+    }
+    if(trans=='T'){
+        magma_trans = MagmaTrans;
+    }
+    if(trans=='C'){
+        magma_trans = MagmaConjTrans;
+    }
+
+    if(diag=='U'){
+        magma_diag = MagmaUnit; 
+    }
+    if(diag=='N'){
+        magma_diag = MagmaNonUnit;
+    }
+
+    //magma_ztrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, (magmaDoubleComplex)alpha, (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb, queue);
+    magma_ztrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, *reinterpret_cast<magmaDoubleComplex*>(&alpha), (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb);
 }
 
 /************************************************************************************************/
@@ -759,6 +902,42 @@ template <>
 inline void transpose_matrix(CPX *odata,CPX *idata,int size_x,int size_y)
 {
     z_transpose_matrix(odata,idata,size_x,size_y);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void extract_diag_on_dev(T *D,int *edge_i,int *index_j,T *nnz,int NR,\
+     int imin,int imax,int shift,int findx,cudaStream_t stream);
+
+template <>
+inline void extract_diag_on_dev(double *D,int *edge_i,int *index_j,double *nnz,int NR,\
+     int imin,int imax,int shift,int findx,cudaStream_t stream){
+    d_extract_diag_on_dev(D,edge_i,index_j,nnz,NR,imin,imax,shift,findx,stream);
+}
+
+template <>
+inline void extract_diag_on_dev(CPX *D,int *edge_i,int *index_j,CPX *nnz,int NR,\
+     int imin,int imax,int shift,int findx,cudaStream_t stream){
+    z_extract_diag_on_dev(D,edge_i,index_j,nnz,NR,imin,imax,shift,findx,stream);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void extract_not_diag_on_dev(T *D,int *edge_i,int *index_j,T *nnz,int NR,\
+     int imin,int imax,int jmin,int side,int shift,int findx,cudaStream_t stream);
+
+template <>
+inline void extract_not_diag_on_dev(double *D,int *edge_i,int *index_j,double *nnz,int NR,\
+     int imin,int imax,int jmin,int side,int shift,int findx,cudaStream_t stream){
+    d_extract_not_diag_on_dev(D,edge_i,index_j,nnz,NR,imin,imax,jmin,side,shift,findx,stream);
+}
+
+template <>
+inline void extract_not_diag_on_dev(CPX *D,int *edge_i,int *index_j,CPX *nnz,int NR,\
+     int imin,int imax,int jmin,int side,int shift,int findx,cudaStream_t stream){
+    z_extract_not_diag_on_dev(D,edge_i,index_j,nnz,NR,imin,imax,jmin,side,shift,findx,stream);
 }
 
 /************************************************************************************************/
