@@ -9,7 +9,7 @@ CC_FILES   = Utilities.o RGF.o main.o
 CU_FILES   = CWC_utility.o
 
 RGFSolver: $(CC_FILES) $(CU_FILES)
-	$(LOADER) $(CC_FILES) $(CU_FILES) $(LOADFLAGS) $(LIBS) -lm -o $@$
+	$(LOADER) $(CC_FILES) $(CU_FILES) $(LOADFLAGS) $(LIBS) -lm -o $@
 
 .C.o:
 	$(MPICXX) -c $< $(CXXFLAGS) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
