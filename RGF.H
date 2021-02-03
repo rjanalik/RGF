@@ -458,44 +458,11 @@ void RGF<T>::factorize()
     create_blocks(Bmin,Bmax,NBlock);
     
     //Data allocation
-    int bs = Bmax[0] - Bmin[0];
-    MF_size = (2*(NBlock-1) + 1) * bs*bs;
-    allocate_data_on_device((void**)&MF_dev,MF_size*sizeof(T));
+    allocate_data_on_device((void**)&MF_dev,matrix->n_nonzeros*sizeof(T));
     MF_dev_allocated = true;
 
     //Copy data to device
-    T *MF_tmp = new T[MF_size];
-    // matrix->nnz -> MF_tmp
-    int i_nnz= 0;
-    int i_tmp= 0;
-    //first block
-    memcpy(MF_tmp, matrix->nnz, 2*bs*bs*sizeof(T));
-    i_nnz = 2*bs*bs;
-    i_tmp = 2*bs*bs;
-    //2nd - last-1 block
-    for (int i = 0; i < (NBlock-2)*bs; i++)
-    {
-       //skip block in U
-       i_nnz += bs;
-       //copy 2 blocks
-       memcpy(&MF_tmp[i_tmp], &matrix->nnz[i_nnz], 2*bs*sizeof(T));
-       i_nnz += 2*bs;
-       i_tmp += 2*bs;
-    }
-    //last block
-    for (int i = 0; i < bs; i++)
-    {
-       //skip block in U
-       i_nnz += bs;
-       //copy 1 blocks
-       memcpy(&MF_tmp[i_tmp], &matrix->nnz[i_nnz], bs*sizeof(T));
-       i_nnz += bs;
-       i_tmp += bs;
-    }
-    //copy data to device
-    memcpy_to_device(MF_tmp,MF_dev,MF_size*sizeof(T));
-    //free temp array;
-    delete[] MF_tmp;
+    memcpy_to_device(matrix->nnz,MF_dev,matrix->n_nonzeros*sizeof(T));
 
     //Computation
     FirstStageFactor(Bmin,Bmax,NBlock);

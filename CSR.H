@@ -99,7 +99,7 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int ns, int nt)
     double r_nnz,i_nnz;
    
     size = ns*nt;
-    n_nonzeros = 3*(nt-1)*ns*ns + ns*ns;
+    n_nonzeros = 2*(nt-1)*ns*ns + ns*ns;
     findx = 0; // 0-C index, 1-fortran index
     
     nnz        = new T[n_nonzeros];
@@ -126,40 +126,29 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int ns, int nt)
     // create a sparse matrix with known structure
     // initialize with 0.0
     int i_j = 0;
-    for(int i_ns = 0; i_ns < ns; i_ns++)
-    {
-       int i_r = i_ns;
-       int i_c_f = 0;
-       int i_c_l = 2*ns;
-       edge_i[i_r] = i_j + findx;
-       for(int i_c = i_c_f; i_c < i_c_l; i_c++)
-       {
-          index_j[i_j++] = i_c + findx;
-       }
-    }
-    for(int i_nt = 1; i_nt < nt-1; i_nt++)
+    for(int i_nt = 0; i_nt < nt-1; i_nt++)
     {
        for(int i_ns = 0; i_ns < ns; i_ns++)
        {
           int i_r = i_nt*ns + i_ns;
-          int i_c_f = (i_nt-1)*ns;
+          int i_c_f = i_nt*ns;
           int i_c_l = (i_nt+2)*ns;
-          edge_i[i_r] = i_j + findx;
+          edge_i[i_r] = i_j;
           for(int i_c = i_c_f; i_c < i_c_l; i_c++)
           {
-             index_j[i_j++] = i_c + findx;
+             index_j[i_j++] = i_c;
           }
        }
     }
     for(int i_ns = 0; i_ns < ns; i_ns++)
     {
        int i_r = (nt-1)*ns + i_ns;
-       int i_c_f = (nt-2)*ns;
+       int i_c_f = (nt-1)*ns;
        int i_c_l = size;
-       edge_i[i_r] = i_j + findx;
+       edge_i[i_r] = i_j;
        for(int i_c = i_c_f; i_c < i_c_l; i_c++)
        {
-          index_j[i_j++] = i_c + findx;
+          index_j[i_j++] = i_c;
        }
     }
     edge_i[size] = i_j;
@@ -189,11 +178,7 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int ns, int nt)
           int c = ja[fi_c];
           while(index_j[i] < c)
              i++;
-          int i_t = edge_i[c];
-          while(index_j[i_t] < i_r)
-             i_t++;
           nnz[i]   = a[fi_c];
-          nnz[i_t] = a[fi_c];  // for Lisa uncomment this if you pass triangular matrix A (half of A)
        }
     }
 
