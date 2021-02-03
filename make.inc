@@ -1,7 +1,7 @@
 # Platform
 ifeq ($(BUILD_TYPE),)
 #BUILD_TYPE = ethz-gnu64
-	BUILD_TYPE = icsmaster-gnu64
+	BUILD_TYPE = kaust
 endif
 
 # Default values which might be overridden
@@ -73,10 +73,40 @@ ifeq ($(BUILD_TYPE),icsmaster-gnu64)
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
 endif
 
-INCCUD	      = -I$(CUDAHOME)/include
-CUDA          = -L/usr/lib64/ -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
-INCMAG        ?= -I./magma-1.6.2p4/include/
-MAGMA         ?= -L./magma-1.6.2p4/lib/ -lmagma
+ifeq ($(BUILD_TYPE),kaust)
+        FLAGS         = -DAdd_ -DSOLVE_CRAY -D__MINMAX -Wno-write-strings
+        MKLHOME       = $(MKLROOT)/lib/intel64
+        BLAHOME       = $(MKLHOME)
+        LAPHOME       = $(MKLHOME)
+        SCAHOME       = $(MKLHOME)
+        CUDAHOME      = /usr/local/cuda
+        LOADER        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+        MPICXX        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+        NVCC          = nvcc
+        CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
+        LOADFLAGS     = -O3 -ffast-math -funroll-loops -L$(GNU64)/lib64 -lgfortran -L$(INTEL64)/compiler/lib/intel64 -L$(MPIHOME)/lib/ #-lmpifort
+        NVCCFLAGS     = -arch=compute_60 -code=sm_60
+        CUDA_SDK      = 3
+        COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)
+        F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
+        LAPACK        = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
+        SCALAPACK     = -L/lib/x86_64-linux-gnu -lscalapack-openmpi #-L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
+        LINKS         = -Wl,-rpath -Wl,$(GNU64)/lib64
+        LIBSCI        =
+        BLAS          =
+        OPENMP        = -fopenmp
+        export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
+endif
+
+INCCUD        = -I$(CUDAHOME)/include
+CUDA          = -L$(CUDAHOME)/lib64 -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
+INCMAG        = -I/home/x_gaedkelb/applications/magma-2.5.4/include
+MAGMA         = -L/home/x_gaedkelb/applications/magma-2.5.4/lib -lmagma
+
+#INCCUD	      = -I$(CUDAHOME)/include
+#CUDA          = -L/usr/lib64/ -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
+#INCMAG        ?= -I./magma-1.6.2p4/include/
+#MAGMA         ?= -L./magma-1.6.2p4/lib/ -lmagma
 
 # Common definitions
 CD            = cd

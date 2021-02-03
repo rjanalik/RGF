@@ -164,7 +164,8 @@ void file_exists(std::string file_name)
 
 int main(int argc, char* argv[]) 
 { 
-  
+cout << "in main" << endl;
+
  if (argc != 6 + 1) {
     std::cerr << "Pardiso Call : path_to_folder ns nt nb path_to_data no" << std::endl;
 
@@ -324,6 +325,8 @@ int main(int argc, char* argv[])
   Q_xy = Q_xy(0, 0, size(Q_u));
   B_xey = B_xey.subvec(0, nu-1);
 
+  B_xey.subvec(0,9).print();
+
   std::cout << "size(Q_xy)" << size(Q_xy) << std::endl;
   std::cout << "size(B_xey)" << size(B_xey) << std::endl; 
 
@@ -336,6 +339,9 @@ int main(int argc, char* argv[])
 
   // TAKE ENTIRE MATRIX FOR THIS SOLVER
   arma::sp_mat Q_xy_lower = Q_u;
+
+  Q_u.submat(0,9,0,9).print();
+  Q_u.print();
 
   // this time require CSR format
 
@@ -413,7 +419,6 @@ int main(int argc, char* argv[])
   for (int i = 0; i < n; i++)
     b[i] = B_xey[i];
 
-  
   solver = new RGF<T>(M);
 
   t0 = get_time(0.0);
@@ -439,7 +444,8 @@ int main(int argc, char* argv[])
   std::ofstream sol_x_file(sol_x_file_name,    std::ios::out | std::ios::trunc);
 
   for (i = 0; i < n; i++) {
-    sol_x_file << x[i] << std::endl;
+    sol_x_file << b[i] << std::endl;
+    // sol_x_file << x[i] << std::endl; 
   }
 
   sol_x_file.close();

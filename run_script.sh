@@ -5,8 +5,11 @@ ns=$1
 nt=$2
 no=$3
 
-folder_path=/home/gaedkem/spat_temp_m_pardiso/matrices_theta/theta_noise_5/theta_5_-10_2.5_1_ns${ns}_nt${nt}
-folder_path_data=/home/gaedkem/spat_temp_m_pardiso/data/temperature_data_2019/ns${ns}_nt${nt}
+#folder_path=/home/gaedkem/spat_temp_m_pardiso/matrices_theta/theta_noise_5/theta_5_-10_2.5_1_ns${ns}_nt${nt}
+#folder_path_data=/home/gaedkem/spat_temp_m_pardiso/data/temperature_data_2019/ns${ns}_nt${nt}
+
+folder_path=/home/x_gaedkelb/spat_temp_m_pardiso/matrices_theta/theta_noise_5/theta_5_-10_2.5_1_ns${ns}_nt${nt}
+folder_path_data=/home/x_gaedkelb/spat_temp_m_pardiso/data/temperature_data_2019/ns${ns}_nt${nt}
 
 nb=2
 
