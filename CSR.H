@@ -12,7 +12,7 @@ public:
     
     TCSR(int,int,int);
     TCSR(char*);
-    TCSR(int*,int*,T*,int,int);
+    TCSR(int*,int*,T*,int,int,int);
     ~TCSR();
 
     void get_row_edge();
@@ -23,6 +23,7 @@ public:
 
     int NBlock;
     int *Bmin,*Bmax;
+    int ns, nt, nd;
     
 private:
 };
@@ -92,14 +93,18 @@ inline TCSR<CPX>::TCSR(char *filename)
 
 // RJ: load CSR, make dense blocks
 template <class T>
-inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int ns, int nt)
+inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int _ns, int _nt, int _nd)
 {
 
     int i,ind_i;
     double r_nnz,i_nnz;
+
+    ns = _ns;
+    nt = _nt;
+    nd = _nd;
    
-    size = ns*nt;
-    n_nonzeros = 2*(nt-1)*ns*ns + ns*ns;
+    size = ns*nt + nd;
+    n_nonzeros = 2*(nt-1)*ns*ns + ns*ns + size*nd;
     findx = 0; // 0-C index, 1-fortran index
     
     nnz        = new T[n_nonzeros];
@@ -112,13 +117,21 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int ns, int nt)
     type       = 0;                                        
     first_row  = 0;                                                    
 
-    NBlock = nt;
+    if (nd > 0)
+       NBlock = nt + 1;
+    else
+       NBlock = nt;
     Bmin   = new int[NBlock];
     Bmax   = new int[NBlock];
     for (int i = 0; i < nt; i++)
     {
        Bmin[i] = i*ns;
        Bmax[i] = (i+1)*ns;
+    }
+    if (nd > 0)
+    {
+       Bmin[nt] = nt*ns;
+       Bmax[nt] = nt*ns + nd;
     }
 
     for(i=0;i<size;i++) index_i[i] = 0;
@@ -138,6 +151,13 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int ns, int nt)
           {
              index_j[i_j++] = i_c;
           }
+          if (nd > 0)
+          {
+             for(int i_c = Bmin[nt]; i_c < Bmax[nt]; i_c++)
+             {
+                index_j[i_j++] = i_c;
+             }
+          }
        }
     }
     for(int i_ns = 0; i_ns < ns; i_ns++)
@@ -147,6 +167,15 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int ns, int nt)
        int i_c_l = size;
        edge_i[i_r] = i_j;
        for(int i_c = i_c_f; i_c < i_c_l; i_c++)
+       {
+          index_j[i_j++] = i_c;
+       }
+    }
+    for(int i_nd = 0; i_nd < nd; i_nd++)
+    {
+       int i_r = Bmin[nt] + i_nd;
+       edge_i[i_r] = i_j;
+       for(int i_c = Bmin[nt]; i_c < Bmax[nt]; i_c++)
        {
           index_j[i_j++] = i_c;
        }
@@ -181,7 +210,6 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int ns, int nt)
           nnz[i]   = a[fi_c];
        }
     }
-
 }
 
 /***********************************************************************************************/

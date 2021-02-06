@@ -58,10 +58,11 @@ int main(int argc, char *argv[])
 
     int ns = atoi(argv[1]);
     int nt = atoi(argv[2]);
+    int nd = atoi(argv[3]);
     
 
     // load matrix from file
-    FILE *F = fopen(argv[3],"r");
+    FILE *F = fopen(argv[4],"r");
    
     int fn, fnnz;
     int *ia, *ja;
@@ -93,12 +94,12 @@ int main(int argc, char *argv[])
 
     fclose(F);
 
-    M      = new TCSR<T>(ia, ja, a, ns, nt);
+    M      = new TCSR<T>(ia, ja, a, ns, nt, nd);
     GR     = new T[3*(nt-1)*(ns*ns) + (ns*ns)];
     nrhs   = 2;
-    b      = new T[nrhs*ns*nt];
+    b      = new T[nrhs*(ns*nt+nd)];
 
-    for (int i = 0; i < nrhs*ns*nt; i++)
+    for (int i = 0; i < nrhs*(ns*nt+nd); i++)
        b[i] = assign_T(i+1);
     
     solver = new RGF<T>(M);
@@ -142,7 +143,7 @@ int main(int argc, char *argv[])
     //delete[] GRdiag_ind;
     //delete[] GRdiag;
     //// for Lisa end
-    for (int i = 0; i < nrhs*ns*nt; i++)
+    for (int i = 0; i < nrhs*(ns*nt+nd); i++)
     {
        printf("x[%d] = %f\n", i, b[i]);
     }
