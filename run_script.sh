@@ -15,3 +15,4 @@ nb=2
 
 echo "mpirun -np 1 ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv.txt"
 mpirun -np 1 ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv.txt
+#mpirun ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv.txt
