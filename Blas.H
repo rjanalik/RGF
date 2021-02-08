@@ -1,7 +1,6 @@
 #ifndef __BLAS
 #define __BLAS
 
-#include "mpi.h"
 #include <iostream>
 #include "Types.H"
 #include "CWC_utility.H"
