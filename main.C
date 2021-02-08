@@ -47,27 +47,47 @@ index_i index_j real imag (4 columns per matrix entry)
    ia = new int [n+1];
    ja = new int [nnz];
    a = new double [nnz];
+
+   // from RADIM'S verison
+  /*int ns = atoi(argv[1]);
+  int nt = atoi(argv[2]);
+  int nd = atoi(argv[3]);
   
-  for (int i = 0; i <= n; i++)
-  {
+
+  // load matrix from file
+  FILE *F = fopen(argv[4],"r");
+ 
+  int fn, fnnz;
+  int *ia, *ja;
+  T *a;
+  double val; */
+
+  /* read in matrix A, sparse matrix in CSR format */
+  /*fscanf(F,"%i",&fn);
+  fscanf(F,"%i",&fn);
+  fscanf(F,"%i",&fnnz);
+
+  // allocate memory
+  ia = new int[fn+1];
+  ja = new int[fnnz];
+  a = new T[fnnz]; */
+  
+  for (int i = 0; i <= n; i++){
     fin >> ia[i];
   }
 
-  for (int i = 0; i < ia[n]; i++)
-  {
+  for (int i = 0; i < ia[n]; i++){
     fin >> ja[i];
   }
 
-  for (int i = 0; i < ia[n]; i++)
-  {
+  for (int i = 0; i < ia[n]; i++){
     fin >> a[i];
   }
 
   fin.close();
 } 
 
-arma::sp_mat readCSC(std::string filename)
-{
+arma::sp_mat readCSC(std::string filename){
   int n_rows; int n_cols;
   int nnz;
 
@@ -102,7 +122,6 @@ arma::sp_mat readCSC(std::string filename)
   arma::sp_mat A(row_ind, col_ptr, a, n_rows, n_cols);
 
   //std::cout << "nonzeros A " << A.n_nonzero << std::endl;
-
   return A;
 } 
 
@@ -203,7 +222,7 @@ cout << "in main" << endl;
 
   std::string nu_s = std::to_string(nu);
 
-  std::cout << "./pardiso_call_INLA_sol0_tmp_data " << ns_s << nt_s << nb_s << no_s << "\n" << std::endl;
+  std::cout << "./pardiso_call_INLA_sol0_tmp_data " << ns_s << " " << nt_s << " " << nb_s << " " << no_s << "\n" << std::endl;
 
   // ------------------- construct file names and check if files exist --------------------------
 
@@ -322,17 +341,17 @@ cout << "in main" << endl;
 
   /* ------------- FOR NOW TAKE OUT FIXED EFFECTS  ----------------- */
 
-  Q_xy = Q_xy(0, 0, size(Q_u));
-  B_xey = B_xey.subvec(0, nu-1);
+  /*Q_xy = Q_xy(0, 0, size(Q_u));
+  //B_xey = B_xey.subvec(0, nu-1);
 
   std::cout << "sum B_xey : " << sum(B_xey) << std::endl;
 
   //B_xey.subvec(0,9).print();
 
   std::cout << "size(Q_xy)" << size(Q_xy) << std::endl;
-  std::cout << "size(B_xey)" << size(B_xey) << std::endl; 
+  std::cout << "size(B_xey)" << size(B_xey) << std::endl; */
 
-  n= size(Q_u)[1]; 
+  //n= size(Q_u)[1]; 
   /* ------------- START SOLVE, CALL PARDISO  ----------------- */
 
 
@@ -340,17 +359,13 @@ cout << "in main" << endl;
   // get everything into the right format
 
   // TAKE ENTIRE MATRIX FOR THIS SOLVER
-  arma::sp_mat Q_xy_lower = Q_u;
-
-  Q_u.submat(0,9,0,9).print();
-  //Q_u.print();
+  arma::sp_mat Q_xy_lower = arma::trimatl(Q_xy);
+  Q_xy_lower.submat(0,0,9,9).print();
 
   // this time require CSR format
+  unsigned int nnz = Q_xy_lower.n_nonzero;
 
-  //unsigned int nnz = Q_xy.n_nonzero;
-  unsigned int nnz = Q_u.n_nonzero;
-
-  // std::cout << "number of non zeros : " << nnz << std::endl;
+  std::cout << "number of non zeros : " << nnz << std::endl;
 
   int* ia; 
   int* ja;
@@ -400,10 +415,6 @@ cout << "in main" << endl;
   T *GR;
   RGF<T> *solver;
 
-  MPI_Init(&argc,&argv);
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
   if(!rank){
     time_t rawtime;
     struct tm *timeinfo;
@@ -413,24 +424,22 @@ cout << "in main" << endl;
     printf ("The current date/time is: %s\n",asctime(timeinfo));
   }
 
-  M      = new TCSR<T>(ia, ja, a, ns, nt);
+  M      = new TCSR<T>(ia, ja, a, ns, nt, nb);
   GR     = new T[3*(nt-1)*(ns*ns) + (ns*ns)];
   nrhs   = 1;
-  b      = new T[n];
+  b      = new T[nrhs*(ns*nt+nb)];
 
-  for (int i = 0; i < n; i++)
+  for (int i = 0; i < n; i++){
     b[i] = B_xey[i];
-
+  }
+  B_xey.subvec(0,9).print();
+  
   solver = new RGF<T>(M);
 
   t0 = get_time(0.0);
   //solver->solve_equation(GR);
   solver->factorize();
-  // solution is now written into b!
   solver->solve(b, nrhs);
-  // to not overwrite:  
-  /*T *x; x = new T[n];
-  solver->solve(x, b, nrhs);*/
   t0 = get_time(t0);
 
   if(!rank){
@@ -452,46 +461,22 @@ cout << "in main" << endl;
 
   sol_x_file.close();
 
-  if(false){
-    // extract diag from GR
-    // for Lisa begin
-    int *GRdiag_ind;
-    T *GRdiag;
-    GRdiag_ind = new int[ns*nt];
-    GRdiag = new T[ns*nt];
-    int ind = 0;
-    for(int i_nt = 0; i_nt < nt; i_nt++)
-    {
-       for(int i_ns = 0; i_ns < ns-1; i_ns++)
-       {
-          int i = i_nt*ns + i_ns;
-          GRdiag_ind[i] = ind;
-          ind += ns+1;
-       }
-       int i = (i_nt+1)*ns - 1;
-       GRdiag_ind[i] = ind;
-       ind++;
-    }
-    for (int i = 0; i < ns*nt; i++)
-    {
-       GRdiag[i] = GR[GRdiag_ind[i]];
-    }
     // print/write diag 
-    string sel_inv_file_name = base_path+"/RGF_solver_sel_inv_ns"+to_string(ns)+"_nt"+to_string(nt)+".dat";
-    cout << sel_inv_file_name << endl;
-    ofstream sel_inv_file(sel_inv_file_name,    ios::out | ::ios::trunc);
-    
-    for (int i = 0; i < ns*nt; i++){
-      sel_inv_file << GRdiag[i] << endl;
-      printf("GRdiag[%d] = %f\n", i, GRdiag[i]);
-    }
-
-    sel_inv_file.close();
-
-    delete[] GRdiag_ind;
-    delete[] GRdiag;
-    // for Lisa end
+  /*string sel_inv_file_name = base_path+"/RGF_solver_sel_inv_ns"+to_string(ns)+"_nt"+to_string(nt)+".dat";
+  cout << sel_inv_file_name << endl;
+  ofstream sel_inv_file(sel_inv_file_name,    ios::out | ::ios::trunc);
+  
+  for (int i = 0; i < ns*nt; i++){
+    sel_inv_file << GRdiag[i] << endl;
+    printf("GRdiag[%d] = %f\n", i, GRdiag[i]);
   }
+
+  sel_inv_file.close();
+
+  delete[] GRdiag_ind;
+  delete[] GRdiag;*/
+  // for Lisa end
+  
 
   cout << "after writing file " << endl;
   
@@ -503,9 +488,7 @@ cout << "in main" << endl;
   delete[] ia;
   delete[] ja;
   delete[] a;
-  
-  MPI_Finalize();
-  
+    
   return 0;
 }
 
