@@ -1,4 +1,3 @@
-#include <mpi.h>
 #include <math.h>
 #include <iostream>
 #include <time.h>
@@ -42,10 +41,6 @@ int main(int argc, char *argv[])
     T *b;
     int nrhs;
     RGF<T> *solver;
-
-    MPI_Init(&argc,&argv);
-    MPI_Comm_size(MPI_COMM_WORLD,&size);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
     if(!rank){
       time_t rawtime;
@@ -157,8 +152,6 @@ int main(int argc, char *argv[])
     delete[] ia;
     delete[] ja;
     delete[] a;
-    
-    MPI_Finalize();
     
     return 0;
 }

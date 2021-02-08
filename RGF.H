@@ -227,7 +227,6 @@ template <class T>
 void RGF<T>::SecondStage(T *GR,int *b_min,int *b_max,int NBlock)
 {
 
-    MPI_Status status;
     int info;
     int IB;
     int NR,NM,NP;

@@ -1,5 +1,5 @@
 #!/bin/bash
-ml intel-mkl/2020.1.217-gcc-10.1.0-qsctnr6 openmpi/ucx-4.0.5-gcc-10.1.0 cudatoolkit/11.1
+ml gcc/10.1.0 intel-mkl/2020.1.217-gcc-10.1.0-qsctnr6 cudatoolkit/11.1
 . /scratch/janalik/spack/share/spack/setup-env.sh
 spack load netlib-scalapack@2.1.0
 spack load magma@2.5.4
