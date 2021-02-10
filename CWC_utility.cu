@@ -746,3 +746,94 @@ void z_symmetrize_matrix_2(CPX *matrix,int N,cudaStream_t stream){
 
     z_symmetrize_2<<< grid, threads, 0, stream >>>((cuDoubleComplex*)matrix, N);
 }
+
+__global__ void d_tril(double *A, int lda, int N)
+{
+   unsigned int xIndex = blockIdx.x * BLOCK_DIM + threadIdx.x;
+   unsigned int yIndex = blockIdx.y * BLOCK_DIM + threadIdx.y;
+
+   if((xIndex < N) && (yIndex < N) && (xIndex > yIndex))
+   {
+      unsigned int i  = xIndex * lda + yIndex;
+      A[i] = 0.0;
+   }
+
+   __syncthreads();
+}
+
+extern "C"
+void d_tril_on_dev(double *A, int lda, int N)
+{
+    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+
+    dim3 grid(i_size / BLOCK_DIM, i_size / BLOCK_DIM, 1);
+    dim3 threads(BLOCK_DIM, BLOCK_DIM, 1);
+
+    d_tril<<<grid, threads>>>(A, lda, N);
+}
+
+__global__ void z_tril(cuDoubleComplex *A, int lda, int N)
+{
+   unsigned int xIndex = blockIdx.x * BLOCK_DIM + threadIdx.x;
+   unsigned int yIndex = blockIdx.y * BLOCK_DIM + threadIdx.y;
+
+   if((xIndex < N) && (yIndex < N) && (xIndex > yIndex))
+   {
+      unsigned int i  = xIndex * lda + yIndex;
+      A[i].x = 0.0;
+      A[i].y = 0.0;
+   }
+
+   __syncthreads();
+}
+
+extern "C"
+void z_tril_on_dev(CPX *A, int lda, int N)
+{
+    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+
+    dim3 grid(i_size / BLOCK_DIM, i_size / BLOCK_DIM, 1);
+    dim3 threads(BLOCK_DIM, BLOCK_DIM, 1);
+
+    z_tril<<<grid, threads>>>((cuDoubleComplex*)A, lda, N);
+}
+
+__global__ void d_indexed_copy(double *src, double *dst, int *index, int N)
+{
+   unsigned int idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+
+   if (idx < N)
+   {
+      dst[idx] = src[index[idx]];
+   }
+
+   __syncthreads();
+}
+
+extern "C"
+void d_indexed_copy_on_dev(double *src, double *dst, int *index, int N)
+{
+    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+
+    d_indexed_copy<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(src, dst, index, N);
+}
+
+__global__ void z_indexed_copy(cuDoubleComplex *src, cuDoubleComplex *dst, int *index, int N)
+{
+   unsigned int idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+
+   if (idx < N)
+   {
+      dst[idx] = src[index[idx]];
+   }
+
+   __syncthreads();
+}
+
+extern "C"
+void z_indexed_copy_on_dev(CPX *src, CPX *dst, int *index, int N)
+{
+    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+
+    z_indexed_copy<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)src, (cuDoubleComplex*)dst, index, N);
+}

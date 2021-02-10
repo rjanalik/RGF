@@ -477,6 +477,57 @@ inline void tgetri_dev(int n,CPX *a,int lda,int *ipiv,CPX *work,int lwork,int *i
 
 /************************************************************************************************/
 
+template <typename T>
+inline void ttrtri_dev(char uplo,char diag,int n,T *a,int lda,int *info);
+
+template <>
+inline void ttrtri_dev(char uplo,char diag,int n,double *a,int lda,int *info)
+{
+    magma_uplo_t magma_uplo;
+    magma_diag_t magma_diag;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper;
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+
+    if(diag=='U'){
+        magma_diag = MagmaUnit;
+    }
+    if(diag=='N'){
+        magma_diag = MagmaNonUnit;
+    }
+
+    magma_dtrtri_gpu(magma_uplo,magma_diag,n,a,lda,info);
+}
+
+template <>
+inline void ttrtri_dev(char uplo,char diag,int n,CPX *a,int lda,int *info)
+{
+    magma_uplo_t magma_uplo;
+    magma_diag_t magma_diag;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper;
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+
+    if(diag=='U'){
+        magma_diag = MagmaUnit;
+    }
+    if(diag=='N'){
+        magma_diag = MagmaNonUnit;
+    }
+
+    magma_ztrtri_gpu(magma_uplo,magma_diag,n,(magmaDoubleComplex_ptr)a,lda,info);
+}
+
+/************************************************************************************************/
+
 inline void zgetrf_nopiv_dev(int m,int n,CPX *a,int lda,int *info)
 {
     magma_zgetrf_nopiv_gpu(m,n,(magmaDoubleComplex_ptr)a,lda,info);
@@ -937,6 +988,40 @@ template <>
 inline void extract_not_diag_on_dev(CPX *D,int *edge_i,int *index_j,CPX *nnz,int NR,\
      int imin,int imax,int jmin,int side,int shift,int findx,cudaStream_t stream){
     z_extract_not_diag_on_dev(D,edge_i,index_j,nnz,NR,imin,imax,jmin,side,shift,findx,stream);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void tril_dev(T *A, int lda, int N);
+
+template <>
+inline void tril_dev(double *A, int lda, int N)
+{
+    d_tril_on_dev(A, lda, N);
+}
+
+template <>
+inline void tril_dev(CPX *A, int lda, int N)
+{
+    z_tril_on_dev(A, lda, N);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void indexed_copy_dev(T *src, T *dst, int *index, int N);
+
+template <>
+inline void indexed_copy_dev(double *src, double *dst, int *index, int N)
+{
+    d_indexed_copy_on_dev(src, dst, index, N);
+}
+
+template <>
+inline void indexed_copy_dev(CPX *src, CPX *dst, int *index, int N)
+{
+    z_indexed_copy_on_dev(src, dst, index, N);
 }
 
 /************************************************************************************************/

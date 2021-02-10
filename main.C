@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
     TCSR<T> *M;
     T *GR;
     T *b;
+    T *invDiag;
     int nrhs;
     RGF<T> *solver;
 
@@ -93,6 +94,7 @@ int main(int argc, char *argv[])
     GR     = new T[3*(nt-1)*(ns*ns) + (ns*ns)];
     nrhs   = 2;
     b      = new T[nrhs*(ns*nt+nd)];
+    invDiag= new T[M->size];
 
     for (int i = 0; i < nrhs*(ns*nt+nd); i++)
        b[i] = assign_T(i+1);
@@ -103,6 +105,7 @@ int main(int argc, char *argv[])
     //solver->solve_equation(GR);
     solver->factorize();
     solver->solve(b, nrhs);
+    solver->RGFdiag(invDiag);
     t0 = get_time(t0);
 
     printf("RGF time: %lg\n",t0);
@@ -142,7 +145,14 @@ int main(int argc, char *argv[])
     {
        printf("x[%d] = %f\n", i, b[i]);
     }
-    
+    printf("\n");
+    //for (int i = 0; i < M->size; i++)
+    for (int i = 0; i < M->size; i++)
+    {
+       printf("invDiag[%d] = %f\n", i, invDiag[i]);
+    }
+
+    delete[] invDiag;
     delete[] GR;
     delete[] b;
     delete M;

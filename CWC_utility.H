@@ -50,4 +50,8 @@ extern "C" {
 				 int,int,int,cudaStream_t); 
   void z_symmetrize_matrix(CPX*,int,cudaStream_t);
   void z_symmetrize_matrix_2(CPX*,int,cudaStream_t);
+  void d_tril_on_dev(double *A, int lda, int N);
+  void z_tril_on_dev(CPX *A, int lda, int N);
+  void d_indexed_copy_on_dev(double *src, double *dst, int *index, int N);
+  void z_indexed_copy_on_dev(CPX *src, CPX *dst, int *index, int N);
 }
