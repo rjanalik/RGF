@@ -1,4 +1,3 @@
-#include <mpi.h>
 #include <math.h>
 #include <iostream>
 #include <time.h>
@@ -490,6 +489,7 @@ cout << "in main" << endl;
   delete[] a;
     
   return 0;
+    
 }
 
 /************************************************************************************************/

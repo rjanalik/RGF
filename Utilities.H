@@ -1,7 +1,6 @@
 #ifndef __UTILITIES
 #define __UTILITIES
 
-#include <mpi.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/types.h>

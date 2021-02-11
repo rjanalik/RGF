@@ -45,18 +45,17 @@ endif
 ifeq ($(BUILD_TYPE),icsmaster-gnu64)
         FLAGS         = -DAdd_ -DSOLVE_CRAY -D__MINMAX -Wno-write-strings
 	GNU64	      = /apps/gcc/10.1.0
-	MPIHOME	      = /apps/openmpi-ucx/4.0.5/gcc-10.1.0
 	INTEL64	      = /apps/spack_install/linux-centos8-haswell/gcc-10.1.0/intel-mkl-2020.1.217-qsctnr6bcemy7dlw6zav67jmdhge2fqi/compilers_and_libraries_2020.1.217/linux
 	MKLHOME       = $(INTEL64)/mkl/lib/intel64
         BLAHOME	      = $(MKLHOME)
         LAPHOME       = $(MKLHOME)
         SCAHOME	      = $(MKLHOME)
 	CUDAHOME      = /apps/cudatoolkit/11.1/gcc-10.1.0
-        LOADER        = $(MPIHOME)/bin/mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
-        MPICXX        = $(MPIHOME)/bin/mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+        LOADER        = g++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+        CXX           = g++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
 	NVCC	      = $(CUDAHOME)/bin/nvcc
-        CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
-        LOADFLAGS     = -O3 -ffast-math -funroll-loops -L$(GNU64)/lib64 -lgfortran -L$(INTEL64)/compiler/lib/intel64 -L$(MPIHOME)/lib/ #-lmpifort
+        CXXFLAGS      = -O3 -ffast-math -funroll-loops
+        LOADFLAGS     = -O3 -ffast-math -funroll-loops -L$(GNU64)/lib64 -lgfortran -L$(INTEL64)/compiler/lib/intel64 #-lmpifort
 	NVCCFLAGS     = -arch=compute_60 -code=sm_60
         CUDA_SDK      = 3
         COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)
