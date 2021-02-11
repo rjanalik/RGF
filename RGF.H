@@ -30,6 +30,7 @@ private:
     int findx;
     int b_size;
     bool MF_dev_allocated = false;
+    bool factorization_completed = false;
 
     cudaStream_t stream_c,stream_m;
     void *cublas_handle;
@@ -651,6 +652,8 @@ void RGF<T>::factorize()
 
     cudaStreamDestroy(stream_c);
     cudaStreamDestroy(stream_m);
+
+    factorization_completed = true;
 }
 
 /************************************************************************************************/
@@ -666,6 +669,9 @@ void RGF<T>::solve(T *b, int nrhs)
 template <class T>
 void RGF<T>::solve(T *x, T *b, int nrhs)
 {
+    if (!factorization_completed)
+       factorize();
+
     int NBlock = matrix->NBlock;
     int *Bmin = matrix->Bmin;
     int *Bmax = matrix->Bmax;
@@ -703,6 +709,11 @@ void RGF<T>::solve(T *x, T *b, int nrhs)
 template <class T>
 void RGF<T>::RGFdiag(T *diag)
 {
+    if (!factorization_completed)
+       factorize();
+
+    factorization_completed = false;
+
     int NBlock = matrix->NBlock;
     int *Bmin = matrix->Bmin;
     int *Bmax = matrix->Bmax;
@@ -751,6 +762,9 @@ void RGF<T>::RGFdiag(T *diag)
 template <class T>
 T RGF<T>::logDet()
 {
+    if (!factorization_completed)
+       factorize();
+
     cudaStreamCreate(&stream_c);
     cudaStreamCreate(&stream_m);
 
