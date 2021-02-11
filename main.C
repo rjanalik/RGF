@@ -105,6 +105,9 @@ int main(int argc, char *argv[])
     //solver->solve_equation(GR);
     solver->factorize();
     solver->solve(b, nrhs);
+
+    printf("logdet: %f\n", solver->logDet());
+
     solver->RGFdiag(invDiag);
     t0 = get_time(t0);
 

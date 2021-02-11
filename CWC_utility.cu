@@ -167,6 +167,18 @@ void zaxpy_on_dev(void *handle,int n,CPX alpha,CPX *x,int incx,CPX *y,int incy){
                 incx,(cuDoubleComplex*)y,incy);
 }
 
+extern "C"
+void dasum_on_dev(void *handle,int n,double *x,int incx,double *result)
+{
+    cublasDasum((cublasHandle_t)handle,n,x,incx,result);
+}
+
+extern "C"
+void zasum_on_dev(void *handle,int n,CPX *x,int incx,double *result)
+{
+    cublasDzasum((cublasHandle_t)handle,n,(cuDoubleComplex*)x,incx,result);
+}
+
 __global__ void d_init_variable_on_dev(double *var,int N){
 
      int idx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -836,4 +848,45 @@ void z_indexed_copy_on_dev(CPX *src, CPX *dst, int *index, int N)
     uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
     z_indexed_copy<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)src, (cuDoubleComplex*)dst, index, N);
+}
+
+__global__ void d_logx2(double *x, int N)
+{
+   unsigned int idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+
+   if (idx < N)
+   {
+      x[idx] = log(x[idx]*x[idx]);
+   }
+
+   __syncthreads();
+}
+
+extern "C"
+void d_logx2_on_dev(double *x, int N)
+{
+    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+
+    d_logx2<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(x, N);
+}
+
+__global__ void z_logx2(cuDoubleComplex *x, int N)
+{
+   unsigned int idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+
+   if (idx < N)
+   {
+      x[idx].x = log(x[idx].x*x[idx].x);
+      x[idx].y = 0.0;
+   }
+
+   __syncthreads();
+}
+
+extern "C"
+void z_logx2_on_dev(CPX *x, int N)
+{
+    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+
+    z_logx2<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)x, N);
 }

@@ -22,6 +22,7 @@ public:
     void solve(T*,int);
     void solve(T*,T*,int);
     void RGFdiag(T*);
+    T logDet();
 				
 private:
 
@@ -738,6 +739,48 @@ void RGF<T>::RGFdiag(T *diag)
 
     cudaStreamDestroy(stream_c);
     cudaStreamDestroy(stream_m);
+}
+
+/************************************************************************************************/
+
+template <class T>
+T RGF<T>::logDet()
+{
+    cudaStreamCreate(&stream_c);
+    cudaStreamCreate(&stream_m);
+
+    magma_init();
+    cublas_init(&cublas_handle);
+
+    //Data allocation
+    T *diag_dev;
+    int *diag_pos_dev;
+    allocate_data_on_device((void**)&diag_dev,matrix->size*sizeof(T));
+    allocate_data_on_device((void**)&diag_pos_dev,matrix->size*sizeof(int));
+    T det;
+
+    //Copy diag_pos to device
+    memcpy_to_device(matrix->diag_pos,diag_pos_dev,matrix->size*sizeof(int));
+
+    //Computation
+    indexed_copy_dev(MF_dev, diag_dev, diag_pos_dev, matrix->size);
+    logx2_dev(diag_dev, matrix->size);
+    tasum_dev(cublas_handle, matrix->size, diag_dev, 1, &det);
+
+    //Copy data to host
+    //memcpy_to_host(diag,diag_dev,matrix->size*sizeof(T));
+
+    //Data deallocation
+    deallocate_data_on_dev(diag_dev,matrix->size*sizeof(T));
+    deallocate_data_on_dev(diag_pos_dev,matrix->size*sizeof(int));
+
+    magma_finalize();
+    cublas_finalize(cublas_handle);
+
+    cudaStreamDestroy(stream_c);
+    cudaStreamDestroy(stream_m);
+
+    return det;
 }
 
 /************************************************************************************************/
