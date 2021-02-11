@@ -31,31 +31,24 @@ index_i index_j real imag (4 columns per matrix entry)
 
 int main(int argc, char *argv[])
 {
-    FILE *F1,*F2;
     int i;
-    int size,rank;
     double data;
     double t0;
     TCSR<T> *M;
-    T *GR;
     T *b;
     T *invDiag;
     int nrhs;
     RGF<T> *solver;
 
-    if(!rank){
-      time_t rawtime;
-      struct tm *timeinfo;
-
-      time(&rawtime);
-      timeinfo = localtime(&rawtime);
-      printf ("The current date/time is: %s\n",asctime(timeinfo));
-    }
+    time_t rawtime;
+    struct tm *timeinfo;
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    printf ("The current date/time is: %s\n",asctime(timeinfo));
 
     int ns = atoi(argv[1]);
     int nt = atoi(argv[2]);
     int nd = atoi(argv[3]);
-    
 
     // load matrix from file
     FILE *F = fopen(argv[4],"r");
@@ -91,7 +84,6 @@ int main(int argc, char *argv[])
     fclose(F);
 
     M      = new TCSR<T>(ia, ja, a, ns, nt, nd);
-    GR     = new T[3*(nt-1)*(ns*ns) + (ns*ns)];
     nrhs   = 2;
     b      = new T[nrhs*(ns*nt+nd)];
     invDiag= new T[M->size];
@@ -102,7 +94,7 @@ int main(int argc, char *argv[])
     solver = new RGF<T>(M);
 
     t0 = get_time(0.0);
-    //solver->solve_equation(GR);
+
     solver->factorize();
     solver->solve(b, nrhs);
 
@@ -113,37 +105,6 @@ int main(int argc, char *argv[])
 
     printf("RGF time: %lg\n",t0);
 
-    //// extract diag from GR
-    //// for Lisa begin
-    //int *GRdiag_ind;
-    //T *GRdiag;
-    //GRdiag_ind = new int[ns*nt];
-    //GRdiag = new T[ns*nt];
-    //int ind = 0;
-    //for(int i_nt = 0; i_nt < nt; i_nt++)
-    //{
-    //   for(int i_ns = 0; i_ns < ns-1; i_ns++)
-    //   {
-    //      int i = i_nt*ns + i_ns;
-    //      GRdiag_ind[i] = ind;
-    //      ind += ns+1;
-    //   }
-    //   int i = (i_nt+1)*ns - 1;
-    //   GRdiag_ind[i] = ind;
-    //   ind++;
-    //}
-    //for (int i = 0; i < ns*nt; i++)
-    //{
-    //   GRdiag[i] = GR[GRdiag_ind[i]];
-    //}
-    //// print diag
-    //for (int i = 0; i < ns*nt; i++)
-    //{
-    //   printf("GRdiag[%d] = %f\n", i, GRdiag[i]);
-    //}
-    //delete[] GRdiag_ind;
-    //delete[] GRdiag;
-    //// for Lisa end
     for (int i = 0; i < nrhs*(ns*nt+nd); i++)
     {
        printf("x[%d] = %f\n", i, b[i]);
@@ -154,17 +115,16 @@ int main(int argc, char *argv[])
     {
        printf("invDiag[%d] = %f\n", i, invDiag[i]);
     }
-
-    delete[] invDiag;
-    delete[] GR;
-    delete[] b;
-    delete M;
-    delete solver;
     
     // free memory
     delete[] ia;
     delete[] ja;
     delete[] a;
+
+    delete[] b;
+    delete M;
+    delete solver;
+    delete[] invDiag;
     
     return 0;
 }
