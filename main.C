@@ -438,6 +438,11 @@ cout << "in main" << endl;
   t0 = get_time(0.0);
   //solver->solve_equation(GR);
   solver->factorize();
+
+  M->edge_i;
+  M->index_j;
+  M->n_nonzeros;
+
   solver->solve(b, nrhs);
   t0 = get_time(t0);
 
@@ -489,7 +494,7 @@ cout << "in main" << endl;
   delete[] a;
     
   return 0;
-    
+
 }
 
 /************************************************************************************************/
