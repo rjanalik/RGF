@@ -487,9 +487,11 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,int *b_min,int *b_max,int NBl
 {
    int info;
    int IB;
-   int NR,NM,NP;
+   int NR,NM,NP,ND;
    T ONE      = f_one();
    T ZERO     = f_zero();
+
+   ND = matrix->nd;
 
    cublasSetStream((cublasHandle_t)cublas_handle,stream_c);
 
@@ -545,8 +547,11 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,int *b_min,int *b_max,int NBl
       tgemm_dev(cublas_handle, 'T', 'N', NR, NP, NP, ONE, &MF_dev[mf_block_index(IB+1, IB)], mf_block_lda(IB+1, IB), &MF_dev[mf_block_index(IB+1, IB+1)], mf_block_lda(IB+1, IB+1), ZERO, tmp2_dev, NR);
       tgemm_dev(cublas_handle, 'N', 'N', NR, NR, NP, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB+1, IB)], mf_block_lda(IB+1, IB), ONE, tmp1_dev, NR);
 
-      tgemm_dev(cublas_handle, 'T', 'N', NR, NP, NP, ONE, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &MF_dev[mf_block_index(NBlock, NBlock)], mf_block_lda(NBlock, NBlock), ZERO, tmp2_dev, NR);
-      tgemm_dev(cublas_handle, 'N', 'N', NR, NR, NP, ONE, tmp2_dev, NR, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), ONE, tmp1_dev, NR);
+      if (matrix->nd > 0)
+      {
+         tgemm_dev(cublas_handle, 'T', 'N', NR, ND, ND, ONE, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &MF_dev[mf_block_index(NBlock-1, NBlock-1)], mf_block_lda(NBlock-1, NBlock-1), ZERO, tmp2_dev, NR);
+         tgemm_dev(cublas_handle, 'N', 'N', NR, NR, ND, ONE, tmp2_dev, NR, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), ONE, tmp1_dev, NR);
+      }
 
       tgemm_dev(cublas_handle, 'T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR);
       tgemm_dev(cublas_handle, 'N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB));
