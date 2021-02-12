@@ -340,15 +340,15 @@ cout << "in main" << endl;
 
   /* ------------- FOR NOW TAKE OUT FIXED EFFECTS  ----------------- */
 
-  /*Q_xy = Q_xy(0, 0, size(Q_u));
+  //Q_xy = Q_xy(0, 0, size(Q_u));
   //B_xey = B_xey.subvec(0, nu-1);
 
-  std::cout << "sum B_xey : " << sum(B_xey) << std::endl;
+  //std::cout << "sum B_xey : " << sum(B_xey) << std::endl;
 
   //B_xey.subvec(0,9).print();
 
-  std::cout << "size(Q_xy)" << size(Q_xy) << std::endl;
-  std::cout << "size(B_xey)" << size(B_xey) << std::endl; */
+  //std::cout << "size(Q_xy)" << size(Q_xy) << std::endl;
+  //std::cout << "size(B_xey)" << size(B_xey) << std::endl; 
 
   //n= size(Q_u)[1]; 
   /* ------------- START SOLVE, CALL PARDISO  ----------------- */
@@ -359,7 +359,13 @@ cout << "in main" << endl;
 
   // TAKE ENTIRE MATRIX FOR THIS SOLVER
   arma::sp_mat Q_xy_lower = arma::trimatl(Q_xy);
-  Q_xy_lower.submat(0,0,9,9).print();
+  //arma::sp_mat Q_xy_lower = arma::trimatl(Q_u);
+  //n = nu;
+
+  //Q_xy_lower.submat(0,0,9,9).print();
+
+  //std::cout << "last block of Q_xy" << std::endl;
+  //Q_xy.submat(5038,5038,5041,5041).print();
 
   // this time require CSR format
   unsigned int nnz = Q_xy_lower.n_nonzero;
@@ -428,20 +434,53 @@ cout << "in main" << endl;
   nrhs   = 1;
   b      = new T[nrhs*(ns*nt+nb)];
 
+  int i1 = M->diag_pos[M->size-2];
+    int i2 = i1+1;
+    int i4 = M->diag_pos[M->size-1];
+    int i3 = i4-1;
+    printf("M[%d] = %f\n", i1, M->nnz[i1]);
+    printf("M[%d] = %f\n", i2, M->nnz[i2]);
+    printf("M[%d] = %f\n", i3, M->nnz[i3]);
+    printf("M[%d] = %f\n", i4, M->nnz[i4]);
+
+  // matrix to write out factors
+  T *MF = new T[M->n_nonzeros];
+
   for (int i = 0; i < n; i++){
     b[i] = B_xey[i];
   }
-  B_xey.subvec(0,9).print();
+  //B_xey.subvec(0,9).print();
   
   solver = new RGF<T>(M);
 
   t0 = get_time(0.0);
   //solver->solve_equation(GR);
-  solver->factorize();
+  solver->factorize(MF);
 
-  M->edge_i;
-  M->index_j;
-  M->n_nonzeros;
+  printf("MF[%d] = %f\n", i1, MF[i1]);
+  printf("MF[%d] = %f\n", i2, MF[i2]);
+  printf("MF[%d] = %f\n", i3, MF[i3]);
+  printf("MF[%d] = %f\n", i4, MF[i4]);
+
+  // write this to file
+  /*std::string L_factor_file_name = base_path + "/L_factor_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s + ".dat";
+  std::ofstream L_factor_file(L_factor_file_name,    std::ios::out | std::ios::trunc);
+
+  L_factor_file << n << std::endl;
+  L_factor_file << n << std::endl;
+  L_factor_file << M->n_nonzeros << std::endl;
+
+  for (int i = 0; i < M->size+1; ++i){
+    L_factor_file << M->edge_i[i] << std::endl;
+  }
+   for (int i = 0; i < M->n_nonzeros; ++i){
+    L_factor_file << M->index_j[i] << std::endl;
+  }  
+  for (int i = 0; i < M->n_nonzeros; ++i){
+    L_factor_file << MF[i] << std::endl;
+  }  
+
+  L_factor_file.close(); */
 
   solver->solve(b, nrhs);
   t0 = get_time(t0);
@@ -487,6 +526,8 @@ cout << "in main" << endl;
   delete[] GR;
   delete M;
   delete solver;
+
+  delete[] MF;
   
   // free memory
   delete[] ia;

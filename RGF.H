@@ -18,7 +18,7 @@ public:
 
     ~RGF();
     void solve_equation(T*);
-    void factorize();
+    void factorize(T*);
     void solve(T*,int);
     void solve(T*,T*,int);
 				
@@ -369,7 +369,8 @@ void RGF<T>::FirstStageFactor(int *b_min,int *b_max,int NBlock)
        //printf("RJ: ttrsm NR: %d, a: %d, lda: %d, b: %d, ldb: %d\n", NR, mf_block_index(IB-1, IB-1), mf_block_lda(IB-1, IB-1), mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1));
     }
 
-    if (matrix->nd > 0)
+    // FIXED EFFECTS
+    /*if (matrix->nd > 0)
     {
        IB = NBlock-1;
        NR  = b_max[IB]-b_min[IB];
@@ -383,9 +384,10 @@ void RGF<T>::FirstStageFactor(int *b_min,int *b_max,int NBlock)
        }
        //printf("RJ: tgemm NR: %d, NM: %d, a: %d, lda: %d, b: %d, ldb: %d, c: %d, ldc: %d\n", NR, NM, mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1), mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1), mf_block_index(IB, IB), mf_block_lda(IB, IB));
        //rj dpotrf MF[IB,IB]
+       // FACTORISATION OF UPDATED BLOCK
        tpotrf_dev('L', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
        //printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(IB, IB), mf_block_lda(IB, IB));
-    }
+    } */
 
     cudaStreamSynchronize(stream_c);
     cudaStreamSynchronize(stream_m);
@@ -535,7 +537,7 @@ void RGF<T>::solve_equation(T *GR)
 /************************************************************************************************/
 
 template <class T>
-void RGF<T>::factorize()
+void RGF<T>::factorize(T* F)
 {
     int NBlock = matrix->NBlock;
     int *Bmin = matrix->Bmin;
@@ -559,6 +561,7 @@ void RGF<T>::factorize()
 
     //Computation
     FirstStageFactor(Bmin,Bmax,NBlock);
+    memcpy_to_host(F,MF_dev,matrix->n_nonzeros*sizeof(T));
 
     //magma_queue_destroy(magma_queue);
     magma_finalize();
