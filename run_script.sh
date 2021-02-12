@@ -25,5 +25,5 @@ CUDA_VISIBLE_DEVICES="1" ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_p
 mv ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu1.dat
 mv ${folder_path}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu1.dat
 
-#./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv.txt
 
+#./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv.txt
