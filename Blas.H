@@ -24,6 +24,9 @@ extern "C" {
     void fortran_name(zgemm,ZGEMM)(char *transa, char *transb, int *m, int *n, int *k, \
                                    CPX *alpha, CPX *a, int *lda, CPX *b, int *ldb, \
                                    CPX *beta, CPX *c, int *ldc);
+    void fortran_name(zsymm,ZSYMM)(char *side, char *uplo, int *m, int *n, CPX *alpha, \
+                                   CPX *a, int *lda, CPX *b, int *ldb, CPX *beta, \
+                                   CPX *c, int *ldc);
     void fortran_name(zhemm,ZHEMM)(char *side, char *uplo, int *m, int *n, CPX *alpha, \
                                    CPX *a, int *lda, CPX *b, int *ldb, CPX *beta, \
                                    CPX *c, int *ldc);
@@ -180,6 +183,14 @@ inline void c_zgemm(char transa, char transb, int m, int n, int k, CPX alpha, CP
 
 /************************************************************************************************/
 
+inline void c_zsymm(char side, char uplo, int m, int n, CPX alpha, CPX *a, int lda, \
+                    CPX *b, int ldb, CPX beta, CPX *c, int ldc)
+{
+    fortran_name(zsymm,ZSYMM)(&side,&uplo,&m,&n,&alpha,a,&lda,b,&ldb,&beta,c,&ldc);
+}
+
+/************************************************************************************************/
+
 inline void c_zhemm(char side, char uplo, int m, int n, CPX alpha, CPX *a, int lda, \
                     CPX *b, int ldb, CPX beta, CPX *c, int ldc)
 {
@@ -297,6 +308,23 @@ inline void c_taxpy(int n, double alpha, double *x, int incx, CPX *y, int incy)
 /************************************************************************************************/
 
 template <typename T>
+inline double c_dtnrm2(int n,T *x,int incx);
+
+template <>
+inline double c_dtnrm2(int n,double *x,int incx)
+{
+    return c_dnrm2(n,x,incx);
+}
+
+template <>
+inline double c_dtnrm2(int n,CPX *x,int incx)
+{
+    return c_dznrm2(n,x,incx);
+}
+
+/************************************************************************************************/
+
+template <typename T>
 inline void c_tscal(int n,T da,T *dx,int incx);
 
 template <>
@@ -329,6 +357,26 @@ inline void c_tgemm(char transa, char transb, int m, int n, int k, CPX alpha, CP
                     int lda, CPX *b, int ldb, CPX beta, CPX *c, int ldc)
 {
     c_zgemm(transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void c_tsymm(char side, char uplo, int m, int n, T alpha, T *a, \
+                    int lda, T *b, int ldb, T beta, T *c, int ldc);
+
+template <>
+inline void c_tsymm(char side, char uplo, int m, int n, double alpha, double *a, \
+                    int lda, double *b, int ldb, double beta, double *c, int ldc)
+{
+    c_dsymm(side,uplo,m,n,alpha,a,lda,b,ldb,beta,c,ldc);
+}
+
+template <>
+inline void c_tsymm(char side, char uplo, int m, int n, CPX alpha, CPX *a, \
+                    int lda, CPX *b, int ldb, CPX beta, CPX *c, int ldc)
+{
+    c_zsymm(side,uplo,m,n,alpha,a,lda,b,ldb,beta,c,ldc);
 }
 
 /************************************************************************************************/

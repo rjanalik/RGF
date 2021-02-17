@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
     double t0;
     TCSR<T> *M;
     T *b;
+    T *x;
     T *invDiag;
     int nrhs;
     RGF<T> *solver;
@@ -86,6 +87,7 @@ int main(int argc, char *argv[])
     M      = new TCSR<T>(ia, ja, a, ns, nt, nd);
     nrhs   = 2;
     b      = new T[nrhs*(ns*nt+nd)];
+    x      = new T[nrhs*(ns*nt+nd)];
     invDiag= new T[M->size];
 
     for (int i = 0; i < nrhs*(ns*nt+nd); i++)
@@ -96,7 +98,7 @@ int main(int argc, char *argv[])
     t0 = get_time(0.0);
 
     solver->factorize();
-    solver->solve(b, nrhs);
+    solver->solve(x, b, nrhs);
 
     printf("logdet: %f\n", solver->logDet());
 
@@ -104,6 +106,9 @@ int main(int argc, char *argv[])
     t0 = get_time(t0);
 
     printf("RGF time: %lg\n",t0);
+
+    printf("Residual norm: %e\n", solver->residualNorm(x, b));
+    printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
 
     for (int i = 0; i < nrhs*(ns*nt+nd); i++)
     {
@@ -122,6 +127,7 @@ int main(int argc, char *argv[])
     delete[] a;
 
     delete[] b;
+    delete[] x;
     delete M;
     delete solver;
     delete[] invDiag;
