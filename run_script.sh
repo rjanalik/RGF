@@ -13,17 +13,19 @@ folder_path_data=/home/x_gaedkelb/spat_temp_m_pardiso/data/temperature_data_2019
 
 nb=2
 
+echo "GV100"
 echo "GPU 0 ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv.txt"
 
 CUDA_VISIBLE_DEVICES="0" ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv_gpu0.txt
-mv ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu0.dat
+#mv ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu0.dat
 mv ${folder_path}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu0.dat
 
-echo "GPU 1 ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv.txt"
+#echo "RTX 4000"
+#echo "GPU 1 ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv.txt"
 
-CUDA_VISIBLE_DEVICES="1" ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv_gpu1.txt
-mv ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu1.dat
-mv ${folder_path}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu1.dat
+#CUDA_VISIBLE_DEVICES="1" ./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv_gpu1.txt
+#mv ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu1.dat
+#mv ${folder_path}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu1.dat
 
 
 #./RGFSolver ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output_sel_inv.txt
