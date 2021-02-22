@@ -4,7 +4,7 @@
 #include <iostream>
 #include "Types.H"
 #include "CWC_utility.H"
-#include "magma.h"
+#include "magma_v2.h"
 
 extern "C" {
 //Blas
@@ -382,21 +382,57 @@ inline void c_tsymm(char side, char uplo, int m, int n, CPX alpha, CPX *a, \
 /************************************************************************************************/
 
 template <typename T>
-inline void tgemm_dev(void *handle,char transa, char transb, int m, int n, int k, T alpha, T *a,\
-		      int lda, T *b, int ldb, T beta, T *c, int ldc);
+inline void tgemm_dev(char transa, char transb, int m, int n, int k, T alpha, T *a,\
+		      int lda, T *b, int ldb, T beta, T *c, int ldc, magma_queue_t queue);
 
 template <>
-inline void tgemm_dev(void *handle,char transa, char transb, int m, int n, int k, double alpha,\
-		      double *a, int lda, double *b, int ldb, double beta, double *c, int ldc)
+inline void tgemm_dev(char transa, char transb, int m, int n, int k, double alpha,\
+		      double *a, int lda, double *b, int ldb, double beta, double *c, int ldc, magma_queue_t queue)
 {
-    dgemm_on_dev(handle,transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc);
+    magma_trans_t magma_transa;
+    magma_trans_t magma_transb;
+
+    if(transa=='N'){
+        magma_transa = MagmaNoTrans;
+    }
+    if(transa=='T'){
+        magma_transa = MagmaTrans;
+    }
+
+    if(transb=='N'){
+        magma_transb = MagmaNoTrans;
+    }
+    if(transb=='T'){
+        magma_transb = MagmaTrans;
+    }
+
+    //dgemm_on_dev(handle,transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc);
+    magma_dgemm(magma_transa,magma_transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc,queue);
 }
 
 template <>
-inline void tgemm_dev(void *handle,char transa, char transb, int m, int n, int k, CPX alpha,\
-		      CPX *a, int lda, CPX *b, int ldb, CPX beta, CPX *c, int ldc)
+inline void tgemm_dev(char transa, char transb, int m, int n, int k, CPX alpha,\
+		      CPX *a, int lda, CPX *b, int ldb, CPX beta, CPX *c, int ldc, magma_queue_t queue)
 {
-    zgemm_on_dev(handle,transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc);
+    magma_trans_t magma_transa;
+    magma_trans_t magma_transb;
+
+    if(transa=='N'){
+        magma_transa = MagmaNoTrans;
+    }
+    if(transa=='T'){
+        magma_transa = MagmaTrans;
+    }
+
+    if(transb=='N'){
+        magma_transb = MagmaNoTrans;
+    }
+    if(transb=='T'){
+        magma_transb = MagmaTrans;
+    }
+
+    //zgemm_on_dev(handle,transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc);
+    magma_zgemm(magma_transa,magma_transb,m,n,k,*reinterpret_cast<magmaDoubleComplex*>(&alpha),(magmaDoubleComplex_ptr)a,lda,(magmaDoubleComplex_ptr)b,ldb,*reinterpret_cast<magmaDoubleComplex*>(&beta),(magmaDoubleComplex_ptr)c,ldc,queue);
 }
 
 /************************************************************************************************/
@@ -662,10 +698,10 @@ inline void tpotrf_dev(char uplo,int n,CPX *a,int lda,int *info)
 /************************************************************************************************/
 
 template <typename T>
-inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, T alpha, T *a, int lda, T *b, int ldb);
+inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, T alpha, T *a, int lda, T *b, int ldb, magma_queue_t queue);
 
 template <>
-inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, double alpha, double *a, int lda, double *b, int ldb)
+inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, double alpha, double *a, int lda, double *b, int ldb, magma_queue_t queue)
 {
     magma_side_t magma_side;
     magma_uplo_t magma_uplo;
@@ -703,12 +739,11 @@ inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n,
         magma_diag = MagmaNonUnit;
     }
 
-    //magma_dtrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, alpha, a, lda, b, ldb, queue);
-    magma_dtrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, alpha, a, lda, b, ldb);
+    magma_dtrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, alpha, a, lda, b, ldb, queue);
 }
 
 template <>
-inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, CPX alpha, CPX *a, int lda, CPX *b, int ldb)
+inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, CPX alpha, CPX *a, int lda, CPX *b, int ldb, magma_queue_t queue)
 {
     magma_side_t magma_side;
     magma_uplo_t magma_uplo;
@@ -746,8 +781,7 @@ inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n,
         magma_diag = MagmaNonUnit;
     }
 
-    //magma_ztrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, (magmaDoubleComplex)alpha, (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb, queue);
-    magma_ztrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, *reinterpret_cast<magmaDoubleComplex*>(&alpha), (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb);
+    magma_ztrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, *reinterpret_cast<magmaDoubleComplex*>(&alpha), (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb, queue);
 }
 
 /************************************************************************************************/
