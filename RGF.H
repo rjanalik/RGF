@@ -78,7 +78,7 @@ RGF<T>::RGF(TCSR<T>* mat)
     magma_init();
     magma_device_t device;
     magma_getdevice(&device);
-    magma_queue_create(device, &magma_queue);
+    magma_queue_create_from_cuda(device, NULL, NULL, NULL, &magma_queue);
     stream_c = magma_queue_get_cuda_stream(magma_queue);
     cublas_handle = magma_queue_get_cublas_handle(magma_queue);
 }
