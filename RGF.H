@@ -21,6 +21,8 @@ public:
     void factorize(T*);
     void solve(T*,int);
     void solve(T*,T*,int);
+    void RGFdiag(T*);
+    T logDet();
 				
 private:
 
@@ -28,7 +30,7 @@ private:
     int findx;
     int b_size;
     bool MF_dev_allocated = false;
-    int MF_size;
+    bool factorization_completed = false;
 
     cudaStream_t stream_c,stream_m;
     void *cublas_handle;
@@ -54,6 +56,7 @@ private:
     void SecondStage(T*,int*,int*,int);
     void FirstStageFactor(int*,int*,int);
     void SecondStageSolve(int*,int*,int,int);
+    void ThirdStageRGF(T*,T*,int*,int*,int);
     void create_blocks(int*,int*,int);
     void write_matrix(const char*,T*,int,int);
 
@@ -77,7 +80,7 @@ RGF<T>::~RGF()
 {
    if (MF_dev_allocated)
    {
-      deallocate_data_on_dev(MF_dev,MF_size*sizeof(T));
+      deallocate_data_on_dev(MF_dev,matrix->n_nonzeros*sizeof(T));
    }
 }
 
@@ -483,6 +486,89 @@ void RGF<T>::SecondStageSolve(int *b_min,int *b_max,int NBlock,int nrhs)
 /************************************************************************************************/
 
 template <class T>
+void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,int *b_min,int *b_max,int NBlock)
+{
+   int info;
+   int IB;
+   int NR,NM,NP,ND;
+   T ONE      = f_one();
+   T ZERO     = f_zero();
+
+   ND = matrix->nd;
+
+   cublasSetStream((cublasHandle_t)cublas_handle,stream_c);
+
+   if (matrix->nd > 0)
+   {
+      //dense block
+      IB = NBlock-1;
+      NR = b_max[IB]-b_min[IB];
+
+      tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
+      ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
+      tgemm_dev(cublas_handle, 'T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB));
+
+      //last non-dense block
+      IB = NBlock-2;
+      NR = b_max[IB]-b_min[IB];
+      NP = b_max[IB+1]-b_min[IB+1];
+
+      tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
+      ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
+
+      init_eye_on_dev(tmp1_dev,NR,0);
+
+      tgemm_dev(cublas_handle, 'T', 'N', NR, NP, NP, ONE, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &MF_dev[mf_block_index(IB+1, IB+1)], mf_block_lda(IB+1, IB+1), ZERO, tmp2_dev, NR);
+      tgemm_dev(cublas_handle, 'N', 'N', NR, NR, NP, ONE, tmp2_dev, NR, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), ONE, tmp1_dev, NR);
+
+      tgemm_dev(cublas_handle, 'T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR);
+      tgemm_dev(cublas_handle, 'N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB));
+   }
+   else
+   {
+      //last non-dense block
+      IB = NBlock-1;
+      NR = b_max[IB]-b_min[IB];
+
+      //memcpy_to_device(&aa,MF_dev+65,sizeof(double));
+      tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
+      ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
+      tgemm_dev(cublas_handle, 'T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB));
+   }
+
+   //second-last non-dense block .. 0-block
+   for (IB = matrix->nt-2; IB > -1; IB--)
+   {
+      NR = b_max[IB]-b_min[IB];
+      NP = b_max[IB+1]-b_min[IB+1];
+
+      tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
+      ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
+
+      init_eye_on_dev(tmp1_dev,NR,0);
+
+      tgemm_dev(cublas_handle, 'T', 'N', NR, NP, NP, ONE, &MF_dev[mf_block_index(IB+1, IB)], mf_block_lda(IB+1, IB), &MF_dev[mf_block_index(IB+1, IB+1)], mf_block_lda(IB+1, IB+1), ZERO, tmp2_dev, NR);
+      tgemm_dev(cublas_handle, 'N', 'N', NR, NR, NP, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB+1, IB)], mf_block_lda(IB+1, IB), ONE, tmp1_dev, NR);
+
+      if (matrix->nd > 0)
+      {
+         tgemm_dev(cublas_handle, 'T', 'N', NR, ND, ND, ONE, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &MF_dev[mf_block_index(NBlock-1, NBlock-1)], mf_block_lda(NBlock-1, NBlock-1), ZERO, tmp2_dev, NR);
+         tgemm_dev(cublas_handle, 'N', 'N', NR, NR, ND, ONE, tmp2_dev, NR, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), ONE, tmp1_dev, NR);
+      }
+
+      tgemm_dev(cublas_handle, 'T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR);
+      tgemm_dev(cublas_handle, 'N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB));
+   }
+
+   cudaStreamSynchronize(stream_c);
+   cudaStreamSynchronize(stream_m);
+
+   cublasSetStream((cublasHandle_t)cublas_handle,0);
+}
+
+/************************************************************************************************/
+
+template <class T>
 void RGF<T>::solve_equation(T *GR)
 {
     int NBlock = matrix->NBlock;
@@ -569,6 +655,8 @@ void RGF<T>::factorize(T* F)
 
     cudaStreamDestroy(stream_c);
     cudaStreamDestroy(stream_m);
+
+    factorization_completed = true;
 }
 
 /************************************************************************************************/
@@ -584,6 +672,9 @@ void RGF<T>::solve(T *b, int nrhs)
 template <class T>
 void RGF<T>::solve(T *x, T *b, int nrhs)
 {
+    if (!factorization_completed)
+       factorize();
+
     int NBlock = matrix->NBlock;
     int *Bmin = matrix->Bmin;
     int *Bmax = matrix->Bmax;
@@ -614,6 +705,104 @@ void RGF<T>::solve(T *x, T *b, int nrhs)
 
     cudaStreamDestroy(stream_c);
     cudaStreamDestroy(stream_m);
+}
+
+/************************************************************************************************/
+
+template <class T>
+void RGF<T>::RGFdiag(T *diag)
+{
+    if (!factorization_completed)
+       factorize();
+
+    factorization_completed = false;
+
+    int NBlock = matrix->NBlock;
+    int *Bmin = matrix->Bmin;
+    int *Bmax = matrix->Bmax;
+
+    cudaStreamCreate(&stream_c);
+    cudaStreamCreate(&stream_m);
+
+    magma_init();
+    cublas_init(&cublas_handle);
+
+    //Data allocation
+    T *diag_dev;
+    int *diag_pos_dev;
+    T *tmp1_dev;
+    T *tmp2_dev;
+    allocate_data_on_device((void**)&diag_dev,matrix->size*sizeof(T));
+    allocate_data_on_device((void**)&diag_pos_dev,matrix->size*sizeof(int));
+    allocate_data_on_device((void**)&tmp1_dev,b_size*b_size*sizeof(T));
+    allocate_data_on_device((void**)&tmp2_dev,b_size*b_size*sizeof(T));
+
+    //Copy diag_pos to device
+    memcpy_to_device(matrix->diag_pos,diag_pos_dev,matrix->size*sizeof(int));
+
+    //Computation
+    ThirdStageRGF(tmp1_dev,tmp2_dev,Bmin,Bmax,NBlock);
+    indexed_copy_dev(MF_dev, diag_dev, diag_pos_dev, matrix->size);
+
+    //Copy data to host
+    memcpy_to_host(diag,diag_dev,matrix->size*sizeof(T));
+
+    //Data deallocation
+    deallocate_data_on_dev(diag_dev,matrix->size*sizeof(T));
+    deallocate_data_on_dev(diag_pos_dev,matrix->size*sizeof(int));
+    deallocate_data_on_dev(tmp1_dev,b_size*b_size*sizeof(T));
+    deallocate_data_on_dev(tmp2_dev,b_size*b_size*sizeof(T));
+
+    magma_finalize();
+    cublas_finalize(cublas_handle);
+
+    cudaStreamDestroy(stream_c);
+    cudaStreamDestroy(stream_m);
+}
+
+/************************************************************************************************/
+
+template <class T>
+T RGF<T>::logDet()
+{
+    if (!factorization_completed)
+       factorize();
+
+    cudaStreamCreate(&stream_c);
+    cudaStreamCreate(&stream_m);
+
+    magma_init();
+    cublas_init(&cublas_handle);
+
+    //Data allocation
+    T *diag_dev;
+    int *diag_pos_dev;
+    allocate_data_on_device((void**)&diag_dev,matrix->size*sizeof(T));
+    allocate_data_on_device((void**)&diag_pos_dev,matrix->size*sizeof(int));
+    T det;
+
+    //Copy diag_pos to device
+    memcpy_to_device(matrix->diag_pos,diag_pos_dev,matrix->size*sizeof(int));
+
+    //Computation
+    indexed_copy_dev(MF_dev, diag_dev, diag_pos_dev, matrix->size);
+    logx2_dev(diag_dev, matrix->size);
+    tasum_dev(cublas_handle, matrix->size, diag_dev, 1, &det);
+
+    //Copy data to host
+    //memcpy_to_host(diag,diag_dev,matrix->size*sizeof(T));
+
+    //Data deallocation
+    deallocate_data_on_dev(diag_dev,matrix->size*sizeof(T));
+    deallocate_data_on_dev(diag_pos_dev,matrix->size*sizeof(int));
+
+    magma_finalize();
+    cublas_finalize(cublas_handle);
+
+    cudaStreamDestroy(stream_c);
+    cudaStreamDestroy(stream_m);
+
+    return det;
 }
 
 /************************************************************************************************/

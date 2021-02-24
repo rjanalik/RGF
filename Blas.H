@@ -368,6 +368,25 @@ inline void taxpy_dev(void *handle,int n,CPX alpha,CPX *x,int incx,CPX *y,int in
     zaxpy_on_dev(handle,n,alpha,x,incx,y,incy);
 }
 
+/************************************************************************************************/
+
+template <typename T>
+inline void tasum_dev(void *handle, int n, T *x, int incx, T *result);
+
+template <>
+inline void tasum_dev(void *handle, int n, double *x, int incx, double *result)
+{
+    dasum_on_dev(handle, n, x, incx, result);
+}
+
+template <>
+inline void tasum_dev(void *handle, int n, CPX *x, int incx, CPX *result)
+{
+    double dRes = 0.0;
+    zasum_on_dev(handle, n, x, incx, &dRes);
+    *result = CPX(dRes, 0.0);
+}
+
 /*magma*****************************************************************************************/
 
 template <typename T>
@@ -473,6 +492,57 @@ template <>
 inline void tgetri_dev(int n,CPX *a,int lda,int *ipiv,CPX *work,int lwork,int *info)
 {
     magma_zgetri_gpu(n,(magmaDoubleComplex_ptr)a,lda,ipiv,(magmaDoubleComplex_ptr)work,lwork,info);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void ttrtri_dev(char uplo,char diag,int n,T *a,int lda,int *info);
+
+template <>
+inline void ttrtri_dev(char uplo,char diag,int n,double *a,int lda,int *info)
+{
+    magma_uplo_t magma_uplo;
+    magma_diag_t magma_diag;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper;
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+
+    if(diag=='U'){
+        magma_diag = MagmaUnit;
+    }
+    if(diag=='N'){
+        magma_diag = MagmaNonUnit;
+    }
+
+    magma_dtrtri_gpu(magma_uplo,magma_diag,n,a,lda,info);
+}
+
+template <>
+inline void ttrtri_dev(char uplo,char diag,int n,CPX *a,int lda,int *info)
+{
+    magma_uplo_t magma_uplo;
+    magma_diag_t magma_diag;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper;
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+
+    if(diag=='U'){
+        magma_diag = MagmaUnit;
+    }
+    if(diag=='N'){
+        magma_diag = MagmaNonUnit;
+    }
+
+    magma_ztrtri_gpu(magma_uplo,magma_diag,n,(magmaDoubleComplex_ptr)a,lda,info);
 }
 
 /************************************************************************************************/
@@ -937,6 +1007,57 @@ template <>
 inline void extract_not_diag_on_dev(CPX *D,int *edge_i,int *index_j,CPX *nnz,int NR,\
      int imin,int imax,int jmin,int side,int shift,int findx,cudaStream_t stream){
     z_extract_not_diag_on_dev(D,edge_i,index_j,nnz,NR,imin,imax,jmin,side,shift,findx,stream);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void tril_dev(T *A, int lda, int N);
+
+template <>
+inline void tril_dev(double *A, int lda, int N)
+{
+    d_tril_on_dev(A, lda, N);
+}
+
+template <>
+inline void tril_dev(CPX *A, int lda, int N)
+{
+    z_tril_on_dev(A, lda, N);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void indexed_copy_dev(T *src, T *dst, int *index, int N);
+
+template <>
+inline void indexed_copy_dev(double *src, double *dst, int *index, int N)
+{
+    d_indexed_copy_on_dev(src, dst, index, N);
+}
+
+template <>
+inline void indexed_copy_dev(CPX *src, CPX *dst, int *index, int N)
+{
+    z_indexed_copy_on_dev(src, dst, index, N);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void logx2_dev(T *x, int N);
+
+template <>
+inline void logx2_dev(double *x, int N)
+{
+    d_logx2_on_dev(x, N);
+}
+
+template <>
+inline void logx2_dev(CPX *x, int N)
+{
+    z_logx2_on_dev(x, N);
 }
 
 /************************************************************************************************/

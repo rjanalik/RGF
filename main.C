@@ -221,6 +221,23 @@ cout << "in main" << endl;
 
   std::string nu_s = std::to_string(nu);
 
+  //check which year's data we are using
+  std::string year1 = "2019";
+  std::string year2 = "2020";
+  std::string year;
+
+  std::size_t found1 = base_path_data.find(year1);
+  if (found1!=std::string::npos){
+    std::cout << "found year 2019 in base_path_data " << found1 << '\n';
+    year = "2019";
+  }
+
+    std::size_t found2 = base_path_data.find(year2);
+  if (found2!=std::string::npos){
+    std::cout << "found year 2020 in base_path_data " << found2 << '\n';
+    year = "2020";
+  }
+
   std::cout << "./pardiso_call_INLA_sol0_tmp_data " << ns_s << " " << nt_s << " " << nb_s << " " << no_s << "\n" << std::endl;
 
   // ------------------- construct file names and check if files exist --------------------------
@@ -413,7 +430,7 @@ cout << "in main" << endl;
   int i;
   int size,rank;
   double data;
-  double t0;
+  double t0; double t1;
   T *b;
   int nrhs;
   TCSR<T> *M;
@@ -430,21 +447,14 @@ cout << "in main" << endl;
   }
 
   M      = new TCSR<T>(ia, ja, a, ns, nt, nb);
-  GR     = new T[3*(nt-1)*(ns*ns) + (ns*ns)];
+  //GR     = new T[3*(nt-1)*(ns*ns) + (ns*ns)];
   nrhs   = 1;
   b      = new T[nrhs*(ns*nt+nb)];
 
   int i1 = M->diag_pos[M->size-2];
-    int i2 = i1+1;
-    int i4 = M->diag_pos[M->size-1];
-    int i3 = i4-1;
-    printf("M[%d] = %f\n", i1, M->nnz[i1]);
-    printf("M[%d] = %f\n", i2, M->nnz[i2]);
-    printf("M[%d] = %f\n", i3, M->nnz[i3]);
-    printf("M[%d] = %f\n", i4, M->nnz[i4]);
-
-  // matrix to write out factors
-  T *MF = new T[M->n_nonzeros];
+  int i2 = i1+1;
+  int i4 = M->diag_pos[M->size-1];
+  int i3 = i4-1;
 
   for (int i = 0; i < n; i++){
     b[i] = B_xey[i];
@@ -455,12 +465,11 @@ cout << "in main" << endl;
 
   t0 = get_time(0.0);
   //solver->solve_equation(GR);
-  solver->factorize(MF);
+  solver->factorize();
+  t0 = get_time(t0);
 
-  printf("MF[%d] = %f\n", i1, MF[i1]);
-  printf("MF[%d] = %f\n", i2, MF[i2]);
-  printf("MF[%d] = %f\n", i3, MF[i3]);
-  printf("MF[%d] = %f\n", i4, MF[i4]);
+  double log_det = solver->logDet();
+  printf("logdet: %f\n", log_det);
 
   // write this to file
   /*std::string L_factor_file_name = base_path + "/L_factor_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s + ".dat";
@@ -482,19 +491,23 @@ cout << "in main" << endl;
 
   L_factor_file.close(); */
 
+  t1 = get_time(0.0); 
   solver->solve(b, nrhs);
-  t0 = get_time(t0);
+  t1 = get_time(t1);
 
   if(!rank){
   printf("RGF time: %lg\n",t0);
 }
+
+  //printf("Residual norm: %e\n", solver->residualNorm(x, b));
+  //printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
 
   /*for (int i = 0; i < nrhs*ns*nt; i++){
     printf("x[%d] = %f\n", i, b[i]);
   }*/
 
   // create file with solution vector
-  std::string sol_x_file_name = base_path + "/x_sol_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s + ".dat";
+  std::string sol_x_file_name = base_path_data + "/x_sol_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s +"_year"+ year +".dat";
   std::ofstream sol_x_file(sol_x_file_name,    std::ios::out | std::ios::trunc);
 
   for (i = 0; i < n; i++) {
@@ -503,6 +516,22 @@ cout << "in main" << endl;
   }
 
   sol_x_file.close();
+
+  std::string log_file_name = base_path_data + "/log_RGF_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s +"_year"+ year+".dat";
+  std::ofstream log_file(log_file_name);
+  log_file << ns << std::endl;
+  log_file << nt << std::endl;
+  log_file << nb << std::endl;
+  log_file << no << std::endl;
+  log_file << n << std::endl;
+  log_file << nnz << std::endl;
+  log_file << "RGF" << std::endl;
+  log_file << log_det << std::endl;
+  log_file << "0.0" << std::endl;
+  log_file << t0 << std::endl;
+  log_file << t1 << std::endl;
+
+  log_file.close(); 
 
     // print/write diag 
   /*string sel_inv_file_name = base_path+"/RGF_solver_sel_inv_ns"+to_string(ns)+"_nt"+to_string(nt)+".dat";
@@ -527,7 +556,7 @@ cout << "in main" << endl;
   delete M;
   delete solver;
 
-  delete[] MF;
+  //delete[] MF;
   
   // free memory
   delete[] ia;
