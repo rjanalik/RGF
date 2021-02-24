@@ -18,11 +18,13 @@ public:
 
     ~RGF();
     void solve_equation(T*);
-    void factorize(T*);
+    void factorize();
     void solve(T*,int);
     void solve(T*,T*,int);
     void RGFdiag(T*);
     T logDet();
+    double residualNorm(T*,T*);
+    double residualNormNormalized(T*,T*);
 				
 private:
 
@@ -372,8 +374,7 @@ void RGF<T>::FirstStageFactor(int *b_min,int *b_max,int NBlock)
        //printf("RJ: ttrsm NR: %d, a: %d, lda: %d, b: %d, ldb: %d\n", NR, mf_block_index(IB-1, IB-1), mf_block_lda(IB-1, IB-1), mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1));
     }
 
-    // FIXED EFFECTS
-    /*if (matrix->nd > 0)
+    if (matrix->nd > 0)
     {
        IB = NBlock-1;
        NR  = b_max[IB]-b_min[IB];
@@ -387,10 +388,9 @@ void RGF<T>::FirstStageFactor(int *b_min,int *b_max,int NBlock)
        }
        //printf("RJ: tgemm NR: %d, NM: %d, a: %d, lda: %d, b: %d, ldb: %d, c: %d, ldc: %d\n", NR, NM, mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1), mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1), mf_block_index(IB, IB), mf_block_lda(IB, IB));
        //rj dpotrf MF[IB,IB]
-       // FACTORISATION OF UPDATED BLOCK
        tpotrf_dev('L', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
        //printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(IB, IB), mf_block_lda(IB, IB));
-    } */
+    }
 
     cudaStreamSynchronize(stream_c);
     cudaStreamSynchronize(stream_m);
@@ -623,7 +623,7 @@ void RGF<T>::solve_equation(T *GR)
 /************************************************************************************************/
 
 template <class T>
-void RGF<T>::factorize(T* F)
+void RGF<T>::factorize()
 {
     int NBlock = matrix->NBlock;
     int *Bmin = matrix->Bmin;
@@ -647,7 +647,6 @@ void RGF<T>::factorize(T* F)
 
     //Computation
     FirstStageFactor(Bmin,Bmax,NBlock);
-    memcpy_to_host(F,MF_dev,matrix->n_nonzeros*sizeof(T));
 
     //magma_queue_destroy(magma_queue);
     magma_finalize();
@@ -803,6 +802,66 @@ T RGF<T>::logDet()
     cudaStreamDestroy(stream_m);
 
     return det;
+}
+
+/************************************************************************************************/
+
+template <class T>
+double RGF<T>::residualNorm(T *x, T *b)
+{
+   T *r = new T[matrix->size];
+   int NR, NM;
+   int IB;
+   int *b_min = matrix->Bmin;
+   int *b_max = matrix->Bmax;
+   int NBlock = matrix->NBlock;
+
+   memcpy(r, b, matrix->size*sizeof(T));
+
+   IB = 0;
+   NR = b_max[IB]-b_min[IB];
+
+   c_tsymm('L', 'L', NR, 1, -1.0, &matrix->nnz[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
+
+   for (int IB = 1; IB < matrix->nt; IB++)
+   {
+      NR = b_max[IB]-b_min[IB];
+      NM = b_max[IB-1]-b_min[IB-1];
+
+      c_tgemm('N', 'N', NR, 1, NM, -1.0, &matrix->nnz[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &x[b_min[IB-1]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
+      c_tgemm('T', 'N', NM, 1, NR, -1.0, &matrix->nnz[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB-1]], matrix->size);
+      c_tsymm('L', 'L', NR, 1, -1.0, &matrix->nnz[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
+   }
+
+   if (matrix->nd > 0)
+   {
+      NR = matrix->nd;
+
+      for (int IB = 0; IB < matrix->nt; IB++)
+      {
+         NM = b_max[IB]-b_min[IB];
+
+         c_tgemm('N', 'N', NR, 1, NM, -1.0, &matrix->nnz[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[NBlock-1]], matrix->size);
+         c_tgemm('T', 'N', NM, 1, NR, -1.0, &matrix->nnz[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &x[b_min[NBlock-1]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
+      }
+
+      IB = NBlock-1;
+      c_tsymm('L', 'L', NR, 1, -1.0, &matrix->nnz[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
+   }
+
+   double res = c_dtnrm2(matrix->size, r, 1);
+
+   delete[] r;
+
+   return res;
+}
+
+/************************************************************************************************/
+
+template <class T>
+double RGF<T>::residualNormNormalized(T *x, T *b)
+{
+   return residualNorm(x, b) / c_dtnrm2(matrix->size, b, 1);
 }
 
 /************************************************************************************************/

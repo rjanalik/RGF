@@ -1,6 +1,6 @@
 include ./make.inc
 
-DEBUG       =     
+DEBUG       =-g   
 
 INCLUDEDIR  = $(INCCUD) $(INCMAG)
 LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
