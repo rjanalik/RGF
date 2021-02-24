@@ -36,6 +36,18 @@ index_i index_j real imag (4 columns per matrix entry)
 
   void readCSR(std::string filename, int &n, int &nnz, int* ia, int* ja, double* a)
 {
+<<<<<<< HEAD
+=======
+    int i;
+    double data;
+    double t0;
+    TCSR<T> *M;
+    T *b;
+    T *x;
+    T *invDiag;
+    int nrhs;
+    RGF<T> *solver;
+>>>>>>> master
 
   fstream fin(filename, ios::in);
   fin >> n;
@@ -47,6 +59,7 @@ index_i index_j real imag (4 columns per matrix entry)
    ja = new int [nnz];
    a = new double [nnz];
 
+<<<<<<< HEAD
    // from RADIM'S verison
   /*int ns = atoi(argv[1]);
   int nt = atoi(argv[2]);
@@ -109,6 +122,36 @@ arma::sp_mat readCSC(std::string filename){
   for (int i = 0; i < n_cols+1; i++){
     fin >> col_ptr[i];
     //std::cout <<col_ptr[i] << std::endl;
+=======
+    size_t ns = atoi(argv[1]);
+    size_t nt = atoi(argv[2]);
+    size_t nd = atoi(argv[3]);
+
+    // load matrix from file
+    FILE *F = fopen(argv[4],"r");
+   
+    size_t fn, fnnz;
+    size_t *ia, *ja;
+    T *a;
+    double val;
+
+    /* read in matrix A, sparse matrix in CSR format */
+    fscanf(F,"%zu",&fn);
+    fscanf(F,"%zu",&fn);
+    fscanf(F,"%zu",&fnnz);
+
+    // allocate memory
+    ia = new size_t[fn+1];
+    ja = new size_t[fnnz];
+    a = new T[fnnz];
+  
+    for (i = 0; i <= fn; i++){
+       fscanf(F,"%zu",&ia[i]);
+    }
+
+    for (i = 0; i < ia[fn]; i++){
+       fscanf(F,"%zu",&ja[i]);
+>>>>>>> master
     }
 
   for (int i = 0; i < nnz; i++){
@@ -118,7 +161,15 @@ arma::sp_mat readCSC(std::string filename){
 
   fin.close();
 
+<<<<<<< HEAD
   arma::sp_mat A(row_ind, col_ptr, a, n_rows, n_cols);
+=======
+    M      = new TCSR<T>(ia, ja, a, ns, nt, nd);
+    nrhs   = 2;
+    b      = new T[nrhs*(ns*nt+nd)];
+    x      = new T[nrhs*(ns*nt+nd)];
+    invDiag= new T[M->size];
+>>>>>>> master
 
   //std::cout << "nonzeros A " << A.n_nonzero << std::endl;
   return A;
@@ -127,8 +178,13 @@ arma::sp_mat readCSC(std::string filename){
 arma::sp_mat readCSC_sym(std::string filename)
 {
 
+<<<<<<< HEAD
   int n;
   int nnz;
+=======
+    solver->factorize();
+    solver->solve(x, b, nrhs);
+>>>>>>> master
 
   fstream fin(filename, ios::in);
   fin >> n;
@@ -143,6 +199,7 @@ arma::sp_mat readCSC_sym(std::string filename)
   for (int i = 0; i < nnz; i++){
     fin >> row_ind[i];}
 
+<<<<<<< HEAD
   for (int i = 0; i < n+1; i++){
     fin >> col_ptr[i];}
 
@@ -562,6 +619,32 @@ cout << "in main" << endl;
   delete[] ia;
   delete[] ja;
   delete[] a;
+=======
+    printf("Residual norm: %e\n", solver->residualNorm(x, b));
+    printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
+
+    for (int i = 0; i < nrhs*(ns*nt+nd); i++)
+    {
+       printf("x[%d] = %f\n", i, b[i]);
+    }
+    printf("\n");
+    //for (int i = 0; i < M->size; i++)
+    for (int i = 0; i < M->size; i++)
+    {
+       printf("invDiag[%d] = %f\n", i, invDiag[i]);
+    }
+    
+    // free memory
+    delete[] ia;
+    delete[] ja;
+    delete[] a;
+
+    delete[] b;
+    delete[] x;
+    delete M;
+    delete solver;
+    delete[] invDiag;
+>>>>>>> master
     
   return 0;
 
