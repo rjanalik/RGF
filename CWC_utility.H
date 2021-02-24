@@ -54,8 +54,8 @@ extern "C" {
   void z_symmetrize_matrix_2(CPX*,int,cudaStream_t);
   void d_tril_on_dev(double *A, int lda, int N);
   void z_tril_on_dev(CPX *A, int lda, int N);
-  void d_indexed_copy_on_dev(double *src, double *dst, int *index, int N);
-  void z_indexed_copy_on_dev(CPX *src, CPX *dst, int *index, int N);
-  void d_logx2_on_dev(double *x, int N);
-  void z_logx2_on_dev(CPX *x, int N);
+  void d_indexed_copy_on_dev(double *src, double *dst, size_t *index, size_t N);
+  void z_indexed_copy_on_dev(CPX *src, CPX *dst, size_t *index, size_t N);
+  void d_logx2_on_dev(double *x, size_t N);
+  void z_logx2_on_dev(CPX *x, size_t N);
 }

@@ -47,34 +47,34 @@ int main(int argc, char *argv[])
     timeinfo = localtime(&rawtime);
     printf ("The current date/time is: %s\n",asctime(timeinfo));
 
-    int ns = atoi(argv[1]);
-    int nt = atoi(argv[2]);
-    int nd = atoi(argv[3]);
+    size_t ns = atoi(argv[1]);
+    size_t nt = atoi(argv[2]);
+    size_t nd = atoi(argv[3]);
 
     // load matrix from file
     FILE *F = fopen(argv[4],"r");
    
-    int fn, fnnz;
-    int *ia, *ja;
+    size_t fn, fnnz;
+    size_t *ia, *ja;
     T *a;
     double val;
 
     /* read in matrix A, sparse matrix in CSR format */
-    fscanf(F,"%i",&fn);
-    fscanf(F,"%i",&fn);
-    fscanf(F,"%i",&fnnz);
+    fscanf(F,"%zu",&fn);
+    fscanf(F,"%zu",&fn);
+    fscanf(F,"%zu",&fnnz);
 
     // allocate memory
-    ia = new int[fn+1];
-    ja = new int[fnnz];
+    ia = new size_t[fn+1];
+    ja = new size_t[fnnz];
     a = new T[fnnz];
   
     for (i = 0; i <= fn; i++){
-       fscanf(F,"%i",&ia[i]);
+       fscanf(F,"%zu",&ia[i]);
     }
 
     for (i = 0; i < ia[fn]; i++){
-       fscanf(F,"%i",&ja[i]);
+       fscanf(F,"%zu",&ja[i]);
     }
 
     for (i = 0; i < ia[fn]; i++){

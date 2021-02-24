@@ -1111,16 +1111,16 @@ inline void tril_dev(CPX *A, int lda, int N)
 /************************************************************************************************/
 
 template <typename T>
-inline void indexed_copy_dev(T *src, T *dst, int *index, int N);
+inline void indexed_copy_dev(T *src, T *dst, size_t *index, size_t N);
 
 template <>
-inline void indexed_copy_dev(double *src, double *dst, int *index, int N)
+inline void indexed_copy_dev(double *src, double *dst, size_t *index, size_t N)
 {
     d_indexed_copy_on_dev(src, dst, index, N);
 }
 
 template <>
-inline void indexed_copy_dev(CPX *src, CPX *dst, int *index, int N)
+inline void indexed_copy_dev(CPX *src, CPX *dst, size_t *index, size_t N)
 {
     z_indexed_copy_on_dev(src, dst, index, N);
 }
@@ -1128,16 +1128,16 @@ inline void indexed_copy_dev(CPX *src, CPX *dst, int *index, int N)
 /************************************************************************************************/
 
 template <typename T>
-inline void logx2_dev(T *x, int N);
+inline void logx2_dev(T *x, size_t N);
 
 template <>
-inline void logx2_dev(double *x, int N)
+inline void logx2_dev(double *x, size_t N)
 {
     d_logx2_on_dev(x, N);
 }
 
 template <>
-inline void logx2_dev(CPX *x, int N)
+inline void logx2_dev(CPX *x, size_t N)
 {
     z_logx2_on_dev(x, N);
 }

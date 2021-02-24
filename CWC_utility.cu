@@ -810,9 +810,9 @@ void z_tril_on_dev(CPX *A, int lda, int N)
     z_tril<<<grid, threads>>>((cuDoubleComplex*)A, lda, N);
 }
 
-__global__ void d_indexed_copy(double *src, double *dst, int *index, int N)
+__global__ void d_indexed_copy(double *src, double *dst, size_t *index, size_t N)
 {
-   unsigned int idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+   size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
    if (idx < N)
    {
@@ -823,16 +823,16 @@ __global__ void d_indexed_copy(double *src, double *dst, int *index, int N)
 }
 
 extern "C"
-void d_indexed_copy_on_dev(double *src, double *dst, int *index, int N)
+void d_indexed_copy_on_dev(double *src, double *dst, size_t *index, size_t N)
 {
-    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+    size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
     d_indexed_copy<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(src, dst, index, N);
 }
 
-__global__ void z_indexed_copy(cuDoubleComplex *src, cuDoubleComplex *dst, int *index, int N)
+__global__ void z_indexed_copy(cuDoubleComplex *src, cuDoubleComplex *dst, size_t *index, size_t N)
 {
-   unsigned int idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+   size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
    if (idx < N)
    {
@@ -843,16 +843,16 @@ __global__ void z_indexed_copy(cuDoubleComplex *src, cuDoubleComplex *dst, int *
 }
 
 extern "C"
-void z_indexed_copy_on_dev(CPX *src, CPX *dst, int *index, int N)
+void z_indexed_copy_on_dev(CPX *src, CPX *dst, size_t *index, size_t N)
 {
-    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+    size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
     z_indexed_copy<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)src, (cuDoubleComplex*)dst, index, N);
 }
 
-__global__ void d_logx2(double *x, int N)
+__global__ void d_logx2(double *x, size_t N)
 {
-   unsigned int idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+   size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
    if (idx < N)
    {
@@ -863,16 +863,16 @@ __global__ void d_logx2(double *x, int N)
 }
 
 extern "C"
-void d_logx2_on_dev(double *x, int N)
+void d_logx2_on_dev(double *x, size_t N)
 {
-    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+    size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
     d_logx2<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(x, N);
 }
 
-__global__ void z_logx2(cuDoubleComplex *x, int N)
+__global__ void z_logx2(cuDoubleComplex *x, size_t N)
 {
-   unsigned int idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+   size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
    if (idx < N)
    {
@@ -884,9 +884,9 @@ __global__ void z_logx2(cuDoubleComplex *x, int N)
 }
 
 extern "C"
-void z_logx2_on_dev(CPX *x, int N)
+void z_logx2_on_dev(CPX *x, size_t N)
 {
-    uint i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+    size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
     z_logx2<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)x, N);
 }

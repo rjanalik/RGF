@@ -12,18 +12,18 @@ public:
     
     TCSR(int,int,int);
     TCSR(char*);
-    TCSR(int*,int*,T*,int,int,int);
+    TCSR(size_t*,size_t*,T*,size_t,size_t,size_t);
     ~TCSR();
 
     void get_row_edge();
 
-    int pos,size,size_tot,n_nonzeros,type,findx,first_row;
+    size_t pos,size,size_tot,n_nonzeros,type,findx,first_row;
     T *nnz;
-    int *index_i,*index_j,*edge_i,*diag_pos;
+    size_t *index_i,*index_j,*edge_i,*diag_pos;
 
-    int NBlock;
-    int *Bmin,*Bmax;
-    int ns, nt, nd;
+    size_t NBlock;
+    size_t *Bmin,*Bmax;
+    size_t ns, nt, nd;
     
 private:
 };
@@ -32,10 +32,10 @@ template <class T>
 TCSR<T>::TCSR(int N, int n_nnz, int fortran_index)
 {
     nnz        = new T[max(n_nnz,1)];
-    index_i    = new int[max(N,1)];
-    index_j    = new int[max(n_nnz,1)];
-    edge_i     = new int[N+1];
-    diag_pos   = new int[max(N,1)];
+    index_i    = new size_t[max(N,1)];
+    index_j    = new size_t[max(n_nnz,1)];
+    edge_i     = new size_t[N+1];
+    diag_pos   = new size_t[max(N,1)];
 
     size       = N;
     size_tot   = N;
@@ -60,10 +60,10 @@ inline TCSR<CPX>::TCSR(char *filename)
     fscanf(F,"%i",&findx);
     
     nnz        = new CPX[n_nonzeros];
-    index_i    = new int[size];                                           
-    index_j    = new int[n_nonzeros];                                       
-    edge_i     = new int[size+1];                                         
-    diag_pos   = new int[size];                                           
+    index_i    = new size_t[size];
+    index_j    = new size_t[n_nonzeros];
+    edge_i     = new size_t[size+1];
+    diag_pos   = new size_t[size];
 
     size_tot   = size;                                                    
     type       = 0;                                        
@@ -93,10 +93,10 @@ inline TCSR<CPX>::TCSR(char *filename)
 
 // RJ: load CSR, make dense blocks
 template <class T>
-inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int _ns, int _nt, int _nd)
+inline TCSR<T>::TCSR(size_t *ia, size_t *ja, T *a, size_t _ns, size_t _nt, size_t _nd)
 {
 
-    int i,ind_i;
+    size_t i,ind_i;
     double r_nnz,i_nnz;
 
     ns = _ns;
@@ -108,10 +108,10 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int _ns, int _nt, int _nd)
     findx = 0; // 0-C index, 1-fortran index
     
     nnz        = new T[n_nonzeros];
-    index_i    = new int[size];                                           
-    index_j    = new int[n_nonzeros];                                       
-    edge_i     = new int[size+1];                                         
-    diag_pos   = new int[size];                                           
+    index_i    = new size_t[size];
+    index_j    = new size_t[n_nonzeros];
+    edge_i     = new size_t[size+1];
+    diag_pos   = new size_t[size];
 
     size_tot   = size;                                                    
     type       = 0;                                        
@@ -121,9 +121,9 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int _ns, int _nt, int _nd)
        NBlock = nt + 1;
     else
        NBlock = nt;
-    Bmin   = new int[NBlock];
-    Bmax   = new int[NBlock];
-    for (int i = 0; i < nt; i++)
+    Bmin   = new size_t[NBlock];
+    Bmax   = new size_t[NBlock];
+    for (size_t i = 0; i < nt; i++)
     {
        Bmin[i] = i*ns;
        Bmax[i] = (i+1)*ns;
@@ -138,44 +138,44 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int _ns, int _nt, int _nd)
 
     // create a sparse matrix with known structure
     // initialize with 0.0
-    int i_j = 0;
-    for(int i_nt = 0; i_nt < nt-1; i_nt++)
+    size_t i_j = 0;
+    for(size_t i_nt = 0; i_nt < nt-1; i_nt++)
     {
-       for(int i_ns = 0; i_ns < ns; i_ns++)
+       for(size_t i_ns = 0; i_ns < ns; i_ns++)
        {
-          int i_r = i_nt*ns + i_ns;
-          int i_c_f = i_nt*ns;
-          int i_c_l = (i_nt+2)*ns;
+          size_t i_r = i_nt*ns + i_ns;
+          size_t i_c_f = i_nt*ns;
+          size_t i_c_l = (i_nt+2)*ns;
           edge_i[i_r] = i_j;
-          for(int i_c = i_c_f; i_c < i_c_l; i_c++)
+          for(size_t i_c = i_c_f; i_c < i_c_l; i_c++)
           {
              index_j[i_j++] = i_c;
           }
           if (nd > 0)
           {
-             for(int i_c = Bmin[nt]; i_c < Bmax[nt]; i_c++)
+             for(size_t i_c = Bmin[nt]; i_c < Bmax[nt]; i_c++)
              {
                 index_j[i_j++] = i_c;
              }
           }
        }
     }
-    for(int i_ns = 0; i_ns < ns; i_ns++)
+    for(size_t i_ns = 0; i_ns < ns; i_ns++)
     {
-       int i_r = (nt-1)*ns + i_ns;
-       int i_c_f = (nt-1)*ns;
-       int i_c_l = size;
+       size_t i_r = (nt-1)*ns + i_ns;
+       size_t i_c_f = (nt-1)*ns;
+       size_t i_c_l = size;
        edge_i[i_r] = i_j;
-       for(int i_c = i_c_f; i_c < i_c_l; i_c++)
+       for(size_t i_c = i_c_f; i_c < i_c_l; i_c++)
        {
           index_j[i_j++] = i_c;
        }
     }
-    for(int i_nd = 0; i_nd < nd; i_nd++)
+    for(size_t i_nd = 0; i_nd < nd; i_nd++)
     {
-       int i_r = Bmin[nt] + i_nd;
+       size_t i_r = Bmin[nt] + i_nd;
        edge_i[i_r] = i_j;
-       for(int i_c = Bmin[nt]; i_c < Bmax[nt]; i_c++)
+       for(size_t i_c = Bmin[nt]; i_c < Bmax[nt]; i_c++)
        {
           index_j[i_j++] = i_c;
        }
@@ -185,9 +185,9 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int _ns, int _nt, int _nd)
     {
        nnz[i] = T(0);
     }
-    for(int r = 0; r < size; r++)
+    for(size_t r = 0; r < size; r++)
     {
-       int i = edge_i[r];
+       size_t i = edge_i[r];
        while(index_j[i] < r)
           i++;
        diag_pos[r] = i;
@@ -199,12 +199,12 @@ inline TCSR<T>::TCSR(int *ia, int *ja, T *a, int _ns, int _nt, int _nd)
     //get_row_edge();
 
     // add the matrices (overwrite, we know there are zeros)
-    for(int i_r = 0; i_r < size; i_r++)
+    for(size_t i_r = 0; i_r < size; i_r++)
     {
-       int i = edge_i[i_r];
-       for(int fi_c = ia[i_r]; fi_c < ia[i_r+1]; fi_c++)
+       size_t i = edge_i[i_r];
+       for(size_t fi_c = ia[i_r]; fi_c < ia[i_r+1]; fi_c++)
        {
-          int c = ja[fi_c];
+          size_t c = ja[fi_c];
           while(index_j[i] < c)
              i++;
           nnz[i]   = a[fi_c];
@@ -226,10 +226,10 @@ inline TCSR<double>::TCSR(char *filename)
     fscanf(F,"%i",&findx);
     
     nnz        = new double[n_nonzeros];
-    index_i    = new int[size];                                           
-    index_j    = new int[n_nonzeros];                                       
-    edge_i     = new int[size+1];                                         
-    diag_pos   = new int[size];                                           
+    index_i    = new size_t[size];
+    index_j    = new size_t[n_nonzeros];
+    edge_i     = new size_t[size+1];
+    diag_pos   = new size_t[size];
 
     size_tot   = size;                                                    
     type       = 0;                                        
