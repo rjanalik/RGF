@@ -188,7 +188,7 @@ inline TCSR<T>::TCSR(size_t *ia, size_t *ja, T *a, size_t _ns, size_t _nt, size_
     for(size_t r = 0; r < size; r++)
     {
        size_t i = edge_i[r];
-       while(index_j[i] < r)
+       while(i < edge_i[r+1] && index_j[i] < r)
           i++;
        diag_pos[r] = i;
     }
@@ -205,7 +205,7 @@ inline TCSR<T>::TCSR(size_t *ia, size_t *ja, T *a, size_t _ns, size_t _nt, size_
        for(size_t fi_c = ia[i_r]; fi_c < ia[i_r+1]; fi_c++)
        {
           size_t c = ja[fi_c];
-          while(index_j[i] < c)
+          while(i < edge_i[i_r+1] && index_j[i] < c)
              i++;
           nnz[i]   = a[fi_c];
        }
