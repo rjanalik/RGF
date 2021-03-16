@@ -501,9 +501,10 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
       IB = NBlock-1;
       NR = b_max[IB]-b_min[IB];
 
-      tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
-      ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
-      tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
+      tlacpy_dev('L', NR, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, magma_queue);
+      tril_dev(tmp1_dev, NR, NR);
+      ttrtri_dev('L', 'N', NR, tmp1_dev, NR, &info);
+      tgemm_dev('T', 'N', NR, NR, NR, ONE, tmp1_dev, NR, tmp1_dev, NR, ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
 
       //last non-dense block
       IB = NBlock-2;
@@ -519,7 +520,8 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
       tgemm_dev('N', 'N', NR, NR, NP, ONE, tmp2_dev, NR, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), ONE, tmp1_dev, NR,magma_queue);
 
       tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR,magma_queue);
-      tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
+      tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, tmp1_dev, NR,magma_queue);
+      tlacpy_dev('A', NR, NR, tmp1_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), magma_queue);
    }
    else
    {
@@ -527,10 +529,10 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
       IB = NBlock-1;
       NR = b_max[IB]-b_min[IB];
 
-      //memcpy_to_device(&aa,MF_dev+65,sizeof(double));
-      tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
-      ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
-      tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
+      tlacpy_dev('L', NR, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, magma_queue);
+      tril_dev(tmp1_dev, NR, NR);
+      ttrtri_dev('L', 'N', NR, tmp1_dev, NR, &info);
+      tgemm_dev('T', 'N', NR, NR, NR, ONE, tmp1_dev, NR, tmp1_dev, NR, ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
    }
 
    //second-last non-dense block .. 0-block
@@ -555,7 +557,8 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
       }
 
       tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR,magma_queue);
-      tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
+      tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, tmp1_dev, NR,magma_queue);
+      tlacpy_dev('A', NR, NR, tmp1_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), magma_queue);
    }
 
    cudaStreamSynchronize(stream_c);

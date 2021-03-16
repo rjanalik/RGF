@@ -786,6 +786,47 @@ inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n,
 
 /************************************************************************************************/
 
+template <typename T>
+inline void tlacpy_dev(char uplo, int m, int n, T *a, int lda, T *b, int ldb, magma_queue_t queue);
+
+template <>
+inline void tlacpy_dev(char uplo, int m, int n, double *a, int lda, double *b, int ldb, magma_queue_t queue)
+{
+    magma_uplo_t magma_uplo;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper;
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+    if(uplo=='F'){
+        magma_uplo = MagmaFull;
+    }
+
+    magmablas_dlacpy(magma_uplo, m, n, a, lda, b, ldb, queue);
+}
+
+template <>
+inline void tlacpy_dev(char uplo, int m, int n, CPX *a, int lda, CPX *b, int ldb, magma_queue_t queue)
+{
+    magma_uplo_t magma_uplo;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper;
+    }
+    if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+    if(uplo=='F'){
+        magma_uplo = MagmaFull;
+    }
+
+    magmablas_zlacpy(magma_uplo, m, n, (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb, queue);
+}
+
+/************************************************************************************************/
+
 /*Lapack*****************************************************************************************/
 
 inline void c_dgetrf(int m, int n, double *a, int lda, int *ipiv, int *info)
