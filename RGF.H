@@ -534,8 +534,9 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
    }
 
    //second-last non-dense block .. 0-block
-   for (IB = matrix->nt-2; IB > -1; IB--)
+   for (int IBi = matrix->nt-2; IBi > -1; IBi--)
    {
+      IB = IBi;
       NR = b_max[IB]-b_min[IB];
       NP = b_max[IB+1]-b_min[IB+1];
 
