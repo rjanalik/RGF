@@ -50,7 +50,8 @@ ifeq ($(BUILD_TYPE),icsmaster-gnu64)
         BLAHOME	      = $(MKLHOME)
         LAPHOME       = $(MKLHOME)
         SCAHOME	      = $(MKLHOME)
-	CUDAHOME      = /apps/cudatoolkit/11.1/gcc-10.1.0
+        #CUDAHOME      = /apps/cudatoolkit/11.1/gcc-10.1.0
+	CUDAHOME      = /scratch/janalik/spack/opt/spack/linux-centos8-haswell/gcc-10.1.0/cuda-11.2.1-hotdferjaqrqtr6sq2j3ekp5brao6ppt
         LOADER        = g++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
         CXX           = g++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
 	NVCC	      = $(CUDAHOME)/bin/nvcc
