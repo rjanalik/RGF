@@ -521,7 +521,7 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
 
       tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR,magma_queue);
       tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, tmp1_dev, NR,magma_queue);
-      tlacpy_dev('A', NR, NR, tmp1_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), magma_queue);
+      tlacpy_dev('F', NR, NR, tmp1_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), magma_queue);
    }
    else
    {
@@ -558,7 +558,7 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
 
       tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR,magma_queue);
       tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, tmp1_dev, NR,magma_queue);
-      tlacpy_dev('A', NR, NR, tmp1_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), magma_queue);
+      tlacpy_dev('F', NR, NR, tmp1_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), magma_queue);
    }
 
    cudaStreamSynchronize(stream_c);

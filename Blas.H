@@ -797,10 +797,10 @@ inline void tlacpy_dev(char uplo, int m, int n, double *a, int lda, double *b, i
     if(uplo=='U'){
         magma_uplo = MagmaUpper;
     }
-    if(uplo=='L'){
+    else if(uplo=='L'){
         magma_uplo = MagmaLower;
     }
-    if(uplo=='F'){
+    else{
         magma_uplo = MagmaFull;
     }
 
@@ -815,10 +815,10 @@ inline void tlacpy_dev(char uplo, int m, int n, CPX *a, int lda, CPX *b, int ldb
     if(uplo=='U'){
         magma_uplo = MagmaUpper;
     }
-    if(uplo=='L'){
+    else if(uplo=='L'){
         magma_uplo = MagmaLower;
     }
-    if(uplo=='F'){
+    else{
         magma_uplo = MagmaFull;
     }
 
