@@ -3,6 +3,7 @@
 #include "cublas_v2.h"
 #include "cusparse_v2.h"
 #include "cuda.h"
+#include "magma_v2.h"
 
 #ifndef max_stream
 #define max_stream 16
@@ -180,7 +181,7 @@ void zasum_on_dev(void *handle,int n,CPX *x,int incx,double *result)
 }
 
 extern "C"
-void dsum_on_dev(void *handle,int n,double *x,int incx,double *result)
+void dsum_on_dev(int n,double *x,int incx,double *result,magma_queue_t queue)
 {
     double one = 1.0;
     double *y;
@@ -188,21 +189,22 @@ void dsum_on_dev(void *handle,int n,double *x,int incx,double *result)
     cudaMalloc(&y, 1*sizeof(double));
     cudaMemcpy(y, &one, 1*sizeof(double), cudaMemcpyHostToDevice);
 
-    cublasDdot((cublasHandle_t)handle, n, x, incx, y, incy, result);
+    *result = magma_ddot(n, x, incx, y, incy, queue);
 
     cudaFree(y);
 }
 
 extern "C"
-void zsum_on_dev(void *handle,int n,CPX *x,int incx,CPX *result)
+void zsum_on_dev(int n,CPX *x,int incx,CPX *result,magma_queue_t queue)
 {
-    cuDoubleComplex one = {1.0, 0.0};
-    cuDoubleComplex *y;
+    magmaDoubleComplex one = {1.0, 0.0};
+    magmaDoubleComplex *y;
     int incy = 0;
     cudaMalloc(&y, 1*sizeof(cuDoubleComplex));
     cudaMemcpy(y, &one, 1*sizeof(cuDoubleComplex), cudaMemcpyHostToDevice);
 
-    cublasZdotu((cublasHandle_t)handle, n, (cuDoubleComplex*)x, incx, y, incy, (cuDoubleComplex*)result);
+    magmaDoubleComplex magma_result = magma_zdotu(n, (magmaDoubleComplex*)x, incx, y, incy, queue);
+    result = reinterpret_cast<CPX*>(&magma_result);
 
     cudaFree(y);
 }

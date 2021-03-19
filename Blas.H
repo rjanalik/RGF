@@ -474,18 +474,18 @@ inline void tasum_dev(void *handle, int n, CPX *x, int incx, CPX *result)
 /************************************************************************************************/
 
 template <typename T>
-inline void tsum_dev(void *handle, int n, T *x, int incx, T *result);
+inline void tsum_dev(int n, T *x, int incx, T *result, magma_queue_t queue);
 
 template <>
-inline void tsum_dev(void *handle, int n, double *x, int incx, double *result)
+inline void tsum_dev(int n, double *x, int incx, double *result, magma_queue_t queue)
 {
-    dsum_on_dev(handle, n, x, incx, result);
+    dsum_on_dev(n, x, incx, result, queue);
 }
 
 template <>
-inline void tsum_dev(void *handle, int n, CPX *x, int incx, CPX *result)
+inline void tsum_dev(int n, CPX *x, int incx, CPX *result, magma_queue_t queue)
 {
-    zsum_on_dev(handle, n, x, incx, result);
+    zsum_on_dev(n, x, incx, result, queue);
 }
 
 /*magma*****************************************************************************************/

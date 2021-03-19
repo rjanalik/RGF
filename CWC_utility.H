@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include "Types.H"
+#include "magma_v2.h"
 
 extern "C" {
 
@@ -24,8 +25,8 @@ extern "C" {
   void zaxpy_on_dev(void*,int,CPX,CPX*,int,CPX*,int);
   void dasum_on_dev(void *handle,int n,double *x,int incx,double *result);
   void zasum_on_dev(void *handle,int n,CPX *x,int incx,double *result);
-  void dsum_on_dev(void *handle,int n,double *x,int incx,double *result);
-  void zsum_on_dev(void *handle,int n,CPX *x,int incx,CPX *result);
+  void dsum_on_dev(int n,double *x,int incx,double *result,magma_queue_t queue);
+  void zsum_on_dev(int n,CPX *x,int incx,CPX *result,magma_queue_t queue);
   void d_copy_csr_to_device(int,int,int*,int*,double*,int*,int*,double*);
   void z_copy_csr_to_device(int,int,int*,int*,CPX*,int*,int*,CPX*);
   void d_csr_mult_f(void*,int,int,int,int,int*,int*,double*,double,\

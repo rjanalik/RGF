@@ -772,7 +772,7 @@ T RGF<T>::logDet()
     //Computation
     indexed_copy_dev(MF_dev, diag_dev, diag_pos_dev, matrix->size);
     log_dev(diag_dev, matrix->size);
-    tsum_dev(cublas_handle, matrix->size, diag_dev, 1, &det);
+    tsum_dev(matrix->size, diag_dev, 1, &det, magma_queue);
 
     //Copy data to host
     //memcpy_to_host(diag,diag_dev,matrix->size*sizeof(T));
