@@ -97,7 +97,8 @@ int main(int argc, char *argv[])
 
     t0 = get_time(0.0);
 
-    solver->factorize();
+    //solver->factorize();
+    solver->factorize(ia, ja, a);
     solver->solve(x, b, nrhs);
 
     printf("logdet: %f\n", solver->logDet());

@@ -1202,6 +1202,40 @@ inline void log_dev(CPX *x, size_t N)
 
 /************************************************************************************************/
 
+template <typename T>
+inline void fill_dev(T *x, const T value, size_t N);
+
+template <>
+inline void fill_dev(double *x, const double value, size_t N)
+{
+    d_fill_on_dev(x, value, N);
+}
+
+template <>
+inline void fill_dev(CPX *x, const CPX value, size_t N)
+{
+    z_fill_on_dev(x, value, N);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void init_block_matrix_dev(T *M, size_t *ia, size_t *ja, T *a, size_t nnz, size_t ns, size_t nt, size_t nd);
+
+template <>
+inline void init_block_matrix_dev(double *M, size_t *ia, size_t *ja, double *a, size_t nnz, size_t ns, size_t nt, size_t nd)
+{
+    d_init_block_matrix_on_dev(M, ia, ja, a, nnz, ns, nt, nd);
+}
+
+template <>
+inline void init_block_matrix_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t nnz, size_t ns, size_t nt, size_t nd)
+{
+    z_init_block_matrix_on_dev(M, ia, ja, a, nnz, ns, nt, nd);
+}
+
+/************************************************************************************************/
+
 #endif
 
 

@@ -19,6 +19,7 @@ public:
     ~RGF();
     void solve_equation(T*);
     void factorize();
+    void factorize(size_t*,size_t*,T*);
     void solve(T*,size_t);
     void solve(T*,T*,size_t);
     void RGFdiag(T*);
@@ -617,13 +618,55 @@ void RGF<T>::factorize()
     size_t *Bmax = matrix->Bmax;
 
     create_blocks(Bmin,Bmax,NBlock);
-    
+
     //Data allocation
     allocate_data_on_device((void**)&MF_dev,matrix->n_nonzeros*sizeof(T));
     MF_dev_allocated = true;
 
     //Copy data to device
     memcpy_to_device(matrix->nnz,MF_dev,matrix->n_nonzeros*sizeof(T));
+
+    //Computation
+    FirstStageFactor(Bmin,Bmax,NBlock);
+
+    factorization_completed = true;
+}
+
+/************************************************************************************************/
+
+template <class T>
+void RGF<T>::factorize(size_t *ia, size_t *ja, T *a)
+{
+    size_t NBlock = matrix->NBlock;
+    size_t *Bmin = matrix->Bmin;
+    size_t *Bmax = matrix->Bmax;
+
+    create_blocks(Bmin,Bmax,NBlock);
+
+    //Data allocation
+    allocate_data_on_device((void**)&MF_dev,matrix->n_nonzeros*sizeof(T));
+    MF_dev_allocated = true;
+    size_t nnz = ia[matrix->size];
+    size_t *ia_dev;
+    size_t *ja_dev;
+    T *a_dev;
+    allocate_data_on_device((void**)&ia_dev,(matrix->size+1)*sizeof(size_t));
+    allocate_data_on_device((void**)&ja_dev,nnz*sizeof(size_t));
+    allocate_data_on_device((void**)&a_dev,nnz*sizeof(T));
+
+    //Copy data to device
+    memcpy_to_device(ia,ia_dev,(matrix->size+1)*sizeof(size_t));
+    memcpy_to_device(ja,ja_dev,nnz*sizeof(size_t));
+    memcpy_to_device(a,a_dev,nnz*sizeof(T));
+
+    //Initialize block matrix on device
+    fill_dev(MF_dev, T(0.0), matrix->n_nonzeros);
+    init_block_matrix_dev(MF_dev, ia_dev, ja_dev, a_dev, nnz, matrix->ns, matrix->nt, matrix->nd);
+
+    //Data deallocation
+    deallocate_data_on_dev(ia_dev,(matrix->size+1)*sizeof(size_t));
+    deallocate_data_on_dev(ja_dev,nnz*sizeof(size_t));
+    deallocate_data_on_dev(a_dev,nnz*sizeof(T));
 
     //Computation
     FirstStageFactor(Bmin,Bmax,NBlock);
