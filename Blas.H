@@ -471,6 +471,23 @@ inline void tasum_dev(void *handle, int n, CPX *x, int incx, CPX *result)
     *result = CPX(dRes, 0.0);
 }
 
+/************************************************************************************************/
+
+template <typename T>
+inline void tsum_dev(void *handle, int n, T *x, int incx, T *result);
+
+template <>
+inline void tsum_dev(void *handle, int n, double *x, int incx, double *result)
+{
+    dsum_on_dev(handle, n, x, incx, result);
+}
+
+template <>
+inline void tsum_dev(void *handle, int n, CPX *x, int incx, CPX *result)
+{
+    zsum_on_dev(handle, n, x, incx, result);
+}
+
 /*magma*****************************************************************************************/
 
 template <typename T>
@@ -1169,18 +1186,18 @@ inline void indexed_copy_dev(CPX *src, CPX *dst, size_t *index, size_t N)
 /************************************************************************************************/
 
 template <typename T>
-inline void logx2_dev(T *x, size_t N);
+inline void log_dev(T *x, size_t N);
 
 template <>
-inline void logx2_dev(double *x, size_t N)
+inline void log_dev(double *x, size_t N)
 {
-    d_logx2_on_dev(x, N);
+    d_log_on_dev(x, N);
 }
 
 template <>
-inline void logx2_dev(CPX *x, size_t N)
+inline void log_dev(CPX *x, size_t N)
 {
-    z_logx2_on_dev(x, N);
+    z_log_on_dev(x, N);
 }
 
 /************************************************************************************************/

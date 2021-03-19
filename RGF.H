@@ -721,15 +721,15 @@ T RGF<T>::logDet()
     size_t *diag_pos_dev;
     allocate_data_on_device((void**)&diag_dev,matrix->size*sizeof(T));
     allocate_data_on_device((void**)&diag_pos_dev,matrix->size*sizeof(size_t));
-    T det;
+    T det = T(0.0);
 
     //Copy diag_pos to device
     memcpy_to_device(matrix->diag_pos,diag_pos_dev,matrix->size*sizeof(size_t));
 
     //Computation
     indexed_copy_dev(MF_dev, diag_dev, diag_pos_dev, matrix->size);
-    logx2_dev(diag_dev, matrix->size);
-    tasum_dev(cublas_handle, matrix->size, diag_dev, 1, &det);
+    log_dev(diag_dev, matrix->size);
+    tsum_dev(cublas_handle, matrix->size, diag_dev, 1, &det);
 
     //Copy data to host
     //memcpy_to_host(diag,diag_dev,matrix->size*sizeof(T));
@@ -738,7 +738,7 @@ T RGF<T>::logDet()
     deallocate_data_on_dev(diag_dev,matrix->size*sizeof(T));
     deallocate_data_on_dev(diag_pos_dev,matrix->size*sizeof(size_t));
 
-    return det;
+    return 2.0*det;
 }
 
 /************************************************************************************************/

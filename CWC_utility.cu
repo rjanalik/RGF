@@ -179,6 +179,34 @@ void zasum_on_dev(void *handle,int n,CPX *x,int incx,double *result)
     cublasDzasum((cublasHandle_t)handle,n,(cuDoubleComplex*)x,incx,result);
 }
 
+extern "C"
+void dsum_on_dev(void *handle,int n,double *x,int incx,double *result)
+{
+    double one = 1.0;
+    double *y;
+    int incy = 0;
+    cudaMalloc(&y, 1*sizeof(double));
+    cudaMemcpy(y, &one, 1*sizeof(double), cudaMemcpyHostToDevice);
+
+    cublasDdot((cublasHandle_t)handle, n, x, incx, y, incy, result);
+
+    cudaFree(y);
+}
+
+extern "C"
+void zsum_on_dev(void *handle,int n,CPX *x,int incx,CPX *result)
+{
+    cuDoubleComplex one = {1.0, 0.0};
+    cuDoubleComplex *y;
+    int incy = 0;
+    cudaMalloc(&y, 1*sizeof(cuDoubleComplex));
+    cudaMemcpy(y, &one, 1*sizeof(cuDoubleComplex), cudaMemcpyHostToDevice);
+
+    cublasZdotu((cublasHandle_t)handle, n, (cuDoubleComplex*)x, incx, y, incy, (cuDoubleComplex*)result);
+
+    cudaFree(y);
+}
+
 __global__ void d_init_variable_on_dev(double *var,int N){
 
      int idx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -850,33 +878,33 @@ void z_indexed_copy_on_dev(CPX *src, CPX *dst, size_t *index, size_t N)
     z_indexed_copy<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)src, (cuDoubleComplex*)dst, index, N);
 }
 
-__global__ void d_logx2(double *x, size_t N)
+__global__ void d_log(double *x, size_t N)
 {
    size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
    if (idx < N)
    {
-      x[idx] = log(x[idx]*x[idx]);
+      x[idx] = log(x[idx]);
    }
 
    __syncthreads();
 }
 
 extern "C"
-void d_logx2_on_dev(double *x, size_t N)
+void d_log_on_dev(double *x, size_t N)
 {
     size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
-    d_logx2<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(x, N);
+    d_log<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(x, N);
 }
 
-__global__ void z_logx2(cuDoubleComplex *x, size_t N)
+__global__ void z_log(cuDoubleComplex *x, size_t N)
 {
    size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
    if (idx < N)
    {
-      x[idx].x = log(x[idx].x*x[idx].x);
+      x[idx].x = log(x[idx].x);
       x[idx].y = 0.0;
    }
 
@@ -884,9 +912,9 @@ __global__ void z_logx2(cuDoubleComplex *x, size_t N)
 }
 
 extern "C"
-void z_logx2_on_dev(CPX *x, size_t N)
+void z_log_on_dev(CPX *x, size_t N)
 {
     size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
-    z_logx2<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)x, N);
+    z_log<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)x, N);
 }
