@@ -397,9 +397,6 @@ void RGF<T>::FirstStageFactor(size_t *b_min,size_t *b_max,size_t NBlock)
        tpotrf_dev('L', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
        //printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(IB, IB), mf_block_lda(IB, IB));
     }
-
-    cudaStreamSynchronize(stream_c);
-    magma_queue_sync(magma_queue);
 }
 
 /************************************************************************************************/
@@ -478,9 +475,6 @@ void RGF<T>::SecondStageSolve(size_t *b_min,size_t *b_max,size_t NBlock,size_t n
 
     //rj dtrsm LLTN MF[NBlock-1,NBlock-1] rhs[NBlock-1]
     ttrsm_dev('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[b_min[IB]], matrix->size, magma_queue);
-
-    cudaStreamSynchronize(stream_c);
-    magma_queue_sync(magma_queue);
 }
 
 /************************************************************************************************/
@@ -561,9 +555,6 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
       tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, tmp1_dev, NR,magma_queue);
       tlacpy_dev('F', NR, NR, tmp1_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), magma_queue);
    }
-
-   cudaStreamSynchronize(stream_c);
-    magma_queue_sync(magma_queue);
 }
 
 /************************************************************************************************/
