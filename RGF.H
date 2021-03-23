@@ -600,35 +600,16 @@ double RGF<T>::residualNorm(T *x, T *b)
 
    memcpy(r, b, matrix_size*sizeof(T));
 
-   IB = 0;
-   NR = b_max[IB]-b_min[IB];
-
-   c_tsymm('L', 'L', NR, 1, -1.0, &matrix_a[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix_size, 1.0, &r[b_min[IB]], matrix_size);
-
-   for (size_t IB = 1; IB < matrix_nt; IB++)
+   for (size_t ic = 0; ic < matrix_size; ic++)
    {
-      NR = b_max[IB]-b_min[IB];
-      NM = b_max[IB-1]-b_min[IB-1];
-
-      c_tgemm('N', 'N', NR, 1, NM, -1.0, &matrix_a[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &x[b_min[IB-1]], matrix_size, 1.0, &r[b_min[IB]], matrix_size);
-      c_tgemm('T', 'N', NM, 1, NR, -1.0, &matrix_a[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &x[b_min[IB]], matrix_size, 1.0, &r[b_min[IB-1]], matrix_size);
-      c_tsymm('L', 'L', NR, 1, -1.0, &matrix_a[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix_size, 1.0, &r[b_min[IB]], matrix_size);
-   }
-
-   if (matrix_nd > 0)
-   {
-      NR = matrix_nd;
-
-      for (size_t IB = 0; IB < matrix_nt; IB++)
+      for (size_t i = matrix_ia[ic]; i < matrix_ia[ic+1]; i++)
       {
-         NM = b_max[IB]-b_min[IB];
+         size_t ir = matrix_ja[i];
 
-         c_tgemm('N', 'N', NR, 1, NM, -1.0, &matrix_a[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &x[b_min[IB]], matrix_size, 1.0, &r[b_min[NBlock-1]], matrix_size);
-         c_tgemm('T', 'N', NM, 1, NR, -1.0, &matrix_a[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &x[b_min[NBlock-1]], matrix_size, 1.0, &r[b_min[IB]], matrix_size);
+         r[ir] -= matrix_a[i]*x[ic];
+         if (ir != ic)
+            r[ic] -= matrix_a[i]*x[ir];
       }
-
-      IB = NBlock-1;
-      c_tsymm('L', 'L', NR, 1, -1.0, &matrix_a[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix_size, 1.0, &r[b_min[IB]], matrix_size);
    }
 
    double res = c_dtnrm2(matrix_size, r, 1);
