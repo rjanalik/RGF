@@ -448,14 +448,18 @@ void RGF<T>::factorize()
     create_blocks();
 
     //Data allocation
-    allocate_data_on_device((void**)&MF_dev,matrix_n_nonzeros*sizeof(T));
-    MF_dev_allocated = true;
+    if (!MF_dev_allocated)
+    {
+       allocate_data_on_device((void**)&MF_dev,matrix_n_nonzeros*sizeof(T));
+       MF_dev_allocated = true;
+    }
 
     size_t nnz = matrix_ia[matrix_size];
     size_t *ia_dev;
     size_t *ja_dev;
     T *a_dev;
 
+    //Temp data allocation
     allocate_data_on_device((void**)&ia_dev,(matrix_size+1)*sizeof(size_t));
     allocate_data_on_device((void**)&ja_dev,nnz*sizeof(size_t));
     allocate_data_on_device((void**)&a_dev,nnz*sizeof(T));
@@ -469,7 +473,7 @@ void RGF<T>::factorize()
     fill_dev(MF_dev, T(0.0), matrix_n_nonzeros);
     init_block_matrix_dev(MF_dev, ia_dev, ja_dev, a_dev, nnz, matrix_ns, matrix_nt, matrix_nd);
 
-    //Data deallocation
+    //Temp data deallocation
     deallocate_data_on_dev(ia_dev,(matrix_size+1)*sizeof(size_t));
     deallocate_data_on_dev(ja_dev,nnz*sizeof(size_t));
     deallocate_data_on_dev(a_dev,nnz*sizeof(T));
