@@ -594,9 +594,6 @@ double RGF<T>::residualNorm(T *x, T *b)
    T *r = new T[matrix_size];
    size_t NR, NM;
    size_t IB;
-   size_t *b_min = Bmin;
-   size_t *b_max = Bmax;
-   size_t NBlock = NBlock;
 
    memcpy(r, b, matrix_size*sizeof(T));
 
