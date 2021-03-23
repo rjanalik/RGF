@@ -592,8 +592,6 @@ template <class T>
 double RGF<T>::residualNorm(T *x, T *b)
 {
    T *r = new T[matrix_size];
-   size_t NR, NM;
-   size_t IB;
 
    memcpy(r, b, matrix_size*sizeof(T));
 
