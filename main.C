@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits>
-#include "CSR.H"
 #include "RGF.H"
 using namespace std;
 
@@ -34,7 +33,6 @@ int main(int argc, char *argv[])
     int i;
     double data;
     double t0;
-    TCSR<T> *M;
     T *b;
     T *x;
     T *invDiag;
@@ -50,6 +48,8 @@ int main(int argc, char *argv[])
     size_t ns = atoi(argv[1]);
     size_t nt = atoi(argv[2]);
     size_t nd = atoi(argv[3]);
+
+    size_t size = ns*nt + nd;
 
     // load matrix from file
     FILE *F = fopen(argv[4],"r");
@@ -84,21 +84,19 @@ int main(int argc, char *argv[])
 
     fclose(F);
 
-    M      = new TCSR<T>(ia, ja, a, ns, nt, nd);
     nrhs   = 2;
-    b      = new T[nrhs*(ns*nt+nd)];
-    x      = new T[nrhs*(ns*nt+nd)];
-    invDiag= new T[M->size];
+    b      = new T[nrhs*size];
+    x      = new T[nrhs*size];
+    invDiag= new T[size];
 
     for (int i = 0; i < nrhs*(ns*nt+nd); i++)
        b[i] = assign_T(i+1);
     
-    solver = new RGF<T>(M);
+    solver = new RGF<T>(ia, ja, a, ns, nt, nd);
 
     t0 = get_time(0.0);
 
-    //solver->factorize();
-    solver->factorize(ia, ja, a);
+    solver->factorize();
     solver->solve(x, b, nrhs);
 
     printf("logdet: %f\n", solver->logDet());
@@ -129,7 +127,6 @@ int main(int argc, char *argv[])
 
     delete[] b;
     delete[] x;
-    delete M;
     delete solver;
     delete[] invDiag;
     
