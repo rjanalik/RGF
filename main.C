@@ -15,24 +15,11 @@ typedef double T;
 #define assign_T(val) val
 #endif
 
-/*
-Start simulations with RGF NBlock Bmin.dat Bmax.dat M.dat
-NBlock: number of blocks of the matrix
-Bmin.dat: name of file that contains the first index of each block starting with 0
-Bmax.dat: name of file that contains the last index of each block with Bmax[i]=Bmin[i+1]
-M.dat: name of file that contains the matrix to work on.
-Data stored:
-size (matrix size)
-n_nonzeros (number of non-zero elements)
-fortran index (0 or 1)
-index_i index_j real imag (4 columns per matrix entry)
-*/
-
 int main(int argc, char *argv[])
 {
     int i;
     double data;
-    double t0;
+    double t0, t1, t2, t3;
     T *b;
     T *x;
     T *invDiag;
@@ -84,42 +71,55 @@ int main(int argc, char *argv[])
 
     fclose(F);
 
-    nrhs   = 2;
+    nrhs   = 1;
     b      = new T[nrhs*size];
     x      = new T[nrhs*size];
     invDiag= new T[size];
 
-    for (int i = 0; i < nrhs*(ns*nt+nd); i++)
-       b[i] = assign_T(i+1);
+    F = fopen(argv[5],"r");
+    for (int i = 0; i < nrhs*size; i++)
+    {
+       fscanf(F,"%lf",&b[i]);
+    }
+    fclose(F);
     
     solver = new RGF<T>(ia, ja, a, ns, nt, nd);
 
     t0 = get_time(0.0);
-
     solver->factorize();
-    solver->solve(x, b, nrhs);
-
-    printf("logdet: %f\n", solver->logDet());
-
-    solver->RGFdiag(invDiag);
     t0 = get_time(t0);
 
-    printf("RGF time: %lg\n",t0);
+    t1 = get_time(0.0);
+    solver->solve(x, b, nrhs);
+    t1 = get_time(t1);
+
+    t2 = get_time(0.0);
+    double logdet = solver->logDet();
+    t2 = get_time(t2);
+
+    t3 = get_time(0.0);
+    solver->RGFdiag(invDiag);
+    t3 = get_time(t3);
+
+    printf("logdet: %f\n", logdet);
+    printf("\n");
+
+    printf("factorize time: %lg\n",t0);
+    printf("solve time: %lg\n",t1);
+    printf("logdet time: %lg\n",t2);
+    printf("RGF time: %lg\n",t3);
+    printf("\n");
 
     printf("Residual norm: %e\n", solver->residualNorm(x, b));
     printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
-
-    for (int i = 0; i < nrhs*(ns*nt+nd); i++)
-    {
-       printf("x[%d] = %f\n", i, b[i]);
-    }
     printf("\n");
-    //for (int i = 0; i < M->size; i++)
-    for (int i = 0; i < M->size; i++)
+
+    for (int i = 0; i < nrhs*size; i++)
     {
-       printf("invDiag[%d] = %f\n", i, invDiag[i]);
+       printf("%32.24e\n", x[i]);
+       //printf("%32.24e\n", invDiag[i]);
     }
-    
+
     // free memory
     delete[] ia;
     delete[] ja;
