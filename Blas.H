@@ -389,22 +389,8 @@ template <>
 inline void tgemm_dev(char transa, char transb, int m, int n, int k, double alpha,\
 		      double *a, int lda, double *b, int ldb, double beta, double *c, int ldc, magma_queue_t queue)
 {
-    magma_trans_t magma_transa;
-    magma_trans_t magma_transb;
-
-    if(transa=='N'){
-        magma_transa = MagmaNoTrans;
-    }
-    if(transa=='T'){
-        magma_transa = MagmaTrans;
-    }
-
-    if(transb=='N'){
-        magma_transb = MagmaNoTrans;
-    }
-    if(transb=='T'){
-        magma_transb = MagmaTrans;
-    }
+    magma_trans_t magma_transa = magma_trans_const(transa);
+    magma_trans_t magma_transb = magma_trans_const(transb);
 
     //dgemm_on_dev(handle,transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc);
     magma_dgemm(magma_transa,magma_transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc,queue);
@@ -414,22 +400,8 @@ template <>
 inline void tgemm_dev(char transa, char transb, int m, int n, int k, CPX alpha,\
 		      CPX *a, int lda, CPX *b, int ldb, CPX beta, CPX *c, int ldc, magma_queue_t queue)
 {
-    magma_trans_t magma_transa;
-    magma_trans_t magma_transb;
-
-    if(transa=='N'){
-        magma_transa = MagmaNoTrans;
-    }
-    if(transa=='T'){
-        magma_transa = MagmaTrans;
-    }
-
-    if(transb=='N'){
-        magma_transb = MagmaNoTrans;
-    }
-    if(transb=='T'){
-        magma_transb = MagmaTrans;
-    }
+    magma_trans_t magma_transa = magma_trans_const(transa);
+    magma_trans_t magma_transb = magma_trans_const(transb);
 
     //zgemm_on_dev(handle,transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc);
     magma_zgemm(magma_transa,magma_transb,m,n,k,*reinterpret_cast<magmaDoubleComplex*>(&alpha),(magmaDoubleComplex_ptr)a,lda,(magmaDoubleComplex_ptr)b,ldb,*reinterpret_cast<magmaDoubleComplex*>(&beta),(magmaDoubleComplex_ptr)c,ldc,queue);
@@ -514,32 +486,18 @@ template <>
 inline void tgetrs_dev(char transa,int n,int nrhs,double *a,int lda,int *ipiv,double *b,int ldb,\
 		       int *info)
 {
-    magma_trans_t magma_opa;
+    magma_trans_t magma_transa = magma_trans_const(transa);
 
-    if(transa=='N'){
-        magma_opa = MagmaNoTrans; 
-    }
-    if(transa=='T'){
-        magma_opa = MagmaTrans;
-    }
-
-    magma_dgetrs_gpu(magma_opa,n,nrhs,a,lda,ipiv,b,ldb,info);
+    magma_dgetrs_gpu(magma_transa,n,nrhs,a,lda,ipiv,b,ldb,info);
 }
 
 template <>
 inline void tgetrs_dev(char transa,int n,int nrhs,CPX *a,int lda,int *ipiv,CPX *b,int ldb,\
 		       int *info)
 {
-    magma_trans_t magma_opa;
+    magma_trans_t magma_transa = magma_trans_const(transa);
 
-    if(transa=='N'){
-        magma_opa = MagmaNoTrans; 
-    }
-    if(transa=='T'){
-        magma_opa = MagmaTrans;
-    }
-
-    magma_zgetrs_gpu(magma_opa,n,nrhs,(magmaDoubleComplex_ptr)a,lda,ipiv,\
+    magma_zgetrs_gpu(magma_transa,n,nrhs,(magmaDoubleComplex_ptr)a,lda,ipiv,\
 		     (magmaDoubleComplex_ptr)b,ldb,info);
 }
 
@@ -603,22 +561,8 @@ inline void ttrtri_dev(char uplo,char diag,int n,T *a,int lda,int *info);
 template <>
 inline void ttrtri_dev(char uplo,char diag,int n,double *a,int lda,int *info)
 {
-    magma_uplo_t magma_uplo;
-    magma_diag_t magma_diag;
-
-    if(uplo=='U'){
-        magma_uplo = MagmaUpper;
-    }
-    if(uplo=='L'){
-        magma_uplo = MagmaLower;
-    }
-
-    if(diag=='U'){
-        magma_diag = MagmaUnit;
-    }
-    if(diag=='N'){
-        magma_diag = MagmaNonUnit;
-    }
+    magma_uplo_t magma_uplo = magma_uplo_const(uplo);
+    magma_diag_t magma_diag = magma_diag_const(diag);
 
     magma_dtrtri_gpu(magma_uplo,magma_diag,n,a,lda,info);
 }
@@ -626,22 +570,8 @@ inline void ttrtri_dev(char uplo,char diag,int n,double *a,int lda,int *info)
 template <>
 inline void ttrtri_dev(char uplo,char diag,int n,CPX *a,int lda,int *info)
 {
-    magma_uplo_t magma_uplo;
-    magma_diag_t magma_diag;
-
-    if(uplo=='U'){
-        magma_uplo = MagmaUpper;
-    }
-    if(uplo=='L'){
-        magma_uplo = MagmaLower;
-    }
-
-    if(diag=='U'){
-        magma_diag = MagmaUnit;
-    }
-    if(diag=='N'){
-        magma_diag = MagmaNonUnit;
-    }
+    magma_uplo_t magma_uplo = magma_uplo_const(uplo);
+    magma_diag_t magma_diag = magma_diag_const(diag);
 
     magma_ztrtri_gpu(magma_uplo,magma_diag,n,(magmaDoubleComplex_ptr)a,lda,info);
 }
@@ -664,16 +594,9 @@ inline void zgetri_dev(int n,CPX *a,int lda,int *ipiv,CPX *work,int lwork,int *i
 
 inline void zgetrs_nopiv_dev(char transa,int n,int nrhs,CPX *a,int lda,CPX *b,int ldb,int *info)
 {
-    magma_trans_t magma_opa;
+    magma_trans_t magma_transa = magma_trans_const(transa);
 
-    if(transa=='N'){
-        magma_opa = MagmaNoTrans; 
-    }
-    if(transa=='T'){
-        magma_opa = MagmaTrans;
-    }
-
-    magma_zgetrs_nopiv_gpu(magma_opa,n,nrhs,(magmaDoubleComplex_ptr)a,lda,\
+    magma_zgetrs_nopiv_gpu(magma_transa,n,nrhs,(magmaDoubleComplex_ptr)a,lda,\
 			   (magmaDoubleComplex_ptr)b,ldb,info);
 }
 
@@ -685,14 +608,7 @@ inline void tpotrf_dev(char uplo,int n,T *a,int lda,int *info);
 template <>
 inline void tpotrf_dev(char uplo,int n,double *a,int lda,int *info)
 {
-    magma_uplo_t magma_uplo;
-
-    if(uplo=='U'){
-        magma_uplo = MagmaUpper; 
-    }
-    if(uplo=='L'){
-        magma_uplo = MagmaLower;
-    }
+    magma_uplo_t magma_uplo = magma_uplo_const(uplo);
 
     magma_dpotrf_gpu(magma_uplo,n,a,lda,info);
 }
@@ -700,14 +616,7 @@ inline void tpotrf_dev(char uplo,int n,double *a,int lda,int *info)
 template <>
 inline void tpotrf_dev(char uplo,int n,CPX *a,int lda,int *info)
 {
-    magma_uplo_t magma_uplo;
-
-    if(uplo=='U'){
-        magma_uplo = MagmaUpper; 
-    }
-    if(uplo=='L'){
-        magma_uplo = MagmaLower;
-    }
+    magma_uplo_t magma_uplo = magma_uplo_const(uplo);
 
     magma_zpotrf_gpu(magma_uplo,n,(magmaDoubleComplex_ptr)a,lda,info);
 }
@@ -720,41 +629,10 @@ inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n,
 template <>
 inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, double alpha, double *a, int lda, double *b, int ldb, magma_queue_t queue)
 {
-    magma_side_t magma_side;
-    magma_uplo_t magma_uplo;
-    magma_trans_t magma_trans;
-    magma_diag_t magma_diag;
-
-    if(side=='L'){
-        magma_side = MagmaLeft; 
-    }
-    if(side=='R'){
-        magma_side = MagmaRight;
-    }
-
-    if(uplo=='U'){
-        magma_uplo = MagmaUpper; 
-    }
-    if(uplo=='L'){
-        magma_uplo = MagmaLower;
-    }
-
-    if(trans=='N'){
-        magma_trans = MagmaNoTrans; 
-    }
-    if(trans=='T'){
-        magma_trans = MagmaTrans;
-    }
-    if(trans=='C'){
-        magma_trans = MagmaConjTrans;
-    }
-
-    if(diag=='U'){
-        magma_diag = MagmaUnit; 
-    }
-    if(diag=='N'){
-        magma_diag = MagmaNonUnit;
-    }
+    magma_side_t magma_side = magma_side_const(side);
+    magma_uplo_t magma_uplo = magma_uplo_const(uplo);
+    magma_trans_t magma_trans = magma_trans_const(trans);
+    magma_diag_t magma_diag = magma_diag_const(diag);
 
     magma_dtrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, alpha, a, lda, b, ldb, queue);
 }
@@ -762,41 +640,10 @@ inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n,
 template <>
 inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n, CPX alpha, CPX *a, int lda, CPX *b, int ldb, magma_queue_t queue)
 {
-    magma_side_t magma_side;
-    magma_uplo_t magma_uplo;
-    magma_trans_t magma_trans;
-    magma_diag_t magma_diag;
-
-    if(side=='L'){
-        magma_side = MagmaLeft; 
-    }
-    if(side=='R'){
-        magma_side = MagmaRight;
-    }
-
-    if(uplo=='U'){
-        magma_uplo = MagmaUpper; 
-    }
-    if(uplo=='L'){
-        magma_uplo = MagmaLower;
-    }
-
-    if(trans=='N'){
-        magma_trans = MagmaNoTrans; 
-    }
-    if(trans=='T'){
-        magma_trans = MagmaTrans;
-    }
-    if(trans=='C'){
-        magma_trans = MagmaConjTrans;
-    }
-
-    if(diag=='U'){
-        magma_diag = MagmaUnit; 
-    }
-    if(diag=='N'){
-        magma_diag = MagmaNonUnit;
-    }
+    magma_side_t magma_side = magma_side_const(side);
+    magma_uplo_t magma_uplo = magma_uplo_const(uplo);
+    magma_trans_t magma_trans = magma_trans_const(trans);
+    magma_diag_t magma_diag = magma_diag_const(diag);
 
     magma_ztrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, *reinterpret_cast<magmaDoubleComplex*>(&alpha), (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb, queue);
 }
@@ -809,17 +656,7 @@ inline void tlacpy_dev(char uplo, int m, int n, T *a, int lda, T *b, int ldb, ma
 template <>
 inline void tlacpy_dev(char uplo, int m, int n, double *a, int lda, double *b, int ldb, magma_queue_t queue)
 {
-    magma_uplo_t magma_uplo;
-
-    if(uplo=='U'){
-        magma_uplo = MagmaUpper;
-    }
-    else if(uplo=='L'){
-        magma_uplo = MagmaLower;
-    }
-    else{
-        magma_uplo = MagmaFull;
-    }
+    magma_uplo_t magma_uplo = magma_uplo_const(uplo);
 
     magmablas_dlacpy(magma_uplo, m, n, a, lda, b, ldb, queue);
 }
@@ -827,17 +664,7 @@ inline void tlacpy_dev(char uplo, int m, int n, double *a, int lda, double *b, i
 template <>
 inline void tlacpy_dev(char uplo, int m, int n, CPX *a, int lda, CPX *b, int ldb, magma_queue_t queue)
 {
-    magma_uplo_t magma_uplo;
-
-    if(uplo=='U'){
-        magma_uplo = MagmaUpper;
-    }
-    else if(uplo=='L'){
-        magma_uplo = MagmaLower;
-    }
-    else{
-        magma_uplo = MagmaFull;
-    }
+    magma_uplo_t magma_uplo = magma_uplo_const(uplo);
 
     magmablas_zlacpy(magma_uplo, m, n, (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb, queue);
 }
