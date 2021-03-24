@@ -85,7 +85,7 @@ ifeq ($(BUILD_TYPE),kaust)
         NVCC          = nvcc
         CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
         LOADFLAGS     = -O3 -ffast-math -funroll-loops -L$(GNU64)/lib64 -lgfortran -L$(INTEL64)/compiler/lib/intel64 -L$(MPIHOME)/lib/ #-lmpifort
-        NVCCFLAGS     = -arch=compute_60 -code=sm_60
+        NVCCFLAGS     = -arch=compute_70 -code=sm_70
         CUDA_SDK      = 3
         COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)
         F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64

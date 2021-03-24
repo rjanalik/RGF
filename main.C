@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits>
-#include "CSR.H"
 #include "RGF.H"
 
 #include <omp.h>
@@ -36,18 +35,6 @@ index_i index_j real imag (4 columns per matrix entry)
 
   void readCSR(std::string filename, int &n, int &nnz, int* ia, int* ja, double* a)
 {
-<<<<<<< HEAD
-=======
-    int i;
-    double data;
-    double t0;
-    TCSR<T> *M;
-    T *b;
-    T *x;
-    T *invDiag;
-    int nrhs;
-    RGF<T> *solver;
->>>>>>> master
 
   fstream fin(filename, ios::in);
   fin >> n;
@@ -59,7 +46,6 @@ index_i index_j real imag (4 columns per matrix entry)
    ja = new int [nnz];
    a = new double [nnz];
 
-<<<<<<< HEAD
    // from RADIM'S verison
   /*int ns = atoi(argv[1]);
   int nt = atoi(argv[2]);
@@ -122,36 +108,6 @@ arma::sp_mat readCSC(std::string filename){
   for (int i = 0; i < n_cols+1; i++){
     fin >> col_ptr[i];
     //std::cout <<col_ptr[i] << std::endl;
-=======
-    size_t ns = atoi(argv[1]);
-    size_t nt = atoi(argv[2]);
-    size_t nd = atoi(argv[3]);
-
-    // load matrix from file
-    FILE *F = fopen(argv[4],"r");
-   
-    size_t fn, fnnz;
-    size_t *ia, *ja;
-    T *a;
-    double val;
-
-    /* read in matrix A, sparse matrix in CSR format */
-    fscanf(F,"%zu",&fn);
-    fscanf(F,"%zu",&fn);
-    fscanf(F,"%zu",&fnnz);
-
-    // allocate memory
-    ia = new size_t[fn+1];
-    ja = new size_t[fnnz];
-    a = new T[fnnz];
-  
-    for (i = 0; i <= fn; i++){
-       fscanf(F,"%zu",&ia[i]);
-    }
-
-    for (i = 0; i < ia[fn]; i++){
-       fscanf(F,"%zu",&ja[i]);
->>>>>>> master
     }
 
   for (int i = 0; i < nnz; i++){
@@ -161,15 +117,7 @@ arma::sp_mat readCSC(std::string filename){
 
   fin.close();
 
-<<<<<<< HEAD
   arma::sp_mat A(row_ind, col_ptr, a, n_rows, n_cols);
-=======
-    M      = new TCSR<T>(ia, ja, a, ns, nt, nd);
-    nrhs   = 2;
-    b      = new T[nrhs*(ns*nt+nd)];
-    x      = new T[nrhs*(ns*nt+nd)];
-    invDiag= new T[M->size];
->>>>>>> master
 
   //std::cout << "nonzeros A " << A.n_nonzero << std::endl;
   return A;
@@ -178,13 +126,8 @@ arma::sp_mat readCSC(std::string filename){
 arma::sp_mat readCSC_sym(std::string filename)
 {
 
-<<<<<<< HEAD
   int n;
   int nnz;
-=======
-    solver->factorize();
-    solver->solve(x, b, nrhs);
->>>>>>> master
 
   fstream fin(filename, ios::in);
   fin >> n;
@@ -199,7 +142,6 @@ arma::sp_mat readCSC_sym(std::string filename)
   for (int i = 0; i < nnz; i++){
     fin >> row_ind[i];}
 
-<<<<<<< HEAD
   for (int i = 0; i < n+1; i++){
     fin >> col_ptr[i];}
 
@@ -261,14 +203,14 @@ cout << "in main" << endl;
 
 
   std::string base_path = argv[1];
-  int ns                = atoi(argv[2]);
-  int nt                = atoi(argv[3]);
-  int nb                = atoi(argv[4]);
+  size_t ns                = atoi(argv[2]);
+  size_t nt                = atoi(argv[3]);
+  size_t nb                = atoi(argv[4]);
 
   std::string base_path_data = argv[5];
-  int no                = atoi(argv[6]);
+  size_t no                = atoi(argv[6]);
 
-  int nu                = ns*nt;
+  size_t nu                = ns*nt;
 
   // also save as string
   std::string ns_s = std::to_string(ns);
@@ -390,7 +332,7 @@ cout << "in main" << endl;
   unsigned int nnz_u = Q_u_lower.n_nonzero;
 
   // assemble Q.x = block_diagonal(Q.u, Q.b)
-  int n = size(Q_u)[1] + size(Q_b)[1];
+  size_t n = size(Q_u)[1] + size(Q_b)[1];
   //std::cout << "n : " << n << std::endl;
   arma::sp_mat Q_x(n,n);
   Q_x(0,0, size(Q_u))          = Q_u;
@@ -442,17 +384,17 @@ cout << "in main" << endl;
   //Q_xy.submat(5038,5038,5041,5041).print();
 
   // this time require CSR format
-  unsigned int nnz = Q_xy_lower.n_nonzero;
+  size_t nnz = Q_xy_lower.n_nonzero;
 
   std::cout << "number of non zeros : " << nnz << std::endl;
 
-  int* ia; 
-  int* ja;
+  size_t* ia; 
+  size_t* ja;
   double* a; 
 
   // allocate memory
-  ia = new int [n+1];
-  ja = new int [nnz];
+  ia = new size_t [n+1];
+  ja = new size_t [nnz];
   a = new double [nnz];
 
   for (int i = 0; i < n+1; ++i){
@@ -485,45 +427,37 @@ cout << "in main" << endl;
 
   // FILE *F1,*F2;
   int i;
-  int size,rank;
   double data;
-  double t0; double t1;
-  T *b;
+  double t_factorise; double t_solve; double t_inv;
   int nrhs;
-  TCSR<T> *M;
-  T *GR;
+  T *b;
+  T *x;
+  T *invDiag;
   RGF<T> *solver;
 
-  if(!rank){
-    time_t rawtime;
-    struct tm *timeinfo;
+  time_t rawtime;
+  struct tm *timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+  printf ("The current date/time is: %s\n",asctime(timeinfo));
 
-    time(&rawtime);
-    timeinfo = localtime(&rawtime);
-    printf ("The current date/time is: %s\n",asctime(timeinfo));
-  }
-
-  M      = new TCSR<T>(ia, ja, a, ns, nt, nb);
+  //M      = new TCSR<T>(ia, ja, a, ns, nt, nb);
   //GR     = new T[3*(nt-1)*(ns*ns) + (ns*ns)];
-  nrhs   = 1;
-  b      = new T[nrhs*(ns*nt+nb)];
-
-  int i1 = M->diag_pos[M->size-2];
-  int i2 = i1+1;
-  int i4 = M->diag_pos[M->size-1];
-  int i3 = i4-1;
+  b      = new T[n];
+  x      = new T[n];
+  invDiag= new T[n];
 
   for (int i = 0; i < n; i++){
     b[i] = B_xey[i];
   }
   //B_xey.subvec(0,9).print();
   
-  solver = new RGF<T>(M);
+  solver = new RGF<T>(ia, ja, a, ns, nt, nb);
 
-  t0 = get_time(0.0);
+  t_factorise = get_time(0.0);
   //solver->solve_equation(GR);
   solver->factorize();
-  t0 = get_time(t0);
+  t_factorise = get_time(t_factorise);
 
   double log_det = solver->logDet();
   printf("logdet: %f\n", log_det);
@@ -548,16 +482,22 @@ cout << "in main" << endl;
 
   L_factor_file.close(); */
 
-  t1 = get_time(0.0); 
-  solver->solve(b, nrhs);
-  t1 = get_time(t1);
+  t_solve = get_time(0.0); 
+  solver->solve(x, b, nrhs);
+  t_solve = get_time(t_solve);
 
-  if(!rank){
-  printf("RGF time: %lg\n",t0);
-}
 
-  //printf("Residual norm: %e\n", solver->residualNorm(x, b));
-  //printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
+  t_inv = get_time(0.0);
+  solver->RGFdiag(invDiag);
+  t_inv = get_time(t_inv);
+
+  printf("RGF factorise time: %lg\n",t_factorise);
+  printf("RGF solve     time: %lg\n",t_solve);
+  printf("RGF sel inv   time: %lg\n",t_inv);
+
+
+  printf("Residual norm: %e\n", solver->residualNorm(x, b));
+  printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
 
   /*for (int i = 0; i < nrhs*ns*nt; i++){
     printf("x[%d] = %f\n", i, b[i]);
@@ -568,7 +508,7 @@ cout << "in main" << endl;
   std::ofstream sol_x_file(sol_x_file_name,    std::ios::out | std::ios::trunc);
 
   for (i = 0; i < n; i++) {
-    sol_x_file << b[i] << std::endl;
+    sol_x_file << x[i] << std::endl;
     // sol_x_file << x[i] << std::endl; 
   }
 
@@ -585,32 +525,28 @@ cout << "in main" << endl;
   log_file << "RGF" << std::endl;
   log_file << log_det << std::endl;
   log_file << "0.0" << std::endl;
-  log_file << t0 << std::endl;
-  log_file << t1 << std::endl;
+  log_file << t_factorise << std::endl;
+  log_file << t_solve << std::endl;
+  log_file << t_inv << std::endl;
 
   log_file.close(); 
 
     // print/write diag 
-  /*string sel_inv_file_name = base_path+"/RGF_solver_sel_inv_ns"+to_string(ns)+"_nt"+to_string(nt)+".dat";
+  string sel_inv_file_name = base_path_data+"/RGF_sel_inv_ns"+to_string(ns)+"_nt"+to_string(nt)+"_nb"+ nb_s + "_no" + no_s +".dat";
   cout << sel_inv_file_name << endl;
   ofstream sel_inv_file(sel_inv_file_name,    ios::out | ::ios::trunc);
   
-  for (int i = 0; i < ns*nt; i++){
-    sel_inv_file << GRdiag[i] << endl;
-    printf("GRdiag[%d] = %f\n", i, GRdiag[i]);
-  }
+    for (int i = 0; i < n; i++)
+    {
+      sel_inv_file << invDiag[i] << endl;
+    }
 
   sel_inv_file.close();
-
-  delete[] GRdiag_ind;
-  delete[] GRdiag;*/
-  // for Lisa end
   
 
   cout << "after writing file " << endl;
   
-  delete[] GR;
-  delete M;
+  delete[] invDiag;
   delete solver;
 
   //delete[] MF;
@@ -619,32 +555,6 @@ cout << "in main" << endl;
   delete[] ia;
   delete[] ja;
   delete[] a;
-=======
-    printf("Residual norm: %e\n", solver->residualNorm(x, b));
-    printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
-
-    for (int i = 0; i < nrhs*(ns*nt+nd); i++)
-    {
-       printf("x[%d] = %f\n", i, b[i]);
-    }
-    printf("\n");
-    //for (int i = 0; i < M->size; i++)
-    for (int i = 0; i < M->size; i++)
-    {
-       printf("invDiag[%d] = %f\n", i, invDiag[i]);
-    }
-    
-    // free memory
-    delete[] ia;
-    delete[] ja;
-    delete[] a;
-
-    delete[] b;
-    delete[] x;
-    delete M;
-    delete solver;
-    delete[] invDiag;
->>>>>>> master
     
   return 0;
 

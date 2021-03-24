@@ -471,6 +471,23 @@ inline void tasum_dev(void *handle, int n, CPX *x, int incx, CPX *result)
     *result = CPX(dRes, 0.0);
 }
 
+/************************************************************************************************/
+
+template <typename T>
+inline void tsum_dev(int n, T *x, int incx, T *result, magma_queue_t queue);
+
+template <>
+inline void tsum_dev(int n, double *x, int incx, double *result, magma_queue_t queue)
+{
+    dsum_on_dev(n, x, incx, result, queue);
+}
+
+template <>
+inline void tsum_dev(int n, CPX *x, int incx, CPX *result, magma_queue_t queue)
+{
+    zsum_on_dev(n, x, incx, result, queue);
+}
+
 /*magma*****************************************************************************************/
 
 template <typename T>
@@ -782,6 +799,47 @@ inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n,
     }
 
     magma_ztrsm(magma_side, magma_uplo, magma_trans, magma_diag, m, n, *reinterpret_cast<magmaDoubleComplex*>(&alpha), (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb, queue);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void tlacpy_dev(char uplo, int m, int n, T *a, int lda, T *b, int ldb, magma_queue_t queue);
+
+template <>
+inline void tlacpy_dev(char uplo, int m, int n, double *a, int lda, double *b, int ldb, magma_queue_t queue)
+{
+    magma_uplo_t magma_uplo;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper;
+    }
+    else if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+    else{
+        magma_uplo = MagmaFull;
+    }
+
+    magmablas_dlacpy(magma_uplo, m, n, a, lda, b, ldb, queue);
+}
+
+template <>
+inline void tlacpy_dev(char uplo, int m, int n, CPX *a, int lda, CPX *b, int ldb, magma_queue_t queue)
+{
+    magma_uplo_t magma_uplo;
+
+    if(uplo=='U'){
+        magma_uplo = MagmaUpper;
+    }
+    else if(uplo=='L'){
+        magma_uplo = MagmaLower;
+    }
+    else{
+        magma_uplo = MagmaFull;
+    }
+
+    magmablas_zlacpy(magma_uplo, m, n, (magmaDoubleComplex_ptr)a, lda, (magmaDoubleComplex_ptr)b, ldb, queue);
 }
 
 /************************************************************************************************/
@@ -1128,18 +1186,52 @@ inline void indexed_copy_dev(CPX *src, CPX *dst, size_t *index, size_t N)
 /************************************************************************************************/
 
 template <typename T>
-inline void logx2_dev(T *x, size_t N);
+inline void log_dev(T *x, size_t N);
 
 template <>
-inline void logx2_dev(double *x, size_t N)
+inline void log_dev(double *x, size_t N)
 {
-    d_logx2_on_dev(x, N);
+    d_log_on_dev(x, N);
 }
 
 template <>
-inline void logx2_dev(CPX *x, size_t N)
+inline void log_dev(CPX *x, size_t N)
 {
-    z_logx2_on_dev(x, N);
+    z_log_on_dev(x, N);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void fill_dev(T *x, const T value, size_t N);
+
+template <>
+inline void fill_dev(double *x, const double value, size_t N)
+{
+    d_fill_on_dev(x, value, N);
+}
+
+template <>
+inline void fill_dev(CPX *x, const CPX value, size_t N)
+{
+    z_fill_on_dev(x, value, N);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void init_block_matrix_dev(T *M, size_t *ia, size_t *ja, T *a, size_t nnz, size_t ns, size_t nt, size_t nd);
+
+template <>
+inline void init_block_matrix_dev(double *M, size_t *ia, size_t *ja, double *a, size_t nnz, size_t ns, size_t nt, size_t nd)
+{
+    d_init_block_matrix_on_dev(M, ia, ja, a, nnz, ns, nt, nd);
+}
+
+template <>
+inline void init_block_matrix_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t nnz, size_t ns, size_t nt, size_t nd)
+{
+    z_init_block_matrix_on_dev(M, ia, ja, a, nnz, ns, nt, nd);
 }
 
 /************************************************************************************************/

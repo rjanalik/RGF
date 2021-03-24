@@ -3,6 +3,7 @@
 #include "cublas_v2.h"
 #include "cusparse_v2.h"
 #include "cuda.h"
+#include "magma_v2.h"
 
 #ifndef max_stream
 #define max_stream 16
@@ -177,6 +178,35 @@ extern "C"
 void zasum_on_dev(void *handle,int n,CPX *x,int incx,double *result)
 {
     cublasDzasum((cublasHandle_t)handle,n,(cuDoubleComplex*)x,incx,result);
+}
+
+extern "C"
+void dsum_on_dev(int n,double *x,int incx,double *result,magma_queue_t queue)
+{
+    double one = 1.0;
+    double *y;
+    int incy = 0;
+    cudaMalloc(&y, 1*sizeof(double));
+    cudaMemcpy(y, &one, 1*sizeof(double), cudaMemcpyHostToDevice);
+
+    *result = magma_ddot(n, x, incx, y, incy, queue);
+
+    cudaFree(y);
+}
+
+extern "C"
+void zsum_on_dev(int n,CPX *x,int incx,CPX *result,magma_queue_t queue)
+{
+    magmaDoubleComplex one = {1.0, 0.0};
+    magmaDoubleComplex *y;
+    int incy = 0;
+    cudaMalloc(&y, 1*sizeof(cuDoubleComplex));
+    cudaMemcpy(y, &one, 1*sizeof(cuDoubleComplex), cudaMemcpyHostToDevice);
+
+    magmaDoubleComplex magma_result = magma_zdotu(n, (magmaDoubleComplex*)x, incx, y, incy, queue);
+    result = reinterpret_cast<CPX*>(&magma_result);
+
+    cudaFree(y);
 }
 
 __global__ void d_init_variable_on_dev(double *var,int N){
@@ -850,33 +880,33 @@ void z_indexed_copy_on_dev(CPX *src, CPX *dst, size_t *index, size_t N)
     z_indexed_copy<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)src, (cuDoubleComplex*)dst, index, N);
 }
 
-__global__ void d_logx2(double *x, size_t N)
+__global__ void d_log(double *x, size_t N)
 {
    size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
    if (idx < N)
    {
-      x[idx] = log(x[idx]*x[idx]);
+      x[idx] = log(x[idx]);
    }
 
    __syncthreads();
 }
 
 extern "C"
-void d_logx2_on_dev(double *x, size_t N)
+void d_log_on_dev(double *x, size_t N)
 {
     size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
-    d_logx2<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(x, N);
+    d_log<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(x, N);
 }
 
-__global__ void z_logx2(cuDoubleComplex *x, size_t N)
+__global__ void z_log(cuDoubleComplex *x, size_t N)
 {
    size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
    if (idx < N)
    {
-      x[idx].x = log(x[idx].x*x[idx].x);
+      x[idx].x = log(x[idx].x);
       x[idx].y = 0.0;
    }
 
@@ -884,9 +914,130 @@ __global__ void z_logx2(cuDoubleComplex *x, size_t N)
 }
 
 extern "C"
-void z_logx2_on_dev(CPX *x, size_t N)
+void z_log_on_dev(CPX *x, size_t N)
 {
     size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
-    z_logx2<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)x, N);
+    z_log<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)x, N);
+}
+
+__global__
+void d_fill(double* x, const double value, size_t n)
+{
+    auto i = threadIdx.x + blockDim.x*blockIdx.x;
+    if(i < n) {
+        x[i] = value;
+    }
+}
+
+extern "C"
+void d_fill_on_dev(double *x, const double value, size_t N)
+{
+    size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+
+    d_fill<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(x, value, N);
+}
+
+__global__
+void z_fill(cuDoubleComplex* x, const cuDoubleComplex value, size_t n)
+{
+    auto i = threadIdx.x + blockDim.x*blockIdx.x;
+    if(i < n) {
+        x[i] = value;
+    }
+}
+
+extern "C"
+void z_fill_on_dev(CPX *x, const CPX value, size_t N)
+{
+    size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
+
+    z_fill<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)x, *reinterpret_cast<const cuDoubleComplex*>(&value), N);
+}
+
+__device__
+inline size_t getPos(size_t r, size_t c, size_t ns, size_t nt, size_t nd)
+{
+   size_t ib = c / ns;
+
+   // c in block2 : c in block1 or dense block
+   size_t block2_columns = (ib < nt-1) ? c : (nt-1) * ns;
+   size_t block1_columns;
+   if (ib < nt-1) // c in block2
+      block1_columns = 0;
+   else if (ib == nt-1) // c in block1
+      block1_columns = c % ns;
+   else // c in dense block
+      block1_columns = ns;
+   // c in dense block : c not in dense block
+   size_t dense_block_columns = (c > ns*nt) ? c - ns*nt : 0;
+
+   size_t column_pos;
+   if (r < ns*nt) // not in dense row
+      column_pos = r - ib*ns;
+   else // in dense row
+   {
+      if (ib < nt-1) // 2 blocks
+         column_pos = r - (nt-2)*ns;
+      else if (ib == nt-1) // 1 block
+         column_pos = r - (nt-1)*ns;
+      else // dense block
+         column_pos = r - nt*ns;
+   }
+
+   return block2_columns*(2*ns+nd) + block1_columns*(ns+nd) + dense_block_columns*nd + column_pos;
+}
+
+__global__ void d_init_block_matrix(double *M, size_t *ia, size_t *ja, double *a, size_t nnz, size_t ns, size_t nt, size_t nd)
+{
+   size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+
+   if (idx < nnz)
+   {
+      size_t c = 0;
+      while (ia[c+1] < idx+1)
+         c++;
+      size_t r = ja[idx];
+
+      size_t i = getPos(r, c, ns, nt, nd);
+
+      M[i] = a[idx];
+   }
+
+   __syncthreads();
+}
+
+extern "C"
+void d_init_block_matrix_on_dev(double *M, size_t *ia, size_t *ja, double *a, size_t nnz, size_t ns, size_t nt, size_t nd)
+{
+    size_t i_size = nnz + (BLOCK_DIM-(nnz%BLOCK_DIM));
+
+    d_init_block_matrix<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(M, ia, ja, a, nnz, ns, nt, nd);
+}
+
+__global__ void z_init_block_matrix(cuDoubleComplex *M, size_t *ia, size_t *ja, cuDoubleComplex *a, size_t nnz, size_t ns, size_t nt, size_t nd)
+{
+   size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+
+   if (idx < nnz)
+   {
+      size_t c = 0;
+      while (ia[c+1] < idx+1)
+         c++;
+      size_t r = ja[idx];
+
+      size_t i = getPos(r, c, ns, nt, nd);
+
+      M[i] = a[idx];
+   }
+
+   __syncthreads();
+}
+
+extern "C"
+void z_init_block_matrix_on_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t nnz, size_t ns, size_t nt, size_t nd)
+{
+    size_t i_size = nnz + (BLOCK_DIM-(nnz%BLOCK_DIM));
+
+    z_init_block_matrix<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)M, ia, ja, (cuDoubleComplex*)a, nnz, ns, nt, nd);
 }

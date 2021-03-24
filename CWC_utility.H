@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include "Types.H"
+#include "magma_v2.h"
 
 extern "C" {
 
@@ -24,6 +25,8 @@ extern "C" {
   void zaxpy_on_dev(void*,int,CPX,CPX*,int,CPX*,int);
   void dasum_on_dev(void *handle,int n,double *x,int incx,double *result);
   void zasum_on_dev(void *handle,int n,CPX *x,int incx,double *result);
+  void dsum_on_dev(int n,double *x,int incx,double *result,magma_queue_t queue);
+  void zsum_on_dev(int n,CPX *x,int incx,CPX *result,magma_queue_t queue);
   void d_copy_csr_to_device(int,int,int*,int*,double*,int*,int*,double*);
   void z_copy_csr_to_device(int,int,int*,int*,CPX*,int*,int*,CPX*);
   void d_csr_mult_f(void*,int,int,int,int,int*,int*,double*,double,\
@@ -56,6 +59,10 @@ extern "C" {
   void z_tril_on_dev(CPX *A, int lda, int N);
   void d_indexed_copy_on_dev(double *src, double *dst, size_t *index, size_t N);
   void z_indexed_copy_on_dev(CPX *src, CPX *dst, size_t *index, size_t N);
-  void d_logx2_on_dev(double *x, size_t N);
-  void z_logx2_on_dev(CPX *x, size_t N);
+  void d_log_on_dev(double *x, size_t N);
+  void z_log_on_dev(CPX *x, size_t N);
+  void d_fill_on_dev(double *x, const double value, size_t N);
+  void z_fill_on_dev(CPX *x, const CPX value, size_t N);
+  void d_init_block_matrix_on_dev(double *M, size_t *ia, size_t *ja, double *a, size_t nnz, size_t ns, size_t nt, size_t nd);
+  void z_init_block_matrix_on_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t nnz, size_t ns, size_t nt, size_t nd);
 }

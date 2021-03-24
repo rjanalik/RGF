@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "cublas_v2.h"
-#include "CSR.H"
 #include "Types.H"
 #include "Utilities.H"
 #include "CWC_utility.H"
@@ -14,10 +13,9 @@ class RGF{
 	
 public:
 
-    RGF(TCSR<T>*);
+    RGF(size_t*,size_t*,T*,size_t,size_t,size_t);
 
     ~RGF();
-    void solve_equation(T*);
     void factorize();
     void solve(T*,size_t);
     void solve(T*,T*,size_t);
@@ -28,8 +26,19 @@ public:
 				
 private:
 
-    TCSR<T>* matrix;
-    int findx;
+    size_t *matrix_ia;
+    size_t *matrix_ja;
+    T      *matrix_a;
+    size_t matrix_size;
+    size_t matrix_n_nonzeros;
+    size_t matrix_ns;
+    size_t matrix_nt;
+    size_t matrix_nd;
+    size_t *Bmin;
+    size_t *Bmax;
+    size_t NBlock;
+    size_t *diag_pos;
+
     size_t b_size;
     bool MF_dev_allocated = false;
     bool factorization_completed = false;
@@ -38,30 +47,18 @@ private:
     cudaStream_t stream_c;
     void *cublas_handle;
 
-    T *M_dev;
-    T *M1_dev;
-    T *M2_dev;
-    T *M3_dev;
     T *MF_dev;
     T *rhs_dev;
-    T *nnz_dev;
-    size_t *edge_i_dev;
-    size_t *index_j_dev;
 
     inline size_t mf_block_index(size_t, size_t);
     inline size_t mf_block_lda(size_t, size_t);
     inline size_t mf_dense_block_index(size_t);
     inline size_t mf_dense_block_lda(size_t);
 
-    void extract_diag(int*,int*,T*,T*,int*,int*,int,cudaStream_t);
-    void extract_not_diag(int*,int*,T*,T*,int*,int*,int,int,cudaStream_t);
-    void FirstStage(int*,int*,int);
-    void SecondStage(T*,int*,int*,int);
-    void FirstStageFactor(size_t*,size_t*,size_t);
-    void SecondStageSolve(size_t*,size_t*,size_t,size_t);
-    void ThirdStageRGF(T*,T*,size_t*,size_t*,size_t);
-    void create_blocks(size_t*,size_t*,size_t);
-    void write_matrix(const char*,T*,int,int);
+    void FirstStageFactor();
+    void SecondStageSolve(size_t);
+    void ThirdStageRGF(T*,T*);
+    void create_blocks();
 
    T f_one();
    T f_zero();
@@ -70,10 +67,60 @@ private:
 /************************************************************************************************/
 
 template <class T>
-RGF<T>::RGF(TCSR<T>* mat)
+RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd)
 {
-    matrix = mat;
-    findx  = 0;
+    matrix_ia = ia;
+    matrix_ja = ja;
+    matrix_a = a;
+    matrix_ns = ns;
+    matrix_nt = nt;
+    matrix_nd = nd;
+
+    matrix_size = ns*nt + nd;
+    matrix_n_nonzeros = 2*(nt-1)*ns*ns + ns*ns + matrix_size*nd;
+
+    if (nd > 0)
+       NBlock = nt + 1;
+    else
+       NBlock = nt;
+    Bmin   = new size_t[NBlock];
+    Bmax   = new size_t[NBlock];
+    for (size_t i = 0; i < nt; i++)
+    {
+       Bmin[i] = i*ns;
+       Bmax[i] = (i+1)*ns;
+    }
+    if (nd > 0)
+    {
+       Bmin[nt] = nt*ns;
+       Bmax[nt] = nt*ns + nd;
+    }
+
+    // blocks with lda = 2*ns + nd
+    diag_pos = new size_t[matrix_size];
+    size_t IB;
+    for (IB = 0; IB < nt-1; IB++)
+    {
+       for (size_t i = 0; i < ns; i++)
+       {
+          diag_pos[IB*ns+i] = IB * ns*(2*ns+nd) + i*(2*ns+nd+1);
+       }
+    }
+    // last block with lda = ns + nd
+    IB = nt-1;
+    for (size_t i = 0; i < ns; i++)
+    {
+       diag_pos[IB*ns+i] = IB * ns*(2*ns+nd) + i*(ns+nd+1);
+    }
+    // dense block with lda = ns + nd
+    if (nd > 0)
+    {
+       IB = nt;
+       for (size_t i = 0; i < nd; i++)
+       {
+          diag_pos[nt*ns+i] = (nt-1) * ns*(2*ns+nd) + ns*(ns+nd) + i*(nd+1);
+       }
+    }
 
     magma_init();
     magma_device_t device;
@@ -90,11 +137,15 @@ RGF<T>::~RGF()
 {
    if (MF_dev_allocated)
    {
-      deallocate_data_on_dev(MF_dev,matrix->n_nonzeros*sizeof(T));
+      deallocate_data_on_dev(MF_dev,matrix_n_nonzeros*sizeof(T));
    }
 
    magma_queue_destroy(magma_queue);
    magma_finalize();
+
+   delete[] Bmin;
+   delete[] Bmax;
+   delete[] diag_pos;
 }
 
 /************************************************************************************************/
@@ -102,7 +153,7 @@ RGF<T>::~RGF()
 template <class T>
 inline size_t RGF<T>::mf_block_index(size_t r, size_t c)
 {
-   return matrix->diag_pos[c*b_size] + (r-c)*b_size;
+   return diag_pos[c*b_size] + (r-c)*b_size;
 }
 
 /************************************************************************************************/
@@ -110,7 +161,16 @@ inline size_t RGF<T>::mf_block_index(size_t r, size_t c)
 template <class T>
 inline size_t RGF<T>::mf_block_lda(size_t r, size_t c)
 {
-   return matrix->index_i[c*b_size];
+   //return matrix->index_i[c*b_size];
+   // two blocks
+   if (c < matrix_nt-1)
+      return 2*matrix_ns + matrix_nd;
+   // one block
+   if (c < matrix_nt)
+      return matrix_ns + matrix_nd;
+   // dense block
+   else
+      return matrix_nd;
 }
 
 /************************************************************************************************/
@@ -118,12 +178,12 @@ inline size_t RGF<T>::mf_block_lda(size_t r, size_t c)
 template <class T>
 inline size_t RGF<T>::mf_dense_block_index(size_t i)
 {
-   if (i < matrix->nt-1)
-      return matrix->diag_pos[i*b_size] + 2*b_size;
-   else if (i == matrix->nt-1)
-      return matrix->diag_pos[i*b_size] + b_size;
+   if (i < matrix_nt-1)
+      return diag_pos[i*b_size] + 2*b_size;
+   else if (i == matrix_nt-1)
+      return diag_pos[i*b_size] + b_size;
    else
-      return matrix->diag_pos[i*b_size];
+      return diag_pos[i*b_size];
 }
 
 /************************************************************************************************/
@@ -137,183 +197,7 @@ inline size_t RGF<T>::mf_dense_block_lda(size_t i)
 /************************************************************************************************/
 
 template <class T>
-void RGF<T>::extract_diag(int *edge_i,int *index_j,T *nnz,T *D,int *Bmin,int *Bmax,\
-		       int index,cudaStream_t stream)
-{
-    int NR;
-    int imin,imax;
-
-    NR   = Bmax[index]-Bmin[index];
-    imin = Bmin[index];
-    imax = Bmax[index];
-
-    init_var_on_dev(D,NR*NR,stream);
-
-    extract_diag_on_dev(D,edge_i,index_j,nnz,NR,imin,imax,matrix->first_row,matrix->findx,\
-			  stream);
-}
-
-/************************************************************************************************/
-
-template <class T>
-void RGF<T>::extract_not_diag(int *edge_i,int *index_j,T *nnz,T *D,int *Bmin,int *Bmax,\
-			   int index,int side,cudaStream_t stream)
-{
-    int NR,NC;
-    int imin,imax;
-    int jmin;
-
-    NR   = Bmax[index]-Bmin[index];
-    NC   = Bmax[index+side]-Bmin[index+side];
-    imin = Bmin[index];
-    imax = Bmax[index];
-    jmin = Bmin[index+side];
-
-    init_var_on_dev(D,NR*NC,stream);
-
-    extract_not_diag_on_dev(D,edge_i,index_j,nnz,NR,imin,imax,jmin,side,matrix->first_row,\
-			      matrix->findx,stream);
-}
-
-/************************************************************************************************/
-
-template <class T>
-void RGF<T>::FirstStage(int *b_min,int *b_max,int NBlock)
-{
-    int info;
-    int IB;
-    int NR,NM,NP;
-    int NS1,NS2;
-    T ONE   = f_one();
-    T ZERO  = f_zero();
-    int *ipiv = new int[b_size];
-
-    NR = b_max[0]-b_min[0];
-	
-    //extract E-H11
-    extract_diag(edge_i_dev,index_j_dev,nnz_dev,M1_dev,b_min,b_max,0,0);
-    //eye11=M_dev
-    init_eye_on_dev(M_dev,NR,0);
-    //compute (E-H11-SigmaRl)^{-1}=M1_dev^{-1}=M_dev
-    tgesv_dev(NR,NR,M1_dev,NR,ipiv,M_dev,NR,1,&info);
-    
-    for(IB=1;IB<NBlock-1;IB++){
-
-        NR  = b_max[IB]-b_min[IB];
-	NM  = b_max[IB-1]-b_min[IB-1];
-	NS1 = b_min[IB];
-	NS2 = b_min[IB-1];
-
-	//extract -Hii-1=M2_dev
-	extract_not_diag(edge_i_dev,index_j_dev,nnz_dev,M2_dev,b_min,b_max,IB,-1,stream_c);
-
-	//compute -Hii-1*gi-1=M2_dev*M[add2]=M1_dev
-	tgemm_dev('N','N',NR,NM,NM,ONE,M2_dev,NR,&M_dev[NS2*b_size],NM, \
-		  ZERO,M1_dev,NR,magma_queue);
-	//compute Hii-1*gi-1*Hi-1i=M1_dev*M2_dev'=M_dev[add1]
-	tgemm_dev('N','C',NR,NR,NM,ONE,M1_dev,NR,M2_dev,NR,ZERO, \
-		  &M_dev[NS1*b_size],NR,magma_queue);
-
-	//extract E-Hii=M1_dev
-	extract_diag(edge_i_dev,index_j_dev,nnz_dev,M1_dev,b_min,b_max,IB,stream_c);
-	    
-	//compute E-Hii-Hii-1*gi-1*Hi-1i=M1_dev-M_dev[add1]=M1_dev
-	taxpy_dev(cublas_handle,NR*NR,-ONE,&M_dev[NS1*b_size],1,M1_dev,1);
-       
-	//eyeii=M_dev[add1]
-	init_eye_on_dev(&M_dev[NS1*b_size],NR,0);
-	    	    	    
-	//compute (E-Hii-Hii-1*gi-1*Hi-1i)^{-1}=M_dev[add1]
-	tgesv_dev(NR,NR,M1_dev,NR,ipiv,&M_dev[NS1*b_size],NR,1,&info);
-    }
-
-    cudaStreamSynchronize(stream_c);
-    magma_queue_sync(magma_queue);
-    
-    delete[] ipiv;
-}
-
-/************************************************************************************************/
-
-template <class T>
-void RGF<T>::SecondStage(T *GR,int *b_min,int *b_max,int NBlock)
-{
-
-    int info;
-    int IB;
-    int NR,NM,NP;
-    int NS1,NS2;
-    int N1,NN;
-    T ONE      = f_one();
-    T ZERO     = f_zero();
-    int *ipiv    = new int[b_size];
-
-    IB           = NBlock-1;
-    NM           = b_max[IB-1]-b_min[IB-1];
-    NR           = b_max[IB]-b_min[IB];
-    NS1          = b_min[IB];
-    NS2          = b_min[IB-1];
-
-    //extract E-Hii=M3_dev
-    extract_diag(edge_i_dev,index_j_dev,nnz_dev,M3_dev,b_min,b_max,IB,stream_c);
-
-    //extract -Hii-1=M2_dev
-    extract_not_diag(edge_i_dev,index_j_dev,nnz_dev,M2_dev,b_min,b_max,IB,-1,stream_c);
-
-    //compute -Hii-1*gi-1=M2_dev*M_dev[add2]=M1_dev
-    tgemm_dev('N','N',NR,NM,NM,ONE,M2_dev,NR,&M_dev[NS2*b_size],NM, \
-	      ZERO,M1_dev,NR,magma_queue);
-
-    //compute E-Hii-Hii-1*gi-1*Hi-1i=M3_dev-M1_dev*M2_dev'=M3_dev
-    tgemm_dev('N','C',NR,NR,NM,-ONE,M1_dev,NR,M2_dev,NR,ONE,M3_dev,NR,magma_queue);
-
-    //eyeii=M_dev[add1]
-    init_eye_on_dev(&M_dev[NS1*b_size],NR,0);
-
-    //compute gi=(E-Hii-Hii-1*gi-1*Hi-1i)^{-1}=M3_dev^{-1}=M_dev[add1]
-    tgesv_dev(NR,NR,M3_dev,NR,ipiv,&M_dev[NS1*b_size],NR,1,&info);
-
-    //copy data to device
-    cudaMemcpy(&GR[b_min[IB]*b_size],&M_dev[NS1*b_size],NR*NR*sizeof(T),\
-	       cudaMemcpyDeviceToHost);
-
-    for(IB=(NBlock-2);IB>=0;IB--){
-
-        NR  = b_max[IB]-b_min[IB];
-	NP  = b_max[IB+1]-b_min[IB+1];
-	NS1 = b_min[IB];
-	NS2 = b_min[IB+1];
-	    
-	//extract -Hii+1=M2_dev
-	extract_not_diag(edge_i_dev,index_j_dev,nnz_dev,M2_dev,b_min,b_max,IB,1,stream_c);
-
-	//compute -Hii+1*Gi+1=M2_dev*M_dev[add2]=M1_dev
-	tgemm_dev('N','N',NR,NP,NP,ONE,M2_dev,NR,&M_dev[NS2*b_size],NP, \
-		  ZERO,M1_dev,NR,magma_queue);
-	//compute -gi*Hii+1*Gi+1=M_dev[add]*M1_dev=M3_dev=-Gii+1
-	tgemm_dev('N','N',NR,NP,NR,ONE,&M_dev[NS1*b_size],NR,M1_dev,NR, \
-		  ZERO,M3_dev,NR,magma_queue);
-	//compute gi*Hii+1*Gi+1*Hi+1i=M3_dev*M2_dev'=M1_dev
-	tgemm_dev('N','C',NR,NR,NP,ONE,M3_dev,NR,M2_dev,NR,ZERO,M1_dev,NR,magma_queue);
-	//compute gi*Hii+1*Gi+1*Hi+1i*gi=M1_dev*M_dev[add1]=M2_dev
-	tgemm_dev('N','N',NR,NR,NR,ONE,M1_dev,NR,&M_dev[NS1*b_size],NR, \
-		  ZERO,M2_dev,NR,magma_queue);
-
-	//Gi=gi+gi*Hii+1*Gi+1*Hi+1i*gi M_dev[add1]=M_dev[add1]+M2_dev
-	taxpy_dev(cublas_handle,NR*NR,ONE,M2_dev,1,&M_dev[NS1*b_size],1);
-	    
-	//copy data to host
-	cudaMemcpy(&GR[b_min[IB]*b_size],&M_dev[NS1*b_size],NR*NR*sizeof(T),\
-		   cudaMemcpyDeviceToHost);
-    }
-
-    delete[] ipiv;
-}
-
-/************************************************************************************************/
-
-template <class T>
-void RGF<T>::FirstStageFactor(size_t *b_min,size_t *b_max,size_t NBlock)
+void RGF<T>::FirstStageFactor()
 {
     int info;
     size_t IB;
@@ -324,66 +208,66 @@ void RGF<T>::FirstStageFactor(size_t *b_min,size_t *b_max,size_t NBlock)
 //rj dpotrf MF[0,0]
 //rj dtrsm RLTN MF[0,0] MF[1,0]
 
-    NR = b_max[0]-b_min[0];
+    NR = Bmax[0]-Bmin[0];
 
     tpotrf_dev('L', NR, &MF_dev[mf_block_index(0, 0)], mf_block_lda(0, 0), &info);
     //printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(0, 0), mf_block_lda(0, 0));
 
     //rj dtrsm RLTN MF[IB,IB] MF[IB+1,IB]
-    if (matrix->nt > 1)
+    if (matrix_nt > 1)
     {
-       ttrsm_dev('R', 'L', 'T', 'N', NR+matrix->nd, NR, ONE, &MF_dev[mf_block_index(0, 0)], mf_block_lda(0, 0), &MF_dev[mf_block_index(1, 0)], mf_block_lda(1, 0), magma_queue);
+       ttrsm_dev('R', 'L', 'T', 'N', NR+matrix_nd, NR, ONE, &MF_dev[mf_block_index(0, 0)], mf_block_lda(0, 0), &MF_dev[mf_block_index(1, 0)], mf_block_lda(1, 0), magma_queue);
     }
     
     //rj IB = 1; IB < NBlock; IB++
-    for (IB = 1; IB < matrix->nt-1; IB++)
+    for (IB = 1; IB < matrix_nt-1; IB++)
     {
-       NR  = b_max[IB]-b_min[IB];
-       NM  = b_max[IB-1]-b_min[IB-1];
+       NR  = Bmax[IB]-Bmin[IB];
+       NM  = Bmax[IB-1]-Bmin[IB-1];
 
        //rj dgemm NT M[IB,IB-1] M[IB,IB-1]
        // todo rj: 3-last parameter ZERO in PARDISO
        tgemm_dev('N', 'T', NR, NR, NM, -ONE, &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
-       if (matrix->nd > 0)
+       if (matrix_nd > 0)
        {
-          tgemm_dev('N', 'T', matrix->nd, NR, NM, -ONE, &MF_dev[mf_dense_block_index(IB-1)], mf_dense_block_lda(IB-1), &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), ONE, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB),magma_queue);
+          tgemm_dev('N', 'T', matrix_nd, NR, NM, -ONE, &MF_dev[mf_dense_block_index(IB-1)], mf_dense_block_lda(IB-1), &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), ONE, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB),magma_queue);
        }
        //printf("RJ: tgemm NR: %d, NM: %d, a: %d, lda: %d, b: %d, ldb: %d, c: %d, ldc: %d\n", NR, NM, mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1), mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1), mf_block_index(IB, IB), mf_block_lda(IB, IB));
        //rj dpotrf MF[IB,IB]
        tpotrf_dev('L', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
        //printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(IB, IB), mf_block_lda(IB, IB));
        //rj dtrsm RLTN MF[IB,IB] MF[IB+1,IB]
-       ttrsm_dev('R', 'L', 'T', 'N', NR+matrix->nd, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_block_index(IB+1, IB)], mf_block_lda(IB+1, IB), magma_queue);
+       ttrsm_dev('R', 'L', 'T', 'N', NR+matrix_nd, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_block_index(IB+1, IB)], mf_block_lda(IB+1, IB), magma_queue);
        //printf("RJ: ttrsm NR: %d, a: %d, lda: %d, b: %d, ldb: %d\n", NR, mf_block_index(IB-1, IB-1), mf_block_lda(IB-1, IB-1), mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1));
     }
 
-    if (matrix->nt > 1)
+    if (matrix_nt > 1)
     {
-       IB = matrix->nt-1;
-       NR  = b_max[IB]-b_min[IB];
-       NM  = b_max[IB-1]-b_min[IB-1];
+       IB = matrix_nt-1;
+       NR  = Bmax[IB]-Bmin[IB];
+       NM  = Bmax[IB-1]-Bmin[IB-1];
 
        //rj dgemm NT M[IB,IB-1] M[IB,IB-1]
        // todo rj: 3-last parameter ZERO in PARDISO
        tgemm_dev('N', 'T', NR, NR, NM, -ONE, &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
-       if (matrix->nd > 0)
+       if (matrix_nd > 0)
        {
-          tgemm_dev('N', 'T', matrix->nd, NR, NM, -ONE, &MF_dev[mf_dense_block_index(IB-1)], mf_dense_block_lda(IB-1), &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), ONE, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB),magma_queue);
+          tgemm_dev('N', 'T', matrix_nd, NR, NM, -ONE, &MF_dev[mf_dense_block_index(IB-1)], mf_dense_block_lda(IB-1), &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), ONE, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB),magma_queue);
        }
        //printf("RJ: tgemm NR: %d, NM: %d, a: %d, lda: %d, b: %d, ldb: %d, c: %d, ldc: %d\n", NR, NM, mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1), mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1), mf_block_index(IB, IB), mf_block_lda(IB, IB));
        //rj dpotrf MF[IB,IB]
        tpotrf_dev('L', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
        //printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(IB, IB), mf_block_lda(IB, IB));
        //rj dtrsm RLTN MF[IB,IB] MF[IB+1,IB]
-       ttrsm_dev('R', 'L', 'T', 'N', matrix->nd, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), magma_queue);
+       ttrsm_dev('R', 'L', 'T', 'N', matrix_nd, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), magma_queue);
        //printf("RJ: ttrsm NR: %d, a: %d, lda: %d, b: %d, ldb: %d\n", NR, mf_block_index(IB-1, IB-1), mf_block_lda(IB-1, IB-1), mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1));
     }
 
-    if (matrix->nd > 0)
+    if (matrix_nd > 0)
     {
        IB = NBlock-1;
-       NR  = b_max[IB]-b_min[IB];
-       NM  = b_max[IB-1]-b_min[IB-1];
+       NR  = Bmax[IB]-Bmin[IB];
+       NM  = Bmax[IB-1]-Bmin[IB-1];
 
        //rj dgemm NT M[IB,IB-1] M[IB,IB-1]
        //rj NM is the same for all blocks 0..nt-1
@@ -396,15 +280,12 @@ void RGF<T>::FirstStageFactor(size_t *b_min,size_t *b_max,size_t NBlock)
        tpotrf_dev('L', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
        //printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(IB, IB), mf_block_lda(IB, IB));
     }
-
-    cudaStreamSynchronize(stream_c);
-    magma_queue_sync(magma_queue);
 }
 
 /************************************************************************************************/
 
 template <class T>
-void RGF<T>::SecondStageSolve(size_t *b_min,size_t *b_max,size_t NBlock,size_t nrhs)
+void RGF<T>::SecondStageSolve(size_t nrhs)
 {
     int info;
     size_t IB;
@@ -412,80 +293,77 @@ void RGF<T>::SecondStageSolve(size_t *b_min,size_t *b_max,size_t NBlock,size_t n
     T ONE      = f_one();
 
     //Forward pass
-    NR = b_max[0]-b_min[0];
+    NR = Bmax[0]-Bmin[0];
 
     //rj dtrsm LLNN MF[0,0] rhs[0]
-    ttrsm_dev('L', 'L', 'N', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(0, 0)], mf_block_lda(0, 0), &rhs_dev[b_min[0]], matrix->size, magma_queue);
+    ttrsm_dev('L', 'L', 'N', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(0, 0)], mf_block_lda(0, 0), &rhs_dev[Bmin[0]], matrix_size, magma_queue);
 
     //rj IB = 1; IB < NBlock; IB++
-    for (IB = 1; IB < matrix->nt; IB++)
+    for (IB = 1; IB < matrix_nt; IB++)
     {
-       NR  = b_max[IB]-b_min[IB];
-       NM  = b_max[IB-1]-b_min[IB-1];
+       NR  = Bmax[IB]-Bmin[IB];
+       NM  = Bmax[IB-1]-Bmin[IB-1];
 
        //rj dgemm NN M[IB,IB-1] rhs[IB-1] rhs[IB]
-       tgemm_dev('N', 'N', NR, nrhs, NM, -ONE, &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &rhs_dev[b_min[IB-1]], matrix->size, ONE, &rhs_dev[b_min[IB]], matrix->size,magma_queue);
+       tgemm_dev('N', 'N', NR, nrhs, NM, -ONE, &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &rhs_dev[Bmin[IB-1]], matrix_size, ONE, &rhs_dev[Bmin[IB]], matrix_size,magma_queue);
        //rj dtrsm LLNN MF[IB,IB] rhs[IB]
-       ttrsm_dev('L', 'L', 'N', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[b_min[IB]], matrix->size, magma_queue);
+       ttrsm_dev('L', 'L', 'N', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[Bmin[IB]], matrix_size, magma_queue);
     }
 
-    if (matrix->nd > 0)
+    if (matrix_nd > 0)
     {
        IB = NBlock-1;
-       NR  = b_max[IB]-b_min[IB];
-       NM  = b_max[IB-1]-b_min[IB-1];
+       NR  = Bmax[IB]-Bmin[IB];
+       NM  = Bmax[IB-1]-Bmin[IB-1];
 
        //rj dgemm NN M[IB,IB-1] rhs[IB-1] rhs[IB]
        for (size_t i = 0; i < NBlock-1; i++)
        {
-          tgemm_dev('N', 'N', NR, nrhs, NM, -ONE, &MF_dev[mf_dense_block_index(i)], mf_dense_block_lda(i), &rhs_dev[b_min[i]], matrix->size, ONE, &rhs_dev[b_min[IB]], matrix->size,magma_queue);
+          tgemm_dev('N', 'N', NR, nrhs, NM, -ONE, &MF_dev[mf_dense_block_index(i)], mf_dense_block_lda(i), &rhs_dev[Bmin[i]], matrix_size, ONE, &rhs_dev[Bmin[IB]], matrix_size,magma_queue);
        }
        //rj dtrsm LLNN MF[IB,IB] rhs[IB]
-       ttrsm_dev('L', 'L', 'N', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[b_min[IB]], matrix->size, magma_queue);
+       ttrsm_dev('L', 'L', 'N', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[Bmin[IB]], matrix_size, magma_queue);
     }
 
     //Backward pass
-    if (matrix->nd > 0)
+    if (matrix_nd > 0)
     {
        IB = NBlock-1;
-       NR  = b_max[IB]-b_min[IB];
-       NM  = b_max[IB-1]-b_min[IB-1];
+       NR  = Bmax[IB]-Bmin[IB];
+       NM  = Bmax[IB-1]-Bmin[IB-1];
 
        //rj dtrsm LLTN MF[NBlock-1,NBlock-1] rhs[NBlock-1]
-       ttrsm_dev('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[b_min[IB]], matrix->size, magma_queue);
+       ttrsm_dev('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[Bmin[IB]], matrix_size, magma_queue);
 
        //rj dgemm TN M[IB,IB-1] rhs[IB] rhs[IB-1]
        for (size_t i = 0; i < NBlock-1; i++)
        {
-          tgemm_dev('T', 'N', NM, nrhs, NR, -ONE, &MF_dev[mf_dense_block_index(i)], mf_dense_block_lda(i), &rhs_dev[b_min[IB]], matrix->size, ONE, &rhs_dev[b_min[i]], matrix->size,magma_queue);
+          tgemm_dev('T', 'N', NM, nrhs, NR, -ONE, &MF_dev[mf_dense_block_index(i)], mf_dense_block_lda(i), &rhs_dev[Bmin[IB]], matrix_size, ONE, &rhs_dev[Bmin[i]], matrix_size,magma_queue);
        }
     }
 
-    for (IB = matrix->nt-1; IB > 0; IB--)
+    for (IB = matrix_nt-1; IB > 0; IB--)
     {
-       NR  = b_max[IB]-b_min[IB];
-       NM  = b_max[IB-1]-b_min[IB-1];
+       NR  = Bmax[IB]-Bmin[IB];
+       NM  = Bmax[IB-1]-Bmin[IB-1];
 
        //rj dtrsm LLTN MF[IB,IB] rhs[IB]
-       ttrsm_dev('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[b_min[IB]], matrix->size, magma_queue);
+       ttrsm_dev('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[Bmin[IB]], matrix_size, magma_queue);
        //rj dgemm TN M[IB,IB-1] rhs[IB] rhs[IB-1]
-       tgemm_dev('T', 'N', NM, nrhs, NR, -ONE, &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &rhs_dev[b_min[IB]], matrix->size, ONE, &rhs_dev[b_min[IB-1]], matrix->size,magma_queue);
+       tgemm_dev('T', 'N', NM, nrhs, NR, -ONE, &MF_dev[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &rhs_dev[Bmin[IB]], matrix_size, ONE, &rhs_dev[Bmin[IB-1]], matrix_size,magma_queue);
     }
 
     IB = 0;
-    NR = b_max[IB]-b_min[IB];
+    NR = Bmax[IB]-Bmin[IB];
 
     //rj dtrsm LLTN MF[NBlock-1,NBlock-1] rhs[NBlock-1]
-    ttrsm_dev('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[b_min[IB]], matrix->size, magma_queue);
-
-    cudaStreamSynchronize(stream_c);
-    magma_queue_sync(magma_queue);
+    ttrsm_dev('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs_dev[Bmin[IB]], matrix_size, magma_queue);
 }
 
 /************************************************************************************************/
 
 template <class T>
-void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,size_t NBlock)
+void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev)
 {
    int info;
    size_t IB;
@@ -493,22 +371,23 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
    T ONE      = f_one();
    T ZERO     = f_zero();
 
-   ND = matrix->nd;
+   ND = matrix_nd;
 
-   if (matrix->nd > 0)
+   if (matrix_nd > 0)
    {
       //dense block
       IB = NBlock-1;
-      NR = b_max[IB]-b_min[IB];
+      NR = Bmax[IB]-Bmin[IB];
 
-      tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
-      ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
-      tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
+      tlacpy_dev('L', NR, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, magma_queue);
+      tril_dev(tmp1_dev, NR, NR);
+      ttrtri_dev('L', 'N', NR, tmp1_dev, NR, &info);
+      tgemm_dev('T', 'N', NR, NR, NR, ONE, tmp1_dev, NR, tmp1_dev, NR, ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
 
       //last non-dense block
       IB = NBlock-2;
-      NR = b_max[IB]-b_min[IB];
-      NP = b_max[IB+1]-b_min[IB+1];
+      NR = Bmax[IB]-Bmin[IB];
+      NP = Bmax[IB+1]-Bmin[IB+1];
 
       tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
       ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
@@ -519,25 +398,27 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
       tgemm_dev('N', 'N', NR, NR, NP, ONE, tmp2_dev, NR, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), ONE, tmp1_dev, NR,magma_queue);
 
       tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR,magma_queue);
-      tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
+      tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, tmp1_dev, NR,magma_queue);
+      tlacpy_dev('F', NR, NR, tmp1_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), magma_queue);
    }
    else
    {
       //last non-dense block
       IB = NBlock-1;
-      NR = b_max[IB]-b_min[IB];
+      NR = Bmax[IB]-Bmin[IB];
 
-      //memcpy_to_device(&aa,MF_dev+65,sizeof(double));
-      tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
-      ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
-      tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
+      tlacpy_dev('L', NR, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, magma_queue);
+      tril_dev(tmp1_dev, NR, NR);
+      ttrtri_dev('L', 'N', NR, tmp1_dev, NR, &info);
+      tgemm_dev('T', 'N', NR, NR, NR, ONE, tmp1_dev, NR, tmp1_dev, NR, ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
    }
 
    //second-last non-dense block .. 0-block
-   for (IB = matrix->nt-2; IB > -1; IB--)
+   for (int IBi = matrix_nt-2; IBi > -1; IBi--)
    {
-      NR = b_max[IB]-b_min[IB];
-      NP = b_max[IB+1]-b_min[IB+1];
+      IB = IBi;
+      NR = Bmax[IB]-Bmin[IB];
+      NP = Bmax[IB+1]-Bmin[IB+1];
 
       tril_dev(&MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), NR);
       ttrtri_dev('L', 'N', NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &info);
@@ -547,60 +428,16 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev,size_t *b_min,size_t *b_max,s
       tgemm_dev('T', 'N', NR, NP, NP, ONE, &MF_dev[mf_block_index(IB+1, IB)], mf_block_lda(IB+1, IB), &MF_dev[mf_block_index(IB+1, IB+1)], mf_block_lda(IB+1, IB+1), ZERO, tmp2_dev, NR,magma_queue);
       tgemm_dev('N', 'N', NR, NR, NP, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB+1, IB)], mf_block_lda(IB+1, IB), ONE, tmp1_dev, NR,magma_queue);
 
-      if (matrix->nd > 0)
+      if (matrix_nd > 0)
       {
          tgemm_dev('T', 'N', NR, ND, ND, ONE, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &MF_dev[mf_block_index(NBlock-1, NBlock-1)], mf_block_lda(NBlock-1, NBlock-1), ZERO, tmp2_dev, NR,magma_queue);
          tgemm_dev('N', 'N', NR, NR, ND, ONE, tmp2_dev, NR, &MF_dev[mf_dense_block_index(IB)], mf_dense_block_lda(IB), ONE, tmp1_dev, NR,magma_queue);
       }
 
       tgemm_dev('T', 'N', NR, NR, NR, ONE, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR,magma_queue);
-      tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB),magma_queue);
+      tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), ZERO, tmp1_dev, NR,magma_queue);
+      tlacpy_dev('F', NR, NR, tmp1_dev, NR, &MF_dev[mf_block_index(IB, IB)], mf_block_lda(IB, IB), magma_queue);
    }
-
-   cudaStreamSynchronize(stream_c);
-    magma_queue_sync(magma_queue);
-}
-
-/************************************************************************************************/
-
-template <class T>
-void RGF<T>::solve_equation(T *GR)
-{
-    int NBlock = matrix->NBlock;
-    int *Bmin = matrix->Bmin;
-    int *Bmax = matrix->Bmax;
-
-    create_blocks(Bmin,Bmax,NBlock);
-    
-    //Data allocation
-    allocate_data_on_device((void**)&M_dev,b_size*matrix->size*sizeof(T));
-    allocate_data_on_device((void**)&M1_dev,b_size*b_size*sizeof(T));
-    allocate_data_on_device((void**)&M2_dev,b_size*b_size*sizeof(T));
-    allocate_data_on_device((void**)&M3_dev,b_size*b_size*sizeof(T));
-
-    allocate_data_on_device((void**)&edge_i_dev,(matrix->size+1)*sizeof(int));
-    allocate_data_on_device((void**)&index_j_dev,matrix->n_nonzeros*sizeof(int));
-    allocate_data_on_device((void**)&nnz_dev,matrix->n_nonzeros*sizeof(T));
-
-    memcpy_to_device(matrix->edge_i,edge_i_dev,(matrix->size+1)*sizeof(int));
-    memcpy_to_device(matrix->index_j,index_j_dev,matrix->n_nonzeros*sizeof(int));
-    memcpy_to_device(matrix->nnz,nnz_dev,matrix->n_nonzeros*sizeof(T));
-
-    //Computation
-    init_var(GR,Bmax[NBlock-1]*b_size);
-    
-    FirstStage(Bmin,Bmax,NBlock);
-    SecondStage(GR,Bmin,Bmax,NBlock);
-
-    //Data deallocation
-    deallocate_data_on_dev(edge_i_dev,(matrix->size+1)*sizeof(int));
-    deallocate_data_on_dev(index_j_dev,matrix->n_nonzeros*sizeof(int));
-    deallocate_data_on_dev(nnz_dev,matrix->n_nonzeros*sizeof(T));
-
-    deallocate_data_on_dev(M_dev,b_size*matrix->size*sizeof(T));
-    deallocate_data_on_dev(M1_dev,b_size*b_size*sizeof(T));
-    deallocate_data_on_dev(M2_dev,b_size*b_size*sizeof(T));
-    deallocate_data_on_dev(M3_dev,b_size*b_size*sizeof(T));
 }
 
 /************************************************************************************************/
@@ -608,21 +445,41 @@ void RGF<T>::solve_equation(T *GR)
 template <class T>
 void RGF<T>::factorize()
 {
-    size_t NBlock = matrix->NBlock;
-    size_t *Bmin = matrix->Bmin;
-    size_t *Bmax = matrix->Bmax;
+    create_blocks();
 
-    create_blocks(Bmin,Bmax,NBlock);
-    
     //Data allocation
-    allocate_data_on_device((void**)&MF_dev,matrix->n_nonzeros*sizeof(T));
-    MF_dev_allocated = true;
+    if (!MF_dev_allocated)
+    {
+       allocate_data_on_device((void**)&MF_dev,matrix_n_nonzeros*sizeof(T));
+       MF_dev_allocated = true;
+    }
+
+    size_t nnz = matrix_ia[matrix_size];
+    size_t *ia_dev;
+    size_t *ja_dev;
+    T *a_dev;
+
+    //Temp data allocation
+    allocate_data_on_device((void**)&ia_dev,(matrix_size+1)*sizeof(size_t));
+    allocate_data_on_device((void**)&ja_dev,nnz*sizeof(size_t));
+    allocate_data_on_device((void**)&a_dev,nnz*sizeof(T));
 
     //Copy data to device
-    memcpy_to_device(matrix->nnz,MF_dev,matrix->n_nonzeros*sizeof(T));
+    memcpy_to_device(matrix_ia,ia_dev,(matrix_size+1)*sizeof(size_t));
+    memcpy_to_device(matrix_ja,ja_dev,nnz*sizeof(size_t));
+    memcpy_to_device(matrix_a,a_dev,nnz*sizeof(T));
+
+    //Initialize block matrix on device
+    fill_dev(MF_dev, T(0.0), matrix_n_nonzeros);
+    init_block_matrix_dev(MF_dev, ia_dev, ja_dev, a_dev, nnz, matrix_ns, matrix_nt, matrix_nd);
+
+    //Temp data deallocation
+    deallocate_data_on_dev(ia_dev,(matrix_size+1)*sizeof(size_t));
+    deallocate_data_on_dev(ja_dev,nnz*sizeof(size_t));
+    deallocate_data_on_dev(a_dev,nnz*sizeof(T));
 
     //Computation
-    FirstStageFactor(Bmin,Bmax,NBlock);
+    FirstStageFactor();
 
     factorization_completed = true;
 }
@@ -643,24 +500,20 @@ void RGF<T>::solve(T *x, T *b, size_t nrhs)
     if (!factorization_completed)
        factorize();
 
-    size_t NBlock = matrix->NBlock;
-    size_t *Bmin = matrix->Bmin;
-    size_t *Bmax = matrix->Bmax;
-    
     //Data allocation
-    allocate_data_on_device((void**)&rhs_dev,matrix->size*nrhs*sizeof(T));
+    allocate_data_on_device((void**)&rhs_dev,matrix_size*nrhs*sizeof(T));
 
     //Copy data to device
-    memcpy_to_device(b,rhs_dev,matrix->size*nrhs*sizeof(T));
+    memcpy_to_device(b,rhs_dev,matrix_size*nrhs*sizeof(T));
 
     //Computation
-    SecondStageSolve(Bmin,Bmax,NBlock,nrhs);
+    SecondStageSolve(nrhs);
 
     //Copy data to host
-    memcpy_to_host(x,rhs_dev,matrix->size*nrhs*sizeof(T));
+    memcpy_to_host(x,rhs_dev,matrix_size*nrhs*sizeof(T));
 
     //Data deallocation
-    deallocate_data_on_dev(rhs_dev,matrix->size*nrhs*sizeof(T));
+    deallocate_data_on_dev(rhs_dev,matrix_size*nrhs*sizeof(T));
 }
 
 /************************************************************************************************/
@@ -673,33 +526,29 @@ void RGF<T>::RGFdiag(T *diag)
 
     factorization_completed = false;
 
-    size_t NBlock = matrix->NBlock;
-    size_t *Bmin = matrix->Bmin;
-    size_t *Bmax = matrix->Bmax;
-
     //Data allocation
     T *diag_dev;
     size_t *diag_pos_dev;
     T *tmp1_dev;
     T *tmp2_dev;
-    allocate_data_on_device((void**)&diag_dev,matrix->size*sizeof(T));
-    allocate_data_on_device((void**)&diag_pos_dev,matrix->size*sizeof(size_t));
+    allocate_data_on_device((void**)&diag_dev,matrix_size*sizeof(T));
+    allocate_data_on_device((void**)&diag_pos_dev,matrix_size*sizeof(size_t));
     allocate_data_on_device((void**)&tmp1_dev,b_size*b_size*sizeof(T));
     allocate_data_on_device((void**)&tmp2_dev,b_size*b_size*sizeof(T));
 
     //Copy diag_pos to device
-    memcpy_to_device(matrix->diag_pos,diag_pos_dev,matrix->size*sizeof(size_t));
+    memcpy_to_device(diag_pos,diag_pos_dev,matrix_size*sizeof(size_t));
 
     //Computation
-    ThirdStageRGF(tmp1_dev,tmp2_dev,Bmin,Bmax,NBlock);
-    indexed_copy_dev(MF_dev, diag_dev, diag_pos_dev, matrix->size);
+    ThirdStageRGF(tmp1_dev,tmp2_dev);
+    indexed_copy_dev(MF_dev, diag_dev, diag_pos_dev, matrix_size);
 
     //Copy data to host
-    memcpy_to_host(diag,diag_dev,matrix->size*sizeof(T));
+    memcpy_to_host(diag,diag_dev,matrix_size*sizeof(T));
 
     //Data deallocation
-    deallocate_data_on_dev(diag_dev,matrix->size*sizeof(T));
-    deallocate_data_on_dev(diag_pos_dev,matrix->size*sizeof(size_t));
+    deallocate_data_on_dev(diag_dev,matrix_size*sizeof(T));
+    deallocate_data_on_dev(diag_pos_dev,matrix_size*sizeof(size_t));
     deallocate_data_on_dev(tmp1_dev,b_size*b_size*sizeof(T));
     deallocate_data_on_dev(tmp2_dev,b_size*b_size*sizeof(T));
 }
@@ -715,26 +564,26 @@ T RGF<T>::logDet()
     //Data allocation
     T *diag_dev;
     size_t *diag_pos_dev;
-    allocate_data_on_device((void**)&diag_dev,matrix->size*sizeof(T));
-    allocate_data_on_device((void**)&diag_pos_dev,matrix->size*sizeof(size_t));
-    T det;
+    allocate_data_on_device((void**)&diag_dev,matrix_size*sizeof(T));
+    allocate_data_on_device((void**)&diag_pos_dev,matrix_size*sizeof(size_t));
+    T det = T(0.0);
 
     //Copy diag_pos to device
-    memcpy_to_device(matrix->diag_pos,diag_pos_dev,matrix->size*sizeof(size_t));
+    memcpy_to_device(diag_pos,diag_pos_dev,matrix_size*sizeof(size_t));
 
     //Computation
-    indexed_copy_dev(MF_dev, diag_dev, diag_pos_dev, matrix->size);
-    logx2_dev(diag_dev, matrix->size);
-    tasum_dev(cublas_handle, matrix->size, diag_dev, 1, &det);
+    indexed_copy_dev(MF_dev, diag_dev, diag_pos_dev, matrix_size);
+    log_dev(diag_dev, matrix_size);
+    tsum_dev(matrix_size, diag_dev, 1, &det, magma_queue);
 
     //Copy data to host
-    //memcpy_to_host(diag,diag_dev,matrix->size*sizeof(T));
+    //memcpy_to_host(diag,diag_dev,matrix_size*sizeof(T));
 
     //Data deallocation
-    deallocate_data_on_dev(diag_dev,matrix->size*sizeof(T));
-    deallocate_data_on_dev(diag_pos_dev,matrix->size*sizeof(size_t));
+    deallocate_data_on_dev(diag_dev,matrix_size*sizeof(T));
+    deallocate_data_on_dev(diag_pos_dev,matrix_size*sizeof(size_t));
 
-    return det;
+    return 2.0*det;
 }
 
 /************************************************************************************************/
@@ -742,100 +591,28 @@ T RGF<T>::logDet()
 template <class T>
 double RGF<T>::residualNorm(T *x, T *b)
 {
-   T *r = new T[matrix->size];
+   T *r = new T[matrix_size];
    size_t NR, NM;
    size_t IB;
-   size_t *b_min = matrix->Bmin;
-   size_t *b_max = matrix->Bmax;
-   size_t NBlock = matrix->NBlock;
+   size_t *b_min = Bmin;
+   size_t *b_max = Bmax;
+   size_t NBlock = NBlock;
 
-   memcpy(r, b, matrix->size*sizeof(T));
+   memcpy(r, b, matrix_size*sizeof(T));
 
-   IB = 0;
-   NR = b_max[IB]-b_min[IB];
-
-   c_tsymm('L', 'L', NR, 1, -1.0, &matrix->nnz[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
-
-   for (size_t IB = 1; IB < matrix->nt; IB++)
+   for (size_t ic = 0; ic < matrix_size; ic++)
    {
-      NR = b_max[IB]-b_min[IB];
-      NM = b_max[IB-1]-b_min[IB-1];
-
-      c_tgemm('N', 'N', NR, 1, NM, -1.0, &matrix->nnz[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &x[b_min[IB-1]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
-      c_tgemm('T', 'N', NM, 1, NR, -1.0, &matrix->nnz[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB-1]], matrix->size);
-      c_tsymm('L', 'L', NR, 1, -1.0, &matrix->nnz[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
-   }
-
-   if (matrix->nd > 0)
-   {
-      NR = matrix->nd;
-
-      for (size_t IB = 0; IB < matrix->nt; IB++)
+      for (size_t i = matrix_ia[ic]; i < matrix_ia[ic+1]; i++)
       {
-         NM = b_max[IB]-b_min[IB];
+         size_t ir = matrix_ja[i];
 
-         c_tgemm('N', 'N', NR, 1, NM, -1.0, &matrix->nnz[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[NBlock-1]], matrix->size);
-         c_tgemm('T', 'N', NM, 1, NR, -1.0, &matrix->nnz[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &x[b_min[NBlock-1]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
+         r[ir] -= matrix_a[i]*x[ic];
+         if (ir != ic)
+            r[ic] -= matrix_a[i]*x[ir];
       }
-
-      IB = NBlock-1;
-      c_tsymm('L', 'L', NR, 1, -1.0, &matrix->nnz[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
    }
 
-   double res = c_dtnrm2(matrix->size, r, 1);
-
-   delete[] r;
-
-   return res;
-}
-
-/************************************************************************************************/
-
-template <class T>
-<<<<<<< HEAD
-double RGF<T>::residualNorm(T *x, T *b)
-{
-   T *r = new T[matrix->size];
-   int NR, NM;
-   int IB;
-   int *b_min = matrix->Bmin;
-   int *b_max = matrix->Bmax;
-   int NBlock = matrix->NBlock;
-
-   memcpy(r, b, matrix->size*sizeof(T));
-
-   IB = 0;
-   NR = b_max[IB]-b_min[IB];
-
-   c_tsymm('L', 'L', NR, 1, -1.0, &matrix->nnz[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
-
-   for (int IB = 1; IB < matrix->nt; IB++)
-   {
-      NR = b_max[IB]-b_min[IB];
-      NM = b_max[IB-1]-b_min[IB-1];
-
-      c_tgemm('N', 'N', NR, 1, NM, -1.0, &matrix->nnz[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &x[b_min[IB-1]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
-      c_tgemm('T', 'N', NM, 1, NR, -1.0, &matrix->nnz[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB-1]], matrix->size);
-      c_tsymm('L', 'L', NR, 1, -1.0, &matrix->nnz[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
-   }
-
-   if (matrix->nd > 0)
-   {
-      NR = matrix->nd;
-
-      for (int IB = 0; IB < matrix->nt; IB++)
-      {
-         NM = b_max[IB]-b_min[IB];
-
-         c_tgemm('N', 'N', NR, 1, NM, -1.0, &matrix->nnz[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[NBlock-1]], matrix->size);
-         c_tgemm('T', 'N', NM, 1, NR, -1.0, &matrix->nnz[mf_dense_block_index(IB)], mf_dense_block_lda(IB), &x[b_min[NBlock-1]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
-      }
-
-      IB = NBlock-1;
-      c_tsymm('L', 'L', NR, 1, -1.0, &matrix->nnz[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &x[b_min[IB]], matrix->size, 1.0, &r[b_min[IB]], matrix->size);
-   }
-
-   double res = c_dtnrm2(matrix->size, r, 1);
+   double res = c_dtnrm2(matrix_size, r, 1);
 
    delete[] r;
 
@@ -847,24 +624,13 @@ double RGF<T>::residualNorm(T *x, T *b)
 template <class T>
 double RGF<T>::residualNormNormalized(T *x, T *b)
 {
-   return residualNorm(x, b) / c_dtnrm2(matrix->size, b, 1);
+   return residualNorm(x, b) / c_dtnrm2(matrix_size, b, 1);
 }
 
 /************************************************************************************************/
 
 template <class T>
-void RGF<T>::create_blocks(int *Bmin,int *Bmax,int NBlock)
-=======
-double RGF<T>::residualNormNormalized(T *x, T *b)
->>>>>>> master
-{
-   return residualNorm(x, b) / c_dtnrm2(matrix->size, b, 1);
-}
-
-/************************************************************************************************/
-
-template <class T>
-void RGF<T>::create_blocks(size_t *Bmin,size_t *Bmax,size_t NBlock)
+void RGF<T>::create_blocks()
 {
     size_t IB;
 
@@ -876,25 +642,6 @@ void RGF<T>::create_blocks(size_t *Bmin,size_t *Bmax,size_t NBlock)
 	    b_size = Bmax[IB]-Bmin[IB];
 	}
     }
-}
-
-/************************************************************************************************/
-
-template <class T>
-void RGF<T>::write_matrix(const char *filename,T *matrix,int NR,int NC)
-{
-    int IC,IR;
-    ofstream myfile;
-    
-    myfile.open(filename);
-    myfile.precision(8);
-    for(IR=0;IR<NR;IR++){
-        for(IC=0;IC<NC;IC++){
-            myfile<<real(matrix[IR+IC*NR])<<" "<<imag(matrix[IR+IC*NR])<<" ";
-        }
-        myfile<<"\n";
-    }
-    myfile.close();
 }
 
 /************************************************************************************************/
