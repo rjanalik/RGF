@@ -45,30 +45,6 @@ index_i index_j real imag (4 columns per matrix entry)
    ia = new int [n+1];
    ja = new int [nnz];
    a = new double [nnz];
-
-   // from RADIM'S verison
-  /*int ns = atoi(argv[1]);
-  int nt = atoi(argv[2]);
-  int nd = atoi(argv[3]);
-  
-
-  // load matrix from file
-  FILE *F = fopen(argv[4],"r");
- 
-  int fn, fnnz;
-  int *ia, *ja;
-  T *a;
-  double val; */
-
-  /* read in matrix A, sparse matrix in CSR format */
-  /*fscanf(F,"%i",&fn);
-  fscanf(F,"%i",&fn);
-  fscanf(F,"%i",&fnnz);
-
-  // allocate memory
-  ia = new int[fn+1];
-  ja = new int[fnnz];
-  a = new T[fnnz]; */
   
   for (int i = 0; i <= n; i++){
     fin >> ia[i];
@@ -160,9 +136,7 @@ arma::sp_mat readCSC_sym(std::string filename)
 arma::mat read_matrix(std::string filename,  int n_row, int n_col){
 
   arma::mat B(n_row, n_col);
-
   //std::cout << "size(matrix) : " << arma::size(B) << std::endl;
-
   B.load(filename, arma::raw_ascii);  // check later if there is a faster alternative
   //B.print();
 
@@ -315,7 +289,6 @@ cout << "in main" << endl;
   //std::cout << "non zeros A_st " << A_st.n_nonzero << std::endl;
 
   // for now B just intercept, all ones
-  //arma::mat B = arma::ones(no, nb);
   arma::mat B = read_matrix(B_file, no, nb);
 
   //y (vector)
@@ -354,36 +327,10 @@ cout << "in main" << endl;
   std::cout << "size(Q_xy)" << size(Q_xy) << std::endl;
   std::cout << "size(B_xey)" << size(B_xey) << std::endl;
 
-  /* ------------- FOR NOW TAKE OUT FIXED EFFECTS  ----------------- */
-
-  //Q_xy = Q_xy(0, 0, size(Q_u));
-  //B_xey = B_xey.subvec(0, nu-1);
-
-  //std::cout << "sum B_xey : " << sum(B_xey) << std::endl;
-
-  //B_xey.subvec(0,9).print();
-
-  //std::cout << "size(Q_xy)" << size(Q_xy) << std::endl;
-  //std::cout << "size(B_xey)" << size(B_xey) << std::endl; 
-
-  //n= size(Q_u)[1]; 
-  /* ------------- START SOLVE, CALL PARDISO  ----------------- */
-
-
-  /* CAREFUL THIS IS JUST A TEMPORARY REPLACEMENT, NOT TAKING FULL MATRIX INTO ACCOUNT */
-  // get everything into the right format
-
   // TAKE ENTIRE MATRIX FOR THIS SOLVER
   arma::sp_mat Q_xy_lower = arma::trimatl(Q_xy);
-  //arma::sp_mat Q_xy_lower = arma::trimatl(Q_u);
-  //n = nu;
 
-  //Q_xy_lower.submat(0,0,9,9).print();
-
-  //std::cout << "last block of Q_xy" << std::endl;
-  //Q_xy.submat(5038,5038,5041,5041).print();
-
-  // this time require CSR format
+  // require CSR format
   size_t nnz = Q_xy_lower.n_nonzero;
 
   std::cout << "number of non zeros : " << nnz << std::endl;
@@ -409,16 +356,6 @@ cout << "in main" << endl;
     a[i] = Q_xy_lower.values[i];
   }  
 
-  // ASSIGN B LATER
-  /*double* b = new double [n];
-
-  for (int i = 0; i < n; ++i){
-    b[i] = B_xey[i];
-  }   */ 
-
-  // empty solution vector
-  //double* x = new double [n];
-
   printf("\nAll matrices assembled. Passing to RGF solver now.\n");
 
   // ------------------------------------------------------------------------------------------- // 
@@ -429,7 +366,6 @@ cout << "in main" << endl;
   int i;
   double data;
   double t_factorise; double t_solve; double t_inv;
-  int nrhs;
   T *b;
   T *x;
   T *invDiag;
@@ -441,16 +377,15 @@ cout << "in main" << endl;
   timeinfo = localtime(&rawtime);
   printf ("The current date/time is: %s\n",asctime(timeinfo));
 
-  //M      = new TCSR<T>(ia, ja, a, ns, nt, nb);
-  //GR     = new T[3*(nt-1)*(ns*ns) + (ns*ns)];
   b      = new T[n];
   x      = new T[n];
   invDiag= new T[n];
 
+  // assign b to correct format
   for (int i = 0; i < n; i++){
     b[i] = B_xey[i];
+    //printf("%f\n", b[i]);
   }
-  //B_xey.subvec(0,9).print();
   
   solver = new RGF<T>(ia, ja, a, ns, nt, nb);
 
@@ -483,7 +418,7 @@ cout << "in main" << endl;
   L_factor_file.close(); */
 
   t_solve = get_time(0.0); 
-  solver->solve(x, b, nrhs);
+  solver->solve(x, b, 1);
   t_solve = get_time(t_solve);
 
 
@@ -536,25 +471,21 @@ cout << "in main" << endl;
   cout << sel_inv_file_name << endl;
   ofstream sel_inv_file(sel_inv_file_name,    ios::out | ::ios::trunc);
   
-    for (int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++){
       sel_inv_file << invDiag[i] << endl;
     }
 
   sel_inv_file.close();
-  
-
   cout << "after writing file " << endl;
   
+  // free memory
   delete[] invDiag;
   delete solver;
-
-  //delete[] MF;
-  
-  // free memory
   delete[] ia;
   delete[] ja;
   delete[] a;
+  delete[] b;
+  delete[] x;
     
   return 0;
 
