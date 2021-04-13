@@ -1126,18 +1126,18 @@ inline void init_block_matrix_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t
 /************************************************************************************************/
 
 template <typename T>
-inline void init_supernode_dev(T *M, size_t *ia, size_t *ja, T *a, size_t supernode, size_t supernode_nnz, size_t ns, size_t nt, size_t nd);
+inline void init_supernode_dev(T *M, size_t *ia, size_t *ja, T *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd);
 
 template <>
-inline void init_supernode_dev(double *M, size_t *ia, size_t *ja, double *a, size_t supernode, size_t supernode_nnz, size_t ns, size_t nt, size_t nd)
+inline void init_supernode_dev(double *M, size_t *ia, size_t *ja, double *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd)
 {
-    d_init_supernode_on_dev(M, ia, ja, a, supernode, supernode_nnz, ns, nt, nd);
+    d_init_supernode_on_dev(M, ia, ja, a, supernode, supernode_nnz, supernode_offset, ns, nt, nd);
 }
 
 template <>
-inline void init_supernode_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t supernode, size_t supernode_nnz, size_t ns, size_t nt, size_t nd)
+inline void init_supernode_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd)
 {
-    z_init_supernode_on_dev(M, ia, ja, a, supernode, supernode_nnz, ns, nt, nd);
+    z_init_supernode_on_dev(M, ia, ja, a, supernode, supernode_nnz, supernode_offset, ns, nt, nd);
 }
 
 /************************************************************************************************/

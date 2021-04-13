@@ -1042,7 +1042,7 @@ void z_init_block_matrix_on_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t n
     z_init_block_matrix<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)M, ia, ja, (cuDoubleComplex*)a, nnz, ns, nt, nd);
 }
 
-__global__ void d_init_supernode(double *M, size_t *ia, size_t *ja, double *a, size_t supernode_fc, size_t supernode_lc, size_t supernode_nnz, size_t ns, size_t nt, size_t nd)
+__global__ void d_init_supernode(double *M, size_t *ia, size_t *ja, double *a, size_t supernode_fc, size_t supernode_lc, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd)
 {
    size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
@@ -1050,11 +1050,10 @@ __global__ void d_init_supernode(double *M, size_t *ia, size_t *ja, double *a, s
 
    if (idx < supernode_nnz)
    {
-      idx += ia[supernode_fc];
-
-      size_t c = supernode_fc;
-      while (ia[c+1] < idx+1)
+      size_t c = 0;
+      while (ia[c+1] < idx+supernode_offset+1)
          c++;
+      c += supernode_fc;
       size_t r = ja[idx];
 
       size_t i = getPos(r, c, ns, nt, nd) - offset;
@@ -1066,17 +1065,17 @@ __global__ void d_init_supernode(double *M, size_t *ia, size_t *ja, double *a, s
 }
 
 extern "C"
-void d_init_supernode_on_dev(double *M, size_t *ia, size_t *ja, double *a, size_t supernode, size_t supernode_nnz, size_t ns, size_t nt, size_t nd)
+void d_init_supernode_on_dev(double *M, size_t *ia, size_t *ja, double *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd)
 {
     size_t i_size = supernode_nnz + (BLOCK_DIM-(supernode_nnz%BLOCK_DIM));
 
     size_t supernode_fc = supernode * ns;
     size_t supernode_lc = supernode < nt ? (supernode+1) * ns : ns * nt + nd;
 
-    d_init_supernode<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(M, ia, ja, a, supernode_fc, supernode_lc, supernode_nnz, ns, nt, nd);
+    d_init_supernode<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(M, ia, ja, a, supernode_fc, supernode_lc, supernode_nnz, supernode_offset, ns, nt, nd);
 }
 
-__global__ void z_init_supernode(cuDoubleComplex *M, size_t *ia, size_t *ja, cuDoubleComplex *a, size_t supernode_fc, size_t supernode_lc, size_t supernode_nnz, size_t ns, size_t nt, size_t nd)
+__global__ void z_init_supernode(cuDoubleComplex *M, size_t *ia, size_t *ja, cuDoubleComplex *a, size_t supernode_fc, size_t supernode_lc, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd)
 {
    size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
@@ -1084,11 +1083,10 @@ __global__ void z_init_supernode(cuDoubleComplex *M, size_t *ia, size_t *ja, cuD
 
    if (idx < supernode_nnz)
    {
-      idx += ia[supernode_fc];
-
-      size_t c = supernode_fc;
-      while (ia[c+1] < idx+1)
+      size_t c = 0;
+      while (ia[c+1] < idx+supernode_offset+1)
          c++;
+      c += supernode_fc;
       size_t r = ja[idx];
 
       size_t i = getPos(r, c, ns, nt, nd) - offset;
@@ -1100,12 +1098,12 @@ __global__ void z_init_supernode(cuDoubleComplex *M, size_t *ia, size_t *ja, cuD
 }
 
 extern "C"
-void z_init_supernode_on_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t supernode, size_t supernode_nnz, size_t ns, size_t nt, size_t nd)
+void z_init_supernode_on_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd)
 {
     size_t i_size = supernode_nnz + (BLOCK_DIM-(supernode_nnz%BLOCK_DIM));
 
     size_t supernode_fc = supernode * ns;
     size_t supernode_lc = supernode < nt ? (supernode+1) * ns : ns * nt + nd;
 
-    z_init_supernode<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)M, ia, ja, (cuDoubleComplex*)a, supernode_fc, supernode_lc, supernode_nnz, ns, nt, nd);
+    z_init_supernode<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)M, ia, ja, (cuDoubleComplex*)a, supernode_fc, supernode_lc, supernode_nnz, supernode_offset, ns, nt, nd);
 }

@@ -523,24 +523,21 @@ void RGF<T>::factorize()
     }
 
     size_t nnz = matrix_ia[matrix_size];
+    size_t max_rows = matrix_nt > 1 ? 2*matrix_ns+matrix_nd : matrix_ns+matrix_nd;
+    size_t max_cols = max(matrix_ns, matrix_nd);
 
     //Temp data allocation
-    allocate_data_on_device((void**)&ia_dev,(matrix_size+1)*sizeof(size_t));
-    allocate_data_on_device((void**)&ja_dev,nnz*sizeof(size_t));
-    allocate_data_on_device((void**)&a_dev,nnz*sizeof(T));
-
-    //Copy data to device
-    memcpy_to_device(matrix_ia,ia_dev,(matrix_size+1)*sizeof(size_t));
-    memcpy_to_device(matrix_ja,ja_dev,nnz*sizeof(size_t));
-    memcpy_to_device(matrix_a,a_dev,nnz*sizeof(T));
+    allocate_data_on_device((void**)&ia_dev,(max_cols+1)*sizeof(size_t));
+    allocate_data_on_device((void**)&ja_dev,max_rows*max_cols*sizeof(size_t));
+    allocate_data_on_device((void**)&a_dev,max_rows*max_cols*sizeof(T));
 
     //Computation
     FirstStageFactor();
 
     //Temp data deallocation
-    deallocate_data_on_dev(ia_dev,(matrix_size+1)*sizeof(size_t));
-    deallocate_data_on_dev(ja_dev,nnz*sizeof(size_t));
-    deallocate_data_on_dev(a_dev,nnz*sizeof(T));
+    deallocate_data_on_dev(ia_dev,(max_cols+1)*sizeof(size_t));
+    deallocate_data_on_dev(ja_dev,max_rows*max_cols*sizeof(size_t));
+    deallocate_data_on_dev(a_dev,max_rows*max_cols*sizeof(T));
 
     factorization_completed = true;
 }
@@ -678,12 +675,16 @@ inline void RGF<T>::init_supernode(T *M_dev, size_t supernode)
    size_t supernode_fc = supernode * matrix_ns;
    size_t supernode_lc = supernode < matrix_nt ? (supernode+1) * matrix_ns : matrix_ns * matrix_nt + matrix_nd;
    size_t supernode_nnz = matrix_ia[supernode_lc] - matrix_ia[supernode_fc];
+   size_t supernode_offset = matrix_ia[supernode_fc];
    size_t rows = mf_block_lda(supernode, supernode);
    size_t cols = supernode_lc - supernode_fc;
    size_t supernode_size = rows * cols;
 
    fill_dev(M_dev, T(0.0), supernode_size);
-   init_supernode_dev(M_dev, ia_dev, ja_dev, a_dev, supernode, supernode_nnz, matrix_ns, matrix_nt, matrix_nd);
+   memcpy_to_device(&matrix_ia[supernode_fc],ia_dev,(cols+1)*sizeof(size_t));
+   memcpy_to_device(&matrix_ja[supernode_offset],ja_dev,supernode_nnz*sizeof(size_t));
+   memcpy_to_device(&matrix_a[supernode_offset],a_dev,supernode_nnz*sizeof(T));
+   init_supernode_dev(M_dev, ia_dev, ja_dev, a_dev, supernode, supernode_nnz, supernode_offset, matrix_ns, matrix_nt, matrix_nd);
 }
 
 /************************************************************************************************/
