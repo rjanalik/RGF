@@ -56,6 +56,8 @@ private:
     size_t *ia_dev;
     size_t *ja_dev;
     T      *a_dev;
+    T *diag_dev;
+    size_t *diag_pos_dev;
 
     inline size_t mf_block_index(size_t, size_t);
     inline size_t mf_block_lda(size_t, size_t);
@@ -70,6 +72,7 @@ private:
     inline void init_supernode(T *M_dev, size_t supernode);
     inline void copy_supernode_to_host(T *M_dev, size_t supernode);
     inline void copy_supernode_to_device(T *M_dev, size_t supernode);
+    inline void copy_supernode_diag(T *src, size_t supernode);
     inline void swap_pointers(T **ptr1, T **ptr2);
 
    T f_one();
@@ -455,7 +458,7 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev)
       tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, blockR_dev, mf_block_lda(IB, IB), ZERO, tmp1_dev, NR, magma_queue);
       tlacpy_dev('F', NR, NR, tmp1_dev, NR, blockR_dev, mf_block_lda(IB, IB), magma_queue);
 
-      copy_supernode_to_host(blockDense_dev, NBlock-1);
+      copy_supernode_diag(blockDense_dev, NBlock-1);
    }
    else
    {
@@ -477,7 +480,7 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev)
       NP = Bmax[IB+1]-Bmin[IB+1];
 
       swap_pointers(&blockR_dev, &blockP_dev);
-      copy_supernode_to_host(blockP_dev, IB+1);
+      copy_supernode_diag(blockP_dev, IB+1);
       copy_supernode_to_device(blockR_dev, IB);
 
       tril_dev(blockR_dev, mf_block_lda(IB, IB), NR);
@@ -499,7 +502,7 @@ void RGF<T>::ThirdStageRGF(T *tmp1_dev,T *tmp2_dev)
       tlacpy_dev('F', NR, NR, tmp1_dev, NR, blockR_dev, mf_block_lda(IB, IB), magma_queue);
    }
 
-   copy_supernode_to_host(blockR_dev, 0);
+   copy_supernode_diag(blockR_dev, 0);
 }
 
 /************************************************************************************************/
@@ -587,14 +590,23 @@ void RGF<T>::RGFdiag(T *diag)
     //Data allocation
     T *tmp1_dev;
     T *tmp2_dev;
+    allocate_data_on_device((void**)&diag_dev,matrix_size*sizeof(T));
+    allocate_data_on_device((void**)&diag_pos_dev,matrix_size*sizeof(size_t));
     allocate_data_on_device((void**)&tmp1_dev,b_size*b_size*sizeof(T));
     allocate_data_on_device((void**)&tmp2_dev,b_size*b_size*sizeof(T));
 
+    //Copy diag_pos to device
+    memcpy_to_device(diag_pos,diag_pos_dev,matrix_size*sizeof(size_t));
+
     //Computation
     ThirdStageRGF(tmp1_dev,tmp2_dev);
-    indexed_copy(MF, diag, diag_pos, matrix_size);
+
+    //Copy data to host
+    memcpy_to_host(diag,diag_dev,matrix_size*sizeof(T));
 
     //Data deallocation
+    deallocate_data_on_dev(diag_dev,matrix_size*sizeof(T));
+    deallocate_data_on_dev(diag_pos_dev,matrix_size*sizeof(size_t));
     deallocate_data_on_dev(tmp1_dev,b_size*b_size*sizeof(T));
     deallocate_data_on_dev(tmp2_dev,b_size*b_size*sizeof(T));
 }
@@ -713,6 +725,20 @@ inline void RGF<T>::copy_supernode_to_device(T *M_dev, size_t supernode)
    size_t cols = supernode_lc - supernode_fc;
 
    memcpy_to_device(&MF[ind], M_dev, rows*cols*sizeof(T));
+}
+
+/************************************************************************************************/
+
+template <class T>
+inline void RGF<T>::copy_supernode_diag(T *src, size_t supernode)
+{
+   size_t supernode_fc = supernode * matrix_ns;
+   size_t supernode_lc = supernode < matrix_nt ? (supernode+1) * matrix_ns : matrix_ns * matrix_nt + matrix_nd;
+   size_t offset = mf_block_index(supernode, supernode);
+   size_t rows = mf_block_lda(supernode, supernode);
+   size_t cols = supernode_lc - supernode_fc;
+
+   indexed_copy_offset_dev(src, &diag_dev[supernode_fc], &diag_pos_dev[supernode_fc], cols, offset);
 }
 
 /************************************************************************************************/
