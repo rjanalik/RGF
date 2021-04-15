@@ -54,7 +54,7 @@ ifeq ($(BUILD_TYPE),icsmaster-gnu64)
 	CUDAHOME      = /scratch/janalik/spack/opt/spack/linux-centos8-haswell/gcc-10.1.0/cuda-11.2.1-hotdferjaqrqtr6sq2j3ekp5brao6ppt
         LOADER        = g++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
         CXX           = g++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
-	NVCC	      = $(CUDAHOME)/bin/nvcc
+	NVCC	      = nvcc
         CXXFLAGS      = -O3 -ffast-math -funroll-loops
         LOADFLAGS     = -O3 -ffast-math -funroll-loops -L$(GNU64)/lib64 -lgfortran -L$(INTEL64)/compiler/lib/intel64 #-lmpifort
 	NVCCFLAGS     = -arch=compute_60 -code=sm_60
