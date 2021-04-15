@@ -1072,6 +1072,7 @@ inline void indexed_copy_offset_dev(CPX *src, CPX *dst, size_t *index, size_t N,
 template <typename T>
 inline void indexed_copy(T *src, T *dst, size_t *index, size_t N)
 {
+   #pragma omp parallel for
    for (int i = 0; i < N; i++)
    {
       dst[i] = src[index[i]];
@@ -1083,6 +1084,7 @@ inline void indexed_copy(T *src, T *dst, size_t *index, size_t N)
 template <typename T>
 inline void indexed_log_sum(T *x, size_t *index, size_t N, T *sum)
 {
+   #pragma omp parallel for reduction(+:sum[:1])
    for (int i = 0; i < N; i++)
    {
       *sum += log(x[index[i]]);

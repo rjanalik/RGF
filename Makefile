@@ -12,7 +12,7 @@ RGFSolver: $(CC_FILES) $(CU_FILES)
 	$(LOADER) $(CC_FILES) $(CU_FILES) $(LOADFLAGS) $(LIBS) -lm -o $@ $(DEBUG)
 
 .C.o:
-	$(CXX) -c $< $(CXXFLAGS) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
+	$(CXX) -c $< $(CXXFLAGS) $(DEBUG) $(OPENMP) $(FLAGS) $(INCLUDEDIR)
 
 CWC_utility.o: CWC_utility.cu
 	$(NVCC) -c CWC_utility.cu $(NVCCFLAGS) $(INCCUD)
