@@ -21,12 +21,18 @@ extern "C" {
     void fortran_name(dsymm,DSYMM)(char *side, char *uplo, int *m, int *n, double *alpha, \
                                    double *a, int *lda, double *b, int *ldb, double *beta, \
                                    double *c, int *ldc);
+    void fortran_name(dtrsm,DTRSM)(char *side, char *uplo, char *transa, char *diag, \
+                                   int *m, int *n, \
+                                   double *alpha, double *a, int *lda, double *b, int *ldb);
     void fortran_name(zgemm,ZGEMM)(char *transa, char *transb, int *m, int *n, int *k, \
                                    CPX *alpha, CPX *a, int *lda, CPX *b, int *ldb, \
                                    CPX *beta, CPX *c, int *ldc);
     void fortran_name(zsymm,ZSYMM)(char *side, char *uplo, int *m, int *n, CPX *alpha, \
                                    CPX *a, int *lda, CPX *b, int *ldb, CPX *beta, \
                                    CPX *c, int *ldc);
+    void fortran_name(ztrsm,ZTRSM)(char *side, char *uplo, char *transa, char *diag, \
+                                   int *m, int *n, \
+                                   CPX *alpha, CPX *a, int *lda, CPX *b, int *ldb);
     void fortran_name(zhemm,ZHEMM)(char *side, char *uplo, int *m, int *n, CPX *alpha, \
                                    CPX *a, int *lda, CPX *b, int *ldb, CPX *beta, \
                                    CPX *c, int *ldc);
@@ -175,6 +181,13 @@ inline void c_dsymm(char side,char uplo, int m, int n, double alpha, double *a, 
 
 /************************************************************************************************/
 
+inline void c_dtrsm(char side, char uplo, char transa, char diag, int m, int n, double alpha, double *a, int lda, double *b, int ldb)
+{
+    fortran_name(dtrsm,DTRSM)(&side,&uplo,&transa,&diag,&m,&n,&alpha,a,&lda,b,&ldb);
+}
+
+/************************************************************************************************/
+
 inline void c_zgemm(char transa, char transb, int m, int n, int k, CPX alpha, CPX *a, \
                     int lda, CPX *b, int ldb, CPX beta, CPX *c, int ldc)
 {
@@ -187,6 +200,13 @@ inline void c_zsymm(char side, char uplo, int m, int n, CPX alpha, CPX *a, int l
                     CPX *b, int ldb, CPX beta, CPX *c, int ldc)
 {
     fortran_name(zsymm,ZSYMM)(&side,&uplo,&m,&n,&alpha,a,&lda,b,&ldb,&beta,c,&ldc);
+}
+
+/************************************************************************************************/
+
+inline void c_ztrsm(char side, char uplo, char transa, char diag, int m, int n, CPX alpha, CPX *a, int lda, CPX *b, int ldb)
+{
+    fortran_name(ztrsm,ZTRSM)(&side,&uplo,&transa,&diag,&m,&n,&alpha,a,&lda,b,&ldb);
 }
 
 /************************************************************************************************/
@@ -377,6 +397,26 @@ inline void c_tsymm(char side, char uplo, int m, int n, CPX alpha, CPX *a, \
                     int lda, CPX *b, int ldb, CPX beta, CPX *c, int ldc)
 {
     c_zsymm(side,uplo,m,n,alpha,a,lda,b,ldb,beta,c,ldc);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void c_ttrsm(char side, char uplo, char transa, char diag, int m, int n, \
+                    T alpha, T *a, int lda, T *b, int ldb);
+
+template <>
+inline void c_ttrsm(char side, char uplo, char transa, char diag, int m, int n, \
+                    double alpha, double *a, int lda, double *b, int ldb)
+{
+    c_dtrsm(side,uplo,transa,diag,m,n,alpha,a,lda,b,ldb);
+}
+
+template <>
+inline void c_ttrsm(char side, char uplo, char transa, char diag, int m, int n, \
+                    CPX alpha, CPX *a, int lda, CPX *b, int ldb)
+{
+    c_ztrsm(side,uplo,transa,diag,m,n,alpha,a,lda,b,ldb);
 }
 
 /************************************************************************************************/
@@ -1013,6 +1053,47 @@ inline void indexed_copy_dev(CPX *src, CPX *dst, size_t *index, size_t N)
 /************************************************************************************************/
 
 template <typename T>
+inline void indexed_copy_offset_dev(T *src, T *dst, size_t *index, size_t N, size_t offset);
+
+template <>
+inline void indexed_copy_offset_dev(double *src, double *dst, size_t *index, size_t N, size_t offset)
+{
+    d_indexed_copy_offset_on_dev(src, dst, index, N, offset);
+}
+
+template <>
+inline void indexed_copy_offset_dev(CPX *src, CPX *dst, size_t *index, size_t N, size_t offset)
+{
+    z_indexed_copy_offset_on_dev(src, dst, index, N, offset);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void indexed_copy(T *src, T *dst, size_t *index, size_t N)
+{
+   #pragma omp parallel for
+   for (int i = 0; i < N; i++)
+   {
+      dst[i] = src[index[i]];
+   }
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void indexed_log_sum(T *x, size_t *index, size_t N, T *sum)
+{
+   #pragma omp parallel for reduction(+:sum[:1])
+   for (int i = 0; i < N; i++)
+   {
+      *sum += log(x[index[i]]);
+   }
+}
+
+/************************************************************************************************/
+
+template <typename T>
 inline void log_dev(T *x, size_t N);
 
 template <>
@@ -1059,6 +1140,23 @@ template <>
 inline void init_block_matrix_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t nnz, size_t ns, size_t nt, size_t nd)
 {
     z_init_block_matrix_on_dev(M, ia, ja, a, nnz, ns, nt, nd);
+}
+
+/************************************************************************************************/
+
+template <typename T>
+inline void init_supernode_dev(T *M, size_t *ia, size_t *ja, T *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd);
+
+template <>
+inline void init_supernode_dev(double *M, size_t *ia, size_t *ja, double *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd)
+{
+    d_init_supernode_on_dev(M, ia, ja, a, supernode, supernode_nnz, supernode_offset, ns, nt, nd);
+}
+
+template <>
+inline void init_supernode_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd)
+{
+    z_init_supernode_on_dev(M, ia, ja, a, supernode, supernode_nnz, supernode_offset, ns, nt, nd);
 }
 
 /************************************************************************************************/

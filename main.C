@@ -1,3 +1,5 @@
+// main_const_ind
+
 #include <math.h>
 #include <iostream>
 #include <time.h>
@@ -153,20 +155,64 @@ void file_exists(std::string file_name)
     
 }
 
+/* ---------------------------------------------------------------------------------------- */
+// functions to construct precision matrices, rhs, etc.
+
+#if 1
+// SPDE discretisation -- matrix construction
+//void construct_Q_spatial(arma::vec& theta, arma::sp_mat* Qs, \
+//                         arma::sp_mat* c0, arma::sp_mat* g1, arma::sp_mat* g2){
+arma::sp_mat construct_Q_spatial(arma::vec theta_u, \
+                         arma::sp_mat c0, arma::sp_mat g1, arma::sp_mat g2){
+
+  arma::sp_mat Qs(c0.n_rows, c0.n_cols);
+  // Qs <- g[1]^2*Qgk.fun(sfem, g[2], order)
+  // return(g^4 * fem$c0 + 2 * g^2 * fem$g1 + fem$g2)
+  Qs = pow(theta_u[0],2)*(pow(theta_u[1], 4) * c0 + 2*pow(theta_u[1],2) * g1 + g2);
+  // extract triplet indices and insert into Qx
+
+  return Qs;
+
+}
+#endif
+
+// SPDE discretisation -- matrix construction
+//void construct_Q_spatial(arma::vec& theta, arma::sp_mat* Qs, \
+//                         arma::sp_mat* c0, arma::sp_mat* g1, arma::sp_mat* g2){
+arma::sp_mat construct_Q_spat_temp(arma::vec theta_u, \
+                         arma::sp_mat c0, arma::sp_mat g1, arma::sp_mat g2, arma::sp_mat g3, \
+                         arma::sp_mat M0, arma::sp_mat M1, arma::sp_mat M2){
+
+  int n_st = c0.n_rows * M0.n_rows;
+  arma::sp_mat Qst(n_st, n_st);
+
+  // g^2 * fem$c0 + fem$g1
+  arma::sp_mat q1s = theta_u[2] * c0 + g1;
+  // g^4 * fem$c0 + 2 * g^2 * fem$g1 + fem$g2
+  arma::sp_mat q2s = pow(theta_u[2], 4) * c0 + 2 * pow(theta_u[2],2) * g1 + g2;
+  // g^6 * fem$c0 + 3 * g^4 * fem$g1 + 3 * g^2 * fem$g2 + fem$g3
+  arma::sp_mat q3s = pow(theta_u[2], 6) * c0 + 3 * pow(theta_u[2],4) * g1 + 3 * pow(theta_u[2],2) * g2 + g3;
+
+  // assemble overall precision matrix Q.st
+  Qst = theta_u[0]*(kron(M0, q3s) + kron(M1 * 2 * theta_u[1], q2s) +  kron(M2 * theta_u[1] * theta_u[1], q1s));
+
+  return Qst;
+
+}
+
+
 int main(int argc, char* argv[]) 
 { 
-cout << "in main" << endl;
 
- if (argc != 6 + 1) {
-    std::cerr << "Pardiso Call : path_to_folder ns nt nb path_to_data no" << std::endl;
+ if (argc != 5 + 1) {
+    std::cerr << "RGF Call : path_to_folder ns nt nb no" << std::endl;
 
 
-    std::cerr << "[string:base_path]          path to folder containing spat temp files " << std::endl;      
+    std::cerr << "[string:base_path]          path to folder containing all files " << std::endl;      
     std::cerr << "[integer:ns]                number of spatial grid points " << std::endl;      
     std::cerr << "[integer:nt]                number of temporal grid points " << std::endl;      
     std::cerr << "[integer:nb]                number of fixed effects" << std::endl;  
 
-    std::cerr << "[string:base_path_data]          path to folder containing data" << std::endl;         
     std::cerr << "[integer:no]                number of data samples" << std::endl;      
       
     exit(1);
@@ -180,9 +226,7 @@ cout << "in main" << endl;
   size_t ns                = atoi(argv[2]);
   size_t nt                = atoi(argv[3]);
   size_t nb                = atoi(argv[4]);
-
-  std::string base_path_data = argv[5];
-  size_t no                = atoi(argv[6]);
+  size_t no                = atoi(argv[5]);
 
   size_t nu                = ns*nt;
 
@@ -194,85 +238,115 @@ cout << "in main" << endl;
 
   std::string nu_s = std::to_string(nu);
 
-  //check which year's data we are using
-  std::string year1 = "2019";
-  std::string year2 = "2020";
-  std::string year;
-
-  std::size_t found1 = base_path_data.find(year1);
-  if (found1!=std::string::npos){
-    std::cout << "found year 2019 in base_path_data " << found1 << '\n';
-    year = "2019";
-  }
-
-    std::size_t found2 = base_path_data.find(year2);
-  if (found2!=std::string::npos){
-    std::cout << "found year 2020 in base_path_data " << found2 << '\n';
-    year = "2020";
-  }
-
-  std::cout << "./pardiso_call_INLA_sol0_tmp_data " << ns_s << " " << nt_s << " " << nb_s << " " << no_s << "\n" << std::endl;
+  std::cout << "./RGF CALL  " << ns_s << " " << nt_s << " " << nb_s << " " << no_s << "\n" << std::endl;
 
   // ------------------- construct file names and check if files exist --------------------------
 
   // files to construct Q.u depending on HYPERPARAMETERS theta
-  std::string const_file    =  base_path + "/const_ns" + ns_s + "_nt" + nt_s + ".dat";
-  file_exists(const_file);
+  std::string c0_file      =  base_path + "/c0_" + ns_s + ".dat";
+  file_exists(c0_file);
+  std::string g1_file      =  base_path + "/g1_" + ns_s + ".dat";
+  file_exists(g1_file);
+  std::string g2_file      =  base_path + "/g2_" + ns_s + ".dat";
+  file_exists(g2_file);
 
-  std::string q1s_file      =  base_path + "/q1s_" + ns_s + ".dat";
-  file_exists(q1s_file);
-  std::string q2s_file      =  base_path + "/q2s_" + ns_s + ".dat";
-  file_exists(q2s_file);
-  std::string q3s_file      =  base_path + "/q3s_" + ns_s + ".dat";
-  file_exists(q3s_file);
 
-  std::string M0_file      =  base_path + "/M0_" + nt_s + ".dat";
-  file_exists(M0_file);
-  std::string M1_file      =  base_path + "/M1_" + nt_s + ".dat";
-  file_exists(M1_file);
-  std::string M2_file      =  base_path + "/M2_" + nt_s + ".dat";
-  file_exists(M2_file);  
+  std::string g3_file;
+  std::string M0_file; 
+  std::string M1_file;
+  std::string M2_file;  
+
+  #if 1
+  if(nt > 1){
+    g3_file      =  base_path + "/g3_" + ns_s + ".dat";
+    file_exists(g3_file);
+
+    M0_file      =  base_path + "/M0_" + nt_s + ".dat";
+    file_exists(M0_file);
+    M1_file      =  base_path + "/M1_" + nt_s + ".dat";
+    file_exists(M1_file);
+    M2_file      =  base_path + "/M2_" + nt_s + ".dat";
+    file_exists(M2_file);  
+  }
+  #endif
 
   // INDEPENDENT OF HYPERPARAMETERS
-  // files containing Q.b
-  std::string Qb_file      =  base_path_data + "/Qb_" + nb_s + "_" + nb_s + ".dat";
-  file_exists(Qb_file); 
 
-  // files containing B
-  std::string B_file        =  base_path_data + "/B_" + no_s + "_" + nb_s + "_ns" + ns_s + "_nt" + nt_s+ ".dat";
-  file_exists(B_file); 
+  // Ax = cbind(As, B)
+  std::string Ax_file     =  base_path + "/Ax_" + no_s + "_" + std::to_string(nu+nb) + ".dat";
+  file_exists(Ax_file);
 
-  // files related to data A.st, y
-  std::string A_st_file     =  base_path_data + "/A_st_" + no_s + "_" + std::to_string(ns*nt) + "_ns" + ns_s + "_nt" + nt_s + ".dat";
-  file_exists(A_st_file);
-  std::string y_file        =  base_path_data + "/y_" + no_s + "_1_ns" + ns_s + "_nt" + nt_s + ".dat";
+  // temperature values y
+  std::string y_file        =  base_path + "/y_" + no_s + "_1.dat";
   file_exists(y_file);
 
   // ------------------------------- read in files  --------------------------------- //
 
-   // Initialize the random generator
-  //arma::arma_rng::set_seed_random();
-  arma::vec g(4);
-
-  fstream fin(const_file, ios::in);
-  fin >> g[0];
-  fin >> g[1];
-  fin >> g[2];
-  fin >> g[3];
-  fin.close();
-
   // READ IN MATRICES
+
   // spatial matrices
-  arma::sp_mat q1s = readCSC_sym(q1s_file);
-  // arma::mat(q1s).print();
+  arma::sp_mat c0 = readCSC_sym(c0_file);
+  arma::sp_mat g1 = readCSC_sym(g1_file);
+  arma::sp_mat g2 = readCSC_sym(g2_file);
 
-  arma::sp_mat q2s = readCSC_sym(q2s_file);
-  arma::sp_mat q3s = readCSC_sym(q3s_file); 
+  arma::sp_mat g3;
+  arma::sp_mat M0;
+  arma::sp_mat M1;
+  arma::sp_mat M2;
 
-  // temporal matrices 
-  arma::sp_mat M0 = readCSC_sym(M0_file);
-  arma::sp_mat M1 = readCSC_sym(M1_file);
-  arma::sp_mat M2 = readCSC_sym(M2_file); 
+  if(nt > 1){ 
+    g3 = readCSC_sym(g3_file); 
+    //arma::mat(g3).submat(0,0,10,10).print();
+
+
+    // temporal matrices 
+    M0 = readCSC_sym(M0_file);
+    //arma::mat(M0).submat(0,0,nt-1,nt-1).print();
+    M1 = readCSC_sym(M1_file);
+    //arma::mat(M1).submat(0,0,nt-1,nt-1).print();
+    M2 = readCSC_sym(M2_file); 
+    //arma::mat(M2).submat(0,0,nt-1,nt-1).print();
+
+  }
+  
+
+
+  // Ax (sparse)
+  arma::sp_mat Ax = readCSC(Ax_file);
+  //std::cout << "non zeros A_st " << A_st.n_nonzero << std::endl;
+
+  //y (vector)
+  arma::vec y = read_matrix(y_file, no, 1);
+
+  /* ----------------------- initialise random theta -------------------------------- */
+
+  arma::vec theta;
+
+  if(nt == 1){
+    theta = {-1.5,-5,-2};
+    theta.print();
+  } else {
+    theta = {5, -10, 2.5, 1};
+    theta.print();
+  }
+
+
+  arma::sp_mat Qst;
+
+ // assemble Qs for given theta
+  if(nt == 1){
+
+    Qst = construct_Q_spatial(theta(arma::span(1,2)), c0, g1, g2);
+    arma::mat(Qst).submat(0,0,10,10).print();
+  
+  } else {
+
+    Qst = construct_Q_spat_temp(theta(arma::span(1,3)), c0, g1, g2, g3, M0, M1, M2);
+    arma::mat(Qst).submat(0,0,10,10).print();
+
+  }
+
+  exit(1);
 
   // Q.b (sparse & symmetric)
   arma::sp_mat Q_b = readCSC_sym(Qb_file); 
@@ -284,23 +358,14 @@ cout << "in main" << endl;
   arma::sp_mat Q_e(no, no);
   Q_e = exp(g[0])*Q_e.eye();
   
-  // A.st (sparse)
-  arma::sp_mat A_st = readCSC(A_st_file);
-  //std::cout << "non zeros A_st " << A_st.n_nonzero << std::endl;
-
-  // for now B just intercept, all ones
-  arma::mat B = read_matrix(B_file, no, nb);
-
-  //y (vector)
-  arma::vec y = read_matrix(y_file, no, 1);
-
-
   /* ------------- ASSEMBLE MATRICES  ----------------- */
 
   // Q.u
-  arma::sp_mat Q_u(nu, nu);
-  Q_u = g[1]*(kron(M0, q3s) + kron(M1 * 2 * g[2], q2s) +  kron(M2 * g[2] * g[2], q1s));
+  //arma::sp_mat Q_u(nu, nu);
+  //Q_u = g[1]*(kron(M0, q3s) + kron(M1 * 2 * g[2], q2s) +  kron(M2 * g[2] * g[2], q1s));
   
+  #if 0 
+
   arma::sp_mat Q_u_lower = arma::trimatl(Q_u);
   unsigned int nnz_u = Q_u_lower.n_nonzero;
 
@@ -356,139 +421,9 @@ cout << "in main" << endl;
     a[i] = Q_xy_lower.values[i];
   }  
 
+
   printf("\nAll matrices assembled. Passing to RGF solver now.\n");
 
-  // ------------------------------------------------------------------------------------------- // 
-  // -------------------------------------- RGF SOLVER ----------------------------------------- //
-  // ------------------------------------------------------------------------------------------- // 
+  #endif
 
-  // FILE *F1,*F2;
-  int i;
-  double data;
-  double t_factorise; double t_solve; double t_inv;
-  T *b;
-  T *x;
-  T *invDiag;
-  RGF<T> *solver;
-
-  time_t rawtime;
-  struct tm *timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-  printf ("The current date/time is: %s\n",asctime(timeinfo));
-
-  b      = new T[n];
-  x      = new T[n];
-  invDiag= new T[n];
-
-  // assign b to correct format
-  for (int i = 0; i < n; i++){
-    b[i] = B_xey[i];
-    //printf("%f\n", b[i]);
   }
-  
-  solver = new RGF<T>(ia, ja, a, ns, nt, nb);
-
-  t_factorise = get_time(0.0);
-  //solver->solve_equation(GR);
-  solver->factorize();
-  t_factorise = get_time(t_factorise);
-
-  double log_det = solver->logDet();
-  printf("logdet: %f\n", log_det);
-
-  // write this to file
-  /*std::string L_factor_file_name = base_path + "/L_factor_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s + ".dat";
-  std::ofstream L_factor_file(L_factor_file_name,    std::ios::out | std::ios::trunc);
-
-  L_factor_file << n << std::endl;
-  L_factor_file << n << std::endl;
-  L_factor_file << M->n_nonzeros << std::endl;
-
-  for (int i = 0; i < M->size+1; ++i){
-    L_factor_file << M->edge_i[i] << std::endl;
-  }
-   for (int i = 0; i < M->n_nonzeros; ++i){
-    L_factor_file << M->index_j[i] << std::endl;
-  }  
-  for (int i = 0; i < M->n_nonzeros; ++i){
-    L_factor_file << MF[i] << std::endl;
-  }  
-
-  L_factor_file.close(); */
-
-  t_solve = get_time(0.0); 
-  solver->solve(x, b, 1);
-  t_solve = get_time(t_solve);
-
-
-  t_inv = get_time(0.0);
-  solver->RGFdiag(invDiag);
-  t_inv = get_time(t_inv);
-
-  printf("RGF factorise time: %lg\n",t_factorise);
-  printf("RGF solve     time: %lg\n",t_solve);
-  printf("RGF sel inv   time: %lg\n",t_inv);
-
-
-  printf("Residual norm: %e\n", solver->residualNorm(x, b));
-  printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
-
-  /*for (int i = 0; i < nrhs*ns*nt; i++){
-    printf("x[%d] = %f\n", i, b[i]);
-  }*/
-
-  // create file with solution vector
-  std::string sol_x_file_name = base_path_data + "/x_sol_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s +"_year"+ year +".dat";
-  std::ofstream sol_x_file(sol_x_file_name,    std::ios::out | std::ios::trunc);
-
-  for (i = 0; i < n; i++) {
-    sol_x_file << x[i] << std::endl;
-    // sol_x_file << x[i] << std::endl; 
-  }
-
-  sol_x_file.close();
-
-  std::string log_file_name = base_path_data + "/log_RGF_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s +"_year"+ year+".dat";
-  std::ofstream log_file(log_file_name);
-  log_file << ns << std::endl;
-  log_file << nt << std::endl;
-  log_file << nb << std::endl;
-  log_file << no << std::endl;
-  log_file << n << std::endl;
-  log_file << nnz << std::endl;
-  log_file << "RGF" << std::endl;
-  log_file << log_det << std::endl;
-  log_file << "0.0" << std::endl;
-  log_file << t_factorise << std::endl;
-  log_file << t_solve << std::endl;
-  log_file << t_inv << std::endl;
-
-  log_file.close(); 
-
-    // print/write diag 
-  string sel_inv_file_name = base_path_data+"/RGF_sel_inv_ns"+to_string(ns)+"_nt"+to_string(nt)+"_nb"+ nb_s + "_no" + no_s +".dat";
-  cout << sel_inv_file_name << endl;
-  ofstream sel_inv_file(sel_inv_file_name,    ios::out | ::ios::trunc);
-  
-    for (int i = 0; i < n; i++){
-      sel_inv_file << invDiag[i] << endl;
-    }
-
-  sel_inv_file.close();
-  cout << "after writing file " << endl;
-  
-  // free memory
-  delete[] invDiag;
-  delete solver;
-  delete[] ia;
-  delete[] ja;
-  delete[] a;
-  delete[] b;
-  delete[] x;
-    
-  return 0;
-
-}
-
-/************************************************************************************************/
