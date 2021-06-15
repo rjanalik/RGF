@@ -187,9 +187,13 @@ arma::sp_mat construct_Q_spat_temp(arma::vec theta_u, \
   arma::sp_mat Qst(n_st, n_st);
 
   // g^2 * fem$c0 + fem$g1
-  arma::sp_mat q1s = theta_u[2] * c0 + g1;
+  arma::sp_mat q1s = pow(theta_u[2],2) * c0 + g1;
+  //std::cout << "q1s :" << std::endl;
+  //arma::mat(q1s).submat(0,0,10,10).print();
+
   // g^4 * fem$c0 + 2 * g^2 * fem$g1 + fem$g2
   arma::sp_mat q2s = pow(theta_u[2], 4) * c0 + 2 * pow(theta_u[2],2) * g1 + g2;
+
   // g^6 * fem$c0 + 3 * g^4 * fem$g1 + 3 * g^2 * fem$g2 + fem$g3
   arma::sp_mat q3s = pow(theta_u[2], 6) * c0 + 3 * pow(theta_u[2],4) * g1 + 3 * pow(theta_u[2],2) * g2 + g3;
 
@@ -324,81 +328,67 @@ int main(int argc, char* argv[])
 
   if(nt == 1){
     theta = {-1.5,-5,-2};
-    theta.print();
+    //theta.print();
   } else {
     theta = {5, -10, 2.5, 1};
-    theta.print();
+    //theta.print();
   }
 
 
-  arma::sp_mat Qst;
+  arma::sp_mat Qu;
 
  // assemble Qs for given theta
   if(nt == 1){
 
-    Qst = construct_Q_spatial(theta(arma::span(1,2)), c0, g1, g2);
-    arma::mat(Qst).submat(0,0,10,10).print();
+    Qu = construct_Q_spatial(exp(theta(arma::span(1,2))), c0, g1, g2);
+    // arma::mat(Qu).submat(0,0,10,10).print();
   
   } else {
 
-    Qst = construct_Q_spat_temp(theta(arma::span(1,3)), c0, g1, g2, g3, M0, M1, M2);
-    arma::mat(Qst).submat(0,0,10,10).print();
+    std::cout << exp(theta(arma::span(1,3))) << std::endl;
+    Qu = construct_Q_spat_temp(exp(theta(arma::span(1,3))), c0, g1, g2, g3, M0, M1, M2);
+    // arma::mat(Qu).submat(0,0,10,10).print();
 
   }
 
-  exit(1);
-
-  // Q.b (sparse & symmetric)
-  arma::sp_mat Q_b = readCSC_sym(Qb_file); 
+  // Q.b : diag(1e-5), dim : nb nb
+  arma::sp_mat Qb = 1e-5 * arma::speye(nb, nb); 
+  //Qb.print(); 
 
   // Qub0  --> create here, all zeros 
   arma::sp_mat Qub0(nb, ns*nt); Qub0.zeros();
-  
-  // Q.e (sparse & symmetric)
-  arma::sp_mat Q_e(no, no);
-  Q_e = exp(g[0])*Q_e.eye();
-  
+    
   /* ------------- ASSEMBLE MATRICES  ----------------- */
 
-  // Q.u
-  //arma::sp_mat Q_u(nu, nu);
-  //Q_u = g[1]*(kron(M0, q3s) + kron(M1 * 2 * g[2], q2s) +  kron(M2 * g[2] * g[2], q1s));
-  
-  #if 0 
-
-  arma::sp_mat Q_u_lower = arma::trimatl(Q_u);
-  unsigned int nnz_u = Q_u_lower.n_nonzero;
-
   // assemble Q.x = block_diagonal(Q.u, Q.b)
-  size_t n = size(Q_u)[1] + size(Q_b)[1];
+  size_t n = size(Qu)[1] + size(Qb)[1];
   //std::cout << "n : " << n << std::endl;
-  arma::sp_mat Q_x(n,n);
-  Q_x(0,0, size(Q_u))          = Q_u;
-  Q_x(0,nu, size(Qub0.t()))    = Qub0.t();
-  Q_x(nu, 0, size(Qub0))       = Qub0;
-  Q_x(nu, nu, size(Q_b))       = Q_b;
-
-  // A.x = cbind(A.st, B) 
-  arma::sp_mat A_x(no, n);
-  A_x(0,0, size(A_st)) = A_st;
-  A_x(0,nu, size(B)) = B;
+  arma::sp_mat Qx(n,n);
+  Qx(0,0, size(Qu))          = Qu;
+  Qx(0,nu, size(Qub0.t()))    = Qub0.t();
+  Qx(nu, 0, size(Qub0))       = Qub0;
+  Qx(nu, nu, size(Qb))       = Qb;
+  //arma::mat(Qx).submat(0,0,10,10).print();
 
   // Q.x|y = Q.x + t(A.x), Q.e*A.x
-  arma::sp_mat Q_xy(size(Q_x));
-  Q_xy = Q_x + A_x.t()*Q_e*A_x;
+  arma::sp_mat Qxy(size(Qx));
+  Qxy = Qx + exp(theta[0])*Ax.t()*Ax;
+  //arma::mat(Qx).submat(0,0,10,10).print();
 
-  arma::vec B_xey = A_x.t()*Q_e*y;
 
-  std::cout << "size(Q_xy)" << size(Q_xy) << std::endl;
-  std::cout << "size(B_xey)" << size(B_xey) << std::endl;
+  arma::vec bxy = exp(theta[0])*Ax.t()*y;
+  //bxy.print();
+
+  //std::cout << "size(Qxy)" << size(Qxy) << std::endl;
+  //std::cout << "size(bxy)" << size(bxy) << std::endl;
 
   // TAKE ENTIRE MATRIX FOR THIS SOLVER
-  arma::sp_mat Q_xy_lower = arma::trimatl(Q_xy);
+  arma::sp_mat Qxy_lower = arma::trimatl(Qxy);
 
   // require CSR format
-  size_t nnz = Q_xy_lower.n_nonzero;
+  size_t nnz = Qxy_lower.n_nonzero;
 
-  std::cout << "number of non zeros : " << nnz << std::endl;
+  //std::cout << "number of non zeros : " << nnz << std::endl;
 
   size_t* ia; 
   size_t* ja;
@@ -409,21 +399,175 @@ int main(int argc, char* argv[])
   ja = new size_t [nnz];
   a = new double [nnz];
 
+  std::cout << n << std::endl;
+  std::cout << n << std::endl;
+  std::cout << nnz << std::endl;
+
+
+  for (int i = 0; i < nnz; ++i){
+    ja[i] = Qxy_lower.row_indices[i];
+    std::cout << ja[i] << std::endl;     
+
+  } 
+
   for (int i = 0; i < n+1; ++i){
-    ia[i] = Q_xy_lower.col_ptrs[i];    
+    ia[i] = Qxy_lower.col_ptrs[i]; 
+    std::cout << ia[i] << std::endl;   
   }  
 
   for (int i = 0; i < nnz; ++i){
-    ja[i] = Q_xy_lower.row_indices[i];
-  }  
+    a[i] = Qxy_lower.values[i];
+    std::cout << a[i] << std::endl;     
 
-  for (int i = 0; i < nnz; ++i){
-    a[i] = Q_xy_lower.values[i];
   }  
 
 
   printf("\nAll matrices assembled. Passing to RGF solver now.\n");
 
+  // ------------------------------------------------------------------------------------------- // 
+  // -------------------------------------- RGF SOLVER ----------------------------------------- //
+  // ------------------------------------------------------------------------------------------- // 
+
+  int i;
+  double data;
+  double t_factorise; double t_solve; double t_inv;
+  T *b;
+  T *x;
+  T *invDiag;
+  RGF<T> *solver;
+
+  time_t rawtime;
+  struct tm *timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+  printf ("The current date/time is: %s\n",asctime(timeinfo));
+
+  b      = new T[n];
+  x      = new T[n];
+  invDiag= new T[n];
+
+  // assign b to correct format
+  for (int i = 0; i < n; i++){
+    b[i] = bxy[i];
+    //printf("%f\n", b[i]);
+  }
+  
+  solver = new RGF<T>(ia, ja, a, ns, nt, nb);
+
+  t_factorise = get_time(0.0);
+  //solver->solve_equation(GR);
+  double flops_factorize = solver->factorize();
+  t_factorise = get_time(t_factorise);
+
+
+  double log_det = solver->logDet();
+  printf("logdet: %f\n", log_det);
+
+  printf("flops factorize: %f\n", flops_factorize);
+
+  // write this to file
+  /*std::string L_factor_file_name = base_path + "/L_factor_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s + ".dat";
+  std::ofstream L_factor_file(L_factor_file_name,    std::ios::out | std::ios::trunc);
+
+  L_factor_file << n << std::endl;
+  L_factor_file << n << std::endl;
+  L_factor_file << M->n_nonzeros << std::endl;
+
+  for (int i = 0; i < M->size+1; ++i){
+    L_factor_file << M->edge_i[i] << std::endl;
+  }
+   for (int i = 0; i < M->n_nonzeros; ++i){
+    L_factor_file << M->index_j[i] << std::endl;
+  }  
+  for (int i = 0; i < M->n_nonzeros; ++i){
+    L_factor_file << MF[i] << std::endl;
+  }  
+
+  L_factor_file.close(); */
+
+  t_solve = get_time(0.0); 
+  double flops_solve = solver->solve(x, b, 1);
+  t_solve = get_time(t_solve);
+  printf("flops solve:     %f\n", flops_solve);
+
+
+  t_inv = get_time(0.0);
+  double flops_inv = solver->RGFdiag(invDiag);
+  t_inv = get_time(t_inv);
+  printf("flops inv:      %f\n", flops_inv);
+
+
+  //exit(1);
+
+
+  printf("RGF factorise time: %lg\n",t_factorise);
+  printf("RGF solve     time: %lg\n",t_solve);
+  printf("RGF sel inv   time: %lg\n",t_inv);
+
+
+  printf("Residual norm: %e\n", solver->residualNorm(x, b));
+  printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
+
+  /*for (int i = 0; i < nrhs*ns*nt; i++){
+    printf("x[%d] = %f\n", i, b[i]);
+  }*/
+
+  // create file with solution vector
+  std::string sol_x_file_name = base_path + "/x_sol_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s +".dat";
+  std::ofstream sol_x_file(sol_x_file_name,    std::ios::out | std::ios::trunc);
+
+  for (i = 0; i < n; i++) {
+    sol_x_file << x[i] << std::endl;
+    // sol_x_file << x[i] << std::endl; 
+  }
+
+  sol_x_file.close();
+
+  std::string log_file_name = base_path + "/log_RGF_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s +".dat";
+  std::ofstream log_file(log_file_name);
+  log_file << ns << std::endl;
+  log_file << nt << std::endl;
+  log_file << nb << std::endl;
+  log_file << no << std::endl;
+  log_file << n << std::endl;
+  log_file << nnz << std::endl;
+  log_file << "RGF" << std::endl;
+  log_file << log_det << std::endl;
+  log_file << "0.0" << std::endl;
+  log_file << t_factorise << std::endl;
+  log_file << t_solve << std::endl;
+  log_file << t_inv << std::endl;
+  log_file << flops_factorize << std::endl;
+  log_file << flops_solve << std::endl;
+  log_file << flops_inv << std::endl;
+
+  log_file.close(); 
+
+    // print/write diag 
+  string sel_inv_file_name = base_path +"/RGF_sel_inv_ns"+to_string(ns)+"_nt"+to_string(nt)+"_nb"+ nb_s + "_no" + no_s +".dat";
+  cout << sel_inv_file_name << endl;
+  ofstream sel_inv_file(sel_inv_file_name,    ios::out | ::ios::trunc);
+  
+    for (int i = 0; i < n; i++){
+      sel_inv_file << invDiag[i] << endl;
+    }
+
+  sel_inv_file.close();
+  cout << "after writing file " << endl;
+  
+  // free memory
+  delete[] invDiag;
+  delete solver;
+  delete[] ia;
+  delete[] ja;
+  delete[] a;
+  delete[] b;
+  delete[] x;
+
+  #if 0
   #endif
+    
+  return 0;
+
 
   }
