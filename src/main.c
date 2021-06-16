@@ -1,6 +1,6 @@
 // main_const_ind
 
-#include "RGF.H"
+#include "RGF.h"
 #include <iostream>
 #include <limits>
 #include <math.h>

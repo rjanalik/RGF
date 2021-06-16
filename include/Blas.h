@@ -1,8 +1,8 @@
 #ifndef __BLAS
 #define __BLAS
 
-#include "CWC_utility.H"
-#include "Types.H"
+#include "CWC_utility.cuh"
+#include "Types.h"
 #include "magma_v2.h"
 #include <iostream>
 

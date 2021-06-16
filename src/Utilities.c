@@ -1,4 +1,4 @@
-#include "Utilities.H"
+#include "Utilities.h"
 
 void icopy(int N, int *x, int *x_copy) {
     int i;

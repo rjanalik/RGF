@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "Types.H"
+#include "Types.h"
 #include "cublas_v2.h"
 #include "cusparse_v2.h"
 #include "cuda.h"

@@ -1,4 +1,4 @@
-#include "Types.H"
+#include "Types.h"
 #include "magma_v2.h"
 #include <cuda_runtime.h>
 #include <stdio.h>

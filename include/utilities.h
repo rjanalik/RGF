@@ -1,7 +1,7 @@
 #ifndef __UTILITIES
 #define __UTILITIES
 
-#include "Blas.H"
+#include "Blas.h"
 #include <cmath>
 #include <ctime>
 #include <math.h>

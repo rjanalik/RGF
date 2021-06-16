@@ -3,9 +3,9 @@
 
 #include <string.h>
 
-#include "CWC_utility.H"
-#include "Types.H"
-#include "Utilities.H"
+#include "CWC_utility.cuh"
+#include "Types.h"
+#include "Utilities.h"
 #include "cublas_v2.h"
 
 template <class T> class RGF {
