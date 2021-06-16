@@ -7,3 +7,6 @@ RGFSolver
 
 # some OS X rubbish
 .DS_Store
+
+# data files
+.dat
