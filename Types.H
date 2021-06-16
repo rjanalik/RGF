@@ -3,8 +3,8 @@
 
 using namespace std;
 
-#include <math.h>
 #include <complex>
+#include <math.h>
 
 #ifndef PI
 #define PI 3.14159265358979
@@ -40,20 +40,20 @@ using namespace std;
 
 #ifndef __MINMAX
 #define __MINMAX
-#define min(a,b) (((a)<(b))?(a):(b))
-#define max(a,b) (((a)>(b))?(a):(b))
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define max(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
 #ifdef Add_
-#define fortran_name(x,y) (x ## _)
+#define fortran_name(x, y) (x##_)
 #endif
 
 #ifdef NoChange
-#define fortran_name(x,y) (x)
+#define fortran_name(x, y) (x)
 #endif
 
 #ifdef UpCase
-#define fortran_name(x,y) (y)
+#define fortran_name(x, y) (y)
 #endif
 
 typedef complex<double> CPLXType;
@@ -62,8 +62,3 @@ typedef CPX *CPXp;
 typedef CPX (*CPXpfn)(CPX);
 
 #endif
-
-
-
-
-
