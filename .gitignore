@@ -10,3 +10,6 @@ RGFSolver
 
 # data files
 .dat
+
+# Language Server Cache
+.ccls-cache/
