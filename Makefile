@@ -25,19 +25,21 @@ CU_OBJ := $(patsubst $(SRC_DIR)/%.cu, $(OBJ_DIR)/%.o, $(CU_SRC))
 .PHONY: all clean
 
 all: $(EXEC)
-$(EXEC): $(CC_OBJ) $(CU_OBJ) | $(BIN_DIR) $(OBJ_DIR)
+$(EXEC): $(CC_OBJ) $(CU_OBJ)
 	$(LOADER) $^ $(LOADFLAGS) $(LIBS) -lm -o $@ $(DEBUG)
 
 # %.o: %.c:
 # 	$(CXX) -c $< $(CXXFLAGS) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
 
 # Compile C++ source files to object files:
-$(CC_OBJ): $(CC_SRC)
+$(CC_OBJ): $(CC_SRC) | $(OBJ_DIR) $(BIN_DIR)
+	@echo "Compiling .c files"
 	$(CXX) $(CXXFLAGS) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -c $< -o $@
 
 # Compile CUDA source files to object files:
-$(CU_OBJ): $(CU_SRC)
-	$(NVCC) $(NVCC_FLAGS) -c $< -o $@ $(NVCC_LIBS)
+$(CU_OBJ): $(CU_SRC)| $(OBJ_DIR) $(BIN_DIR)
+	@echo "Compiling .cu files"
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDEDIR) -c $< -o $@ $(NVCC_LIBS)
 
 $(BIN_DIR):
 	mkdir -p $@
