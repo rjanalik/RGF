@@ -105,7 +105,6 @@ endif
 INC_CC        = -Iinclude
 #INC_CUD      = -I$(CUDAHOME)/include
 #CUDA         = -L$(CUDAHOME)/lib64 -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
-MAGMA_DIR     = /home/x_pollakgr/applications
 INC_MAG       = -I$(MAGMA_DIR)/magma-2.5.4/include
 MAGMA         = -L$(MAGMA_DIR)/magma-2.5.4/lib -lmagma
 
