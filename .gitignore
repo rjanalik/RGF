@@ -1,6 +1,8 @@
 # object files, binaries
 *.o
 RGFSolver
+build/
+.deps
 
 # vim swap file
 *.swp
