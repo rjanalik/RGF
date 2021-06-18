@@ -71,7 +71,7 @@ ifeq ($(BUILD_TYPE),icsmaster-gnu64)
 	LIBSCI        =
 	BLAS          =
 	OPENMP        = -fopenmp
-	INCMAG        =
+	INC_MAG        =
 	MAGMA         = -lmagma
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
 endif
@@ -102,15 +102,17 @@ ifeq ($(BUILD_TYPE),kaust)
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
 endif
 
-#INCCUD        = -I$(CUDAHOME)/include
-#CUDA          = -L$(CUDAHOME)/lib64 -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
-INCMAG        = -I/home/x_gaedkelb/applications/magma-2.5.4/include
-MAGMA         = -L/home/x_gaedkelb/applications/magma-2.5.4/lib -lmagma
+INC_CC        = -Iinclude
+#INC_CUD      = -I$(CUDAHOME)/include
+#CUDA         = -L$(CUDAHOME)/lib64 -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
+MAGMA_DIR     = /home/x_pollakgr/applications
+INC_MAG       = -I$(MAGMA_DIR)/magma-2.5.4/include
+MAGMA         = -L$(MAGMA_DIR)/magma-2.5.4/lib -lmagma
 
-INCCUD	      = -I$(CUDAHOME)/include -Iinclude
+INC_CUD	      = -I$(CUDAHOME)/include
 CUDA          = -L/usr/lib64/ -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
-#INCMAG        ?= -I./magma-1.6.2p4/include/
-#MAGMA         ?= -L./magma-1.6.2p4/lib/ -lmagma
+#INC_MAG       ?= -I./magma-1.6.2p4/include/
+#MAGMA        ?= -L./magma-1.6.2p4/lib/ -lmagma
 
 # Common definitions
 CD            = cd
