@@ -210,6 +210,18 @@ arma::sp_mat construct_Q_spat_temp(arma::vec theta_u, arma::sp_mat c0,
     return Qst;
 }
 
+/**
+ * @brief Runs Recursive Green Function algorithm
+ * @details Solve block diagonal arrow matrices using the RGF algorithm
+ * @param[in] argc Description:
+ * [1]: path to data folder
+ * [2]: [integer:ns] - number of spatial grid points
+ * [3]: [integer:nt] - number of temporal grid points
+ * [4]: [integer:nb] - number of fixed effects
+ * [5]: [integer:no] - number of data samples
+ * @param[out] argv Description
+ * @return saves the selective inverse to a file
+ */
 int main(int argc, char *argv[]) {
 
     if (argc != 5 + 1) {

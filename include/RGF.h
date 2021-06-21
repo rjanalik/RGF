@@ -1,3 +1,12 @@
+/**
+ * @file      RGF.H
+ * @brief     Header of the RGF Solver
+ * @date      Mon Jun 14 11:08:12 2021
+ * @author    Radim
+ *
+ * This module
+ */
+
 #ifndef __RGF
 #define __RGF
 
@@ -79,6 +88,18 @@ template <class T> class RGF {
 
 /************************************************************************************************/
 
+/**
+ * @brief Recursive Green Function Algorithm
+ * @details Description
+ * @param[inout] ia Description
+ * @param[out] ja Description
+ * @param[out] a Description
+ * @param[in] ns spatial
+ * @param[in] nt temporal
+ * @param[in] nd/nb number of columns/rows
+ * @return Description
+ */
+// size_t size = ns * nt + nd;
 template <class T>
 RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
     matrix_ia = ia;
@@ -214,6 +235,7 @@ template <class T> inline size_t RGF<T>::mf_dense_block_lda(size_t i) {
 
 template <class T> double RGF<T>::FirstStageFactor() {
     int info;
+    // Number of diagonal blocks ?
     size_t IB;
     size_t NR, NM;
     T ONE = f_one();
@@ -396,7 +418,13 @@ template <class T> double RGF<T>::FirstStageFactor() {
 }
 
 /************************************************************************************************/
-
+/**
+ * TODO: slow due to many zeros
+ * Question: can we learn where we have the zeros?
+ * @brief solving of the linear system Qx=b
+ * @details Description
+ * @param[in] nrhs Description
+ */
 template <class T> double RGF<T>::SecondStageSolve(size_t nrhs) {
     int info;
     size_t IB;
@@ -495,7 +523,12 @@ template <class T> double RGF<T>::SecondStageSolve(size_t nrhs) {
 }
 
 /************************************************************************************************/
-
+/**
+ * @brief Calculates G_i i=n+1,...,1
+ * @details Description
+ * @param[inout] tmp1_dev Description
+ * @param[out] tmp2_dev Description
+ */
 template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
     int info;
     size_t IB;
@@ -617,7 +650,10 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
 }
 
 /************************************************************************************************/
-
+/**
+ * @brief Summary
+ * @details compute the cholesky factor for all the blocks
+ */
 template <class T> double RGF<T>::factorize() {
     create_blocks();
 
@@ -672,7 +708,13 @@ template <class T> double RGF<T>::solve(T *b, size_t nrhs) {
 }
 
 /************************************************************************************************/
-
+/**
+ * @brief Summary
+ * @details Description
+ * @param[inout] x Description
+ * @param[out] b Description
+ * @param[in] nrhs Description
+ */
 template <class T> double RGF<T>::solve(T *x, T *b, size_t nrhs) {
     if (!factorization_completed)
         factorize();
@@ -696,7 +738,12 @@ template <class T> double RGF<T>::solve(T *x, T *b, size_t nrhs) {
 }
 
 /************************************************************************************************/
-
+/**
+ * @brief Performs selective inversion
+ * Note: atm returns only inverse diagonal elements
+ * @details Description
+ * @param[inout] diag Description
+ */
 template <class T> double RGF<T>::RGFdiag(T *diag) {
     if (!factorization_completed)
         factorize();
