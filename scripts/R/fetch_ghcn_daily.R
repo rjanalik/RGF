@@ -2,15 +2,66 @@
 ### ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/
 # !/usr/bin/env Rscript
 library("optparse")
+library("data.table")
+library("tools")
+library("R.utils")
 
-fetch_file <- function(url, destintion, overwrite = FALSE) {
-  if (file.exists(destintion)) {
-    cat(destintion, " exists already\n")
+fetch_file <- function(url, dest, overwrite = FALSE) {
+  if (file.exists(dest)) {
+    cat(dest, " exists already\n")
   }
-  if (overwrite | !file.exists(destintion)) {
-    download.file(url, destintion)
+  if (overwrite || (!file.exists(dest))) {
+    download.file(url, dest)
   }
 }
+fselect <- function(source) {
+  # select columns from .csv.gz file and creat .Rdata object
+  t0 <- Sys.time()
+  dt <- fread(source)
+  cat("Lines ", nrow(dt), "")
+  t1 <- Sys.time()
+  cat("t1 =", t1 - t0, "\n")
+  # Select Only TMAX and TMAX from dt$V3
+  dt <- dt[which(dt$V3 %in% c("TMIN", "TMAX")), ]
+  cat("selected ", nrow(dt), "")
+  t2 <- Sys.time()
+  cat("t2 =", t2 - t1, "\n")
+  # Select some other columns an change order
+  w <- tapply(
+    dt$V4, dt[, c("V2", "V1", "V3")], as.integer
+  )
+  cat("dim =", dim(w), "")
+  t3 <- Sys.time()
+  cat("t3 =", t3 - t2, "\n")
+  return((w[, , 1] + w[, , 2]))
+}
+
+create_R_obj <- function(source, overwrite) {
+  file_path_without_gz <- file_path_sans_ext(source)
+  file_path_without_csv <- file_path_sans_ext(file_path_without_gz)
+  dest <- paste0(file_path_without_csv, ".Rdata")
+  if (file.exists(dest)) {
+    cat(dest, " exists already\n")
+  }
+  if (overwrite | !file.exists(dest)) {
+    cat("creating ", dest, "\n")
+    filename <- basename(file_path_without_csv)
+    ## year <- gsub("[^0-9.-]", "", filename)
+    robj  <- filename
+    assign(
+      robj,
+      fselect(source),
+      envir = .GlobalEnv
+    )
+    save(
+      list = robj,
+      file = dest,
+      compress = "xz"
+    )
+    cat("done!\n")
+  }
+}
+
 # Max time until download interrupted
 options(timeout = 400)
 ftp_path <- "ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/"
@@ -20,9 +71,9 @@ option_list <- list(
     type = "character", default = ftp_path,
     help = "ftp server address [default= %default]", metavar = "character"
   ),
-  make_option(c("-o", "--out"),
-    type = "character", default = "../../data/output/",
-    help = "output file name [default= %default]", metavar = "character"
+  make_option(c("-o", "--output"),
+    type = "character", default = "../../data/input/ghcn",
+    help = "output folder name without year [default= %default]", metavar = "character"
   ),
   make_option(c("-y", "--year"),
     type = "integer", default = 2019,
@@ -37,6 +88,10 @@ option_list <- list(
     type = "logical", default = TRUE,
     help = "download readme.txt [default= %default]", metavar = "logical"
   ),
+  make_option(c("c", "--convert"),
+    type = "logical", default = TRUE,
+    help = "Convert csv.gz to .Rdata file [default= %default]", metavar = "logical"
+  ),
   make_option(c("--overwrite"),
     type = "logical", default = FALSE,
     help = "overwrite existing files [default= %default]", metavar = "logical"
@@ -46,22 +101,30 @@ opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
 # ================== START REAL PROGRAM =========================
-fetch_file(
-  paste0(ftp_path, "by_year/", opt$year, ".csv.gz"),
-  paste0(opt$out, "d", opt$year, ".csv.gz"),
-  opt$overwrite
-)
-if (opt$readme) {
+if (sys.nframe() == 0) {
+  # runs only when script is run by itself
+  opt$output  <- paste0(opt$output, "/", opt$year, "/")
+  dir.create(opt$output, recursive = TRUE)
   fetch_file(
-    paste0(ftp_path, "readme.txt"),
-    paste0(opt$out, "readme.txt"),
+    paste0(ftp_path, "by_year/", opt$year, ".csv.gz"),
+    paste0(opt$output, "d", opt$year, ".csv.gz"),
     opt$overwrite
   )
-}
-if (opt$stations) {
-  fetch_file(
-    paste0(ftp_path, "ghcnd-stations.txt"),
-    paste0(opt$out, "ghcnd-stations.txt"),
-    opt$overwrite
-  )
+  if (opt$readme) {
+    fetch_file(
+      paste0(ftp_path, "readme.txt"),
+      paste0(opt$output, "readme.txt"),
+      opt$overwrite
+    )
+  }
+  if (opt$stations) {
+    fetch_file(
+      paste0(ftp_path, "ghcnd-stations.txt"),
+      paste0(opt$output, "ghcnd-stations.txt"),
+      opt$overwrite
+    )
+  }
+  if (opt$convert) {
+    create_R_obj(paste0(opt$output, "d", opt$year, ".csv.gz"), opt$overwrite)
+  }
 }
