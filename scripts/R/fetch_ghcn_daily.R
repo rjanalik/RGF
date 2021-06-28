@@ -18,28 +18,31 @@ fselect <- function(source) {
   # select columns from .csv.gz file and creat .Rdata object
   t0 <- Sys.time()
   dt <- fread(source)
+  dt  <- setNames(dt, c("ID","Date", "Element", "Value", "V5", "V6", "V7", "V8") )
   cat("Lines ", nrow(dt), "")
   t1 <- Sys.time()
   cat("t1 =", t1 - t0, "\n")
-  # Select Only TMAX and TMAX from dt$V3
-  dt <- dt[which(dt$V3 %in% c("TMIN", "TMAX")), ]
+  # Select Only rows with TMIN and TMAX from dt$V3
+  dt <- dt[which(dt$Element %in% c("TMIN", "TMAX")), ]
   cat("selected ", nrow(dt), "")
   t2 <- Sys.time()
   cat("t2 =", t2 - t1, "\n")
-  # Select some other columns an change order
-  w <- tapply(
-    dt$V4, dt[, c("V2", "V1", "V3")], as.integer
-  )
+  # Create an array of [Date][Type][Element]
+  #: chr [1:365] "20190101" "20190102" "20190103" "20190104" ...
+  #: ID     : chr [1:14226] "AE000041196"
+  #: Element: chr [1:2] "TM
+  w <- tapply(dt$Value, dt[, c("Date", "ID", "Element")], as.integer)
   cat("dim =", dim(w), "")
   t3 <- Sys.time()
   cat("t3 =", t3 - t2, "\n")
+  # TODO: Returns TMIN+TMAX? WHY does this make sense?
   return((w[, , 1] + w[, , 2]))
 }
 
 create_R_obj <- function(source, overwrite) {
   file_path_without_gz <- file_path_sans_ext(source)
   file_path_without_csv <- file_path_sans_ext(file_path_without_gz)
-  dest <- paste0(file_path_without_csv, ".Rdata")
+  dest <- paste0(file_path_without_csv, ".RData")
   if (file.exists(dest)) {
     cat(dest, " exists already\n")
   }
@@ -95,6 +98,10 @@ option_list <- list(
   make_option(c("--overwrite"),
     type = "logical", default = FALSE,
     help = "overwrite existing files [default= %default]", metavar = "logical"
+  ),
+  make_option(c("-v", "--verbose"),
+    type = "logical", default = TRUE,
+    help = "verbose output [default= %default]", metavar = "character"
   )
 )
 opt_parser <- OptionParser(option_list = option_list)
@@ -103,7 +110,7 @@ opt <- parse_args(opt_parser)
 # ================== START REAL PROGRAM =========================
 if (sys.nframe() == 0) {
   # runs only when script is run by itself
-  opt$output  <- paste0(opt$output, "/", opt$year, "/")
+  opt$output  <- file.path(opt$output, opt$year)
   dir.create(opt$output, recursive = TRUE)
   fetch_file(
     paste0(ftp_path, "by_year/", opt$year, ".csv.gz"),
@@ -125,6 +132,6 @@ if (sys.nframe() == 0) {
     )
   }
   if (opt$convert) {
-    create_R_obj(paste0(opt$output, "d", opt$year, ".csv.gz"), opt$overwrite)
+    create_R_obj(file.path(opt$output, paste0("d", opt$year, ".csv.gz")), opt$overwrite)
   }
 }
