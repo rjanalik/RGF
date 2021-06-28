@@ -3,6 +3,7 @@
 RGFSolver
 build/
 .deps
+data/
 
 # vim swap file
 *.swp
