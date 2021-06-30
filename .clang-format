@@ -2,6 +2,8 @@
 # We'll use defaults from the LLVM style, but with 4 columns indentation.
 BasedOnStyle: LLVM
 IndentWidth: 4
+# Set line width to typical 12pt landscape A4 printout
+ColumnLimit: 132
 ---
 Language: Cpp
 ---
