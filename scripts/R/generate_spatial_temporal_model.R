@@ -59,6 +59,9 @@ create_spatio_temporal_mat <- function(mesh, nt, base_path, order = 3) {
   return(list(sfem, tmesh, tfem))
 }
 
+##############################################################################
+###########################     Main Program     #############################
+##############################################################################
 option_list <- list(
   make_option(c("-i", "--input"),
     type = "character", default = "../../data/input/ghcn/2019",
@@ -119,7 +122,6 @@ if(nt == 1){
 ############################################################
 t_resolution_list <- (opt$start):(opt$start + nt - 1)
 
-
 ################### MESH PART ##############################
 ### create a mesh over the globe for a given resolution
 gmesh <- generate_mesh(opt$spatial)
@@ -143,7 +145,7 @@ if (opt$write == TRUE && SPATIAL_MODEL) {
 filepath  <-  file.path(opt$input, opt$file)
 assign('data', get(load(filepath)))
 
-# TODO: what is happening here?
+# wo welche zeichen eingelesen werden oder so.
 # Lagged differences
 # 11  9 10  7 34  4  4  6
 (ws <- diff(c(0, 11, 20, 30, 37, 71, 75, 79, 85)))
