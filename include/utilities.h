@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <armadillo>
 
 void icopy(int, int *, int *);
 
@@ -49,5 +50,5 @@ template <> inline double convert(double val) { return val; }
 template <> inline CPX convert(double val) { return CPX(val, 0.0); }
 
 /************************************************************************************************/
-
+void parse_args(int argc, char *argv[], std::string &base_path, int &ns, int &nt, int &nb, int &nu, int &no, arma::vec &theta);
 #endif
