@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['m_178',['m',['../Blas_8hpp.html#aa59ac9007954aecdee7066025ff4a280',1,'Blas.hpp']]],
+  ['magma_5fqueue_179',['magma_queue',['../classRGF.html#a3de48694cb5fa592a35ab69650e1af4a',1,'RGF']]],
+  ['main_180',['main',['../main_8cpp.html#a0ddf1224851353fc92bfbff6f499fa97',1,'main.cpp']]],
+  ['main_2ecpp_181',['main.cpp',['../main_8cpp.html',1,'']]],
+  ['make_2einc_182',['make.inc',['../make_8inc.html',1,'']]],
+  ['matrix_5fa_183',['matrix_a',['../classRGF.html#a26f84bb23d6b80b1645def85ff77d8e1',1,'RGF']]],
+  ['matrix_5fia_184',['matrix_ia',['../classRGF.html#ad3804d41a540633cc72a0f997e210ecf',1,'RGF']]],
+  ['matrix_5fja_185',['matrix_ja',['../classRGF.html#ab52815c61babc61ec97cb06d4915e7a1',1,'RGF']]],
+  ['matrix_5fn_5fnonzeros_186',['nnz',['../classRGF.html#a736669774cec993187a2f4679fefd8f3',1,'RGF']]],
+  ['matrix_5fnd_187',['matrix_nd',['../classRGF.html#a157a699e89d26c449d5e8da6050f9a59',1,'RGF']]],
+  ['matrix_5fns_188',['matrix_ns',['../classRGF.html#a174b12669ec3fd54034d86ce170accd5',1,'RGF']]],
+  ['matrix_5fnt_189',['matrix_nt',['../classRGF.html#a256d5da0f563fedd4c2a43248efecc54',1,'RGF']]],
+  ['matrix_5fsize_190',['matrix_size',['../classRGF.html#ac1f9aa0cdab1374ece1bc4e6e15c931e',1,'RGF']]],
+  ['max_191',['max',['../types_8hpp.html#affe776513b24d84b39af8ab0930fef7f',1,'types.hpp']]],
+  ['max_5fcomm_192',['MAX_COMM',['../types_8hpp.html#a174ff45e8b430369be9b3f0267e09945',1,'types.hpp']]],
+  ['memcpy_5fto_5fdevice_193',['memcpy_to_device',['../CWC__utility_8hpp.html#ab8949d2af99235900a35830fffdd00e9',1,'CWC_utility.hpp']]],
+  ['memcpy_5fto_5fhost_194',['memcpy_to_host',['../CWC__utility_8hpp.html#a066421fe92373a20c0bb8ef161b77b28',1,'CWC_utility.hpp']]],
+  ['mf_195',['MF',['../classRGF.html#ae64e262a25f199990d6773c829831049',1,'RGF']]],
+  ['mf_5fblock_5findex_196',['mf_block_index',['../classRGF.html#a74677c787b97f02f49b90d62f3f39fb1',1,'RGF']]],
+  ['mf_5fblock_5flda_197',['mf_block_lda',['../classRGF.html#a6e6035edd1a8c33bd14846b7348e0529',1,'RGF']]],
+  ['mf_5fdense_5fblock_5findex_198',['mf_dense_block_index',['../classRGF.html#a09df920df7f068b3281a53a5ab3644b5',1,'RGF']]],
+  ['mf_5fdense_5fblock_5flda_199',['mf_dense_block_lda',['../classRGF.html#ac3a8549eccb79d02003ad5817556b4f8',1,'RGF']]],
+  ['mf_5fdense_5fblock_5foffset_200',['mf_dense_block_offset',['../classRGF.html#aaa9f9df060fea822a0f098a210587364',1,'RGF']]],
+  ['mf_5fdev_5fallocated_201',['MF_dev_allocated',['../classRGF.html#a5e11110b495efb73337b472ab692716e',1,'RGF']]],
+  ['min_202',['min',['../types_8hpp.html#ac6afabdc09a49a433ee19d8a9486056d',1,'types.hpp']]]
+];
