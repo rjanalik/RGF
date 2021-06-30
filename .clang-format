@@ -6,4 +6,6 @@ IndentWidth: 4
 ColumnLimit: 132
 ---
 Language: Cpp
+AlwaysBreakTemplateDeclarations: true
+IndentPPDirectives: BeforeHash
 ---
