@@ -5,7 +5,6 @@ build/
 .deps
 compile_commands.json
 # Data Folders
-data/
 
 # vim swap file
 *.swp
