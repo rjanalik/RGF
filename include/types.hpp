@@ -1,7 +1,13 @@
+/**
+ * @file      types.hpp
+ * @brief     Includes common type defintions included by CWC_utility.hpp, RGF.hpp, Blas.hpp
+ * @date      Mon Jun 21 10:15:33 2021
+ * @author    Radim
+ *
+ */
+
 #ifndef __TYPES
 #define __TYPES
-
-using namespace std;
 
 #include <complex>
 #include <math.h>
@@ -56,7 +62,7 @@ using namespace std;
 #define fortran_name(x, y) (y)
 #endif
 
-typedef complex<double> CPLXType;
+typedef std::complex<double> CPLXType;
 typedef CPLXType CPX;
 typedef CPX *CPXp;
 typedef CPX (*CPXpfn)(CPX);

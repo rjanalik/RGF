@@ -1,6 +1,7 @@
 /**
- * @file      RGF.H
- * @brief     Header of the RGF Solver
+ * @file      RGF.hpp
+ * @brief     Header only class implementing an RGF solver to solve for the
+ * selective inverse
  * @date      Mon Jun 14 11:08:12 2021
  * @author    Radim
  *
@@ -10,14 +11,21 @@
 #ifndef __RGF
 #define __RGF
 
-#include <string.h>
-
-#include "CWC_utility.cuh"
-#include "Types.h"
+#include "CWC_utility.hpp"
 #include "Utilities.h"
 #include "cublas_v2.h"
+#include "types.hpp"
+#include <cuda.h> // for CUDA_VERSION
+#include <string.h>
 
 template <class T> class RGF {
+
+    /**
+     * @brief Solves blockdiagonal (arrow) matrices using the RGF algorithm
+     * @details Performs selective inversion using the RGF algorithm
+     * \note: atm returns only inverse diagonal elements
+     * @param[inout] diag Description
+     */
 
   public:
     RGF(size_t *, size_t *, T *, size_t, size_t, size_t);
@@ -30,36 +38,50 @@ template <class T> class RGF {
     T logDet();
     double residualNorm(T *, T *);
     double residualNormNormalized(T *, T *);
+    void create_blocks();
     double flop_count_factorise();
 
   private:
     size_t *matrix_ia;
     size_t *matrix_ja;
     T *matrix_a;
-    size_t matrix_size;
-    size_t matrix_n_nonzeros;
+    size_t matrix_size; /**< matrix_size: Total matrix size of size \p ns * \p
+                           nt + \p nd*/
+    size_t matrix_nnz;   /**< number of non-zeros of sparse matrix A*/
     size_t matrix_ns;
     size_t matrix_nt;
     size_t matrix_nd;
-    size_t *Bmin;
-    size_t *Bmax;
-    size_t NBlock;
+    size_t *Bmin; /**< Bmin: Array of size NBlock with starting value of each
+                     block*/
+    size_t *Bmax; /**< Bmax: Array of size NBlock with end value of each block*/
+    size_t NBlock; /**< NBlock: Number of blocks in x/y with nt or nt+1 (with
+                      random effects)*/
     size_t *diag_pos;
 
-    size_t b_size;
-    bool MF_dev_allocated = false;
-    bool factorization_completed = false;
+    size_t b_size;                 /**< b_size: Maximum possible blocksize*/
+    bool MF_dev_allocated = false; /**< MF_dev_allocated: Flag if matrix
+                                      factorization device is allocated*/
+    bool factorization_completed = false; /**< factorization_completed: Flag if
+                                             factorization is completed*/
 
     magma_queue_t magma_queue;
     cudaStream_t stream_c;
     void *cublas_handle;
 
-    T *MF;
+    /**
+     * @name Group title
+     * Description
+     * @{
+     */
+    T *MF; /**< Description */
     T *blockR_dev;
     T *blockM_dev;
     T *blockP_dev;
     T *blockDense_dev;
     T *rhs;
+    /**
+     * @}
+     */
     size_t *ia_dev;
     size_t *ja_dev;
     T *a_dev;
@@ -91,13 +113,15 @@ template <class T> class RGF {
 /**
  * @brief Recursive Green Function Algorithm
  * @details Description
- * @param[inout] ia Description
- * @param[out] ja Description
- * @param[out] a Description
- * @param[in] ns spatial
- * @param[in] nt temporal
- * @param[in] nd/nb number of columns/rows
- * @return Description
+ * \todo should CSR not be entered as (val, col_idx, row_ptr)?
+ * CSR format of sparse matrix A
+ * @param[inout] ia row_ptr of size(row_ptr)=n+1
+ * @param[out] ja row_idx of size(row_ptr)=nnz(A)
+ * @param[out] a values of size(a)=nnz(A)
+ * @param[in] ns number of spatial grid points
+ * @param[in] nt temporal grid points
+ * @param[in] nd/nb number of columns/rows/fixed effects
+ * @return instance of RGF class
  */
 // size_t size = ns * nt + nd;
 template <class T>
@@ -110,7 +134,7 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
     matrix_nd = nd;
 
     matrix_size = ns * nt + nd;
-    matrix_n_nonzeros = 2 * (nt - 1) * ns * ns + ns * ns + matrix_size * nd;
+    matrix_nnz = 2 * (nt - 1) * ns * ns + ns * ns + matrix_size * nd;
 
     if (nd > 0)
         NBlock = nt + 1;
@@ -118,6 +142,7 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
         NBlock = nt;
     Bmin = new size_t[NBlock];
     Bmax = new size_t[NBlock];
+    // Calculate the start- and end index of each block
     for (size_t i = 0; i < nt; i++) {
         Bmin[i] = i * ns;
         Bmax[i] = (i + 1) * ns;
@@ -127,9 +152,10 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
         Bmax[nt] = nt * ns + nd;
     }
 
+    // TODO: what are we doing here ?
     // blocks with lda = 2*ns + nd
     diag_pos = new size_t[matrix_size];
-    size_t IB;
+    size_t IB; /** IB = Index Block */
     for (IB = 0; IB < nt - 1; IB++) {
         for (size_t i = 0; i < ns; i++) {
             diag_pos[IB * ns + i] =
@@ -316,8 +342,8 @@ template <class T> double RGF<T>::FirstStageFactor() {
         tpotrf_dev('L', NR, blockR_dev, mf_block_lda(IB, IB), &info);
         flops += 0.5 * NR * NR * NR;
         // printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR,
-        // mf_block_index(IB, IB), mf_block_lda(IB, IB)); rj dtrsm RLTN MF[IB,IB]
-        // MF[IB+1,IB]
+        // mf_block_index(IB, IB), mf_block_lda(IB, IB)); rj dtrsm RLTN
+        // MF[IB,IB] MF[IB+1,IB]
         ttrsm_dev('R', 'L', 'T', 'N', NR + matrix_nd, NR, ONE, blockR_dev,
                   mf_block_lda(IB, IB), &blockR_dev[NR],
                   mf_block_lda(IB + 1, IB), magma_queue);
@@ -370,8 +396,8 @@ template <class T> double RGF<T>::FirstStageFactor() {
         flops += 0.5 * NR * NR * NR;
 
         // printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR,
-        // mf_block_index(IB, IB), mf_block_lda(IB, IB)); rj dtrsm RLTN MF[IB,IB]
-        // MF[IB+1,IB]
+        // mf_block_index(IB, IB), mf_block_lda(IB, IB)); rj dtrsm RLTN
+        // MF[IB,IB] MF[IB+1,IB]
         if (matrix_nd > 0) {
             ttrsm_dev('R', 'L', 'T', 'N', matrix_nd, NR, ONE, blockR_dev,
                       mf_block_lda(IB, IB),
@@ -419,10 +445,10 @@ template <class T> double RGF<T>::FirstStageFactor() {
 
 /************************************************************************************************/
 /**
- * TODO: slow due to many zeros
- * Question: can we learn where we have the zeros?
  * @brief solving of the linear system Qx=b
  * @details Description
+ * \todo TODO: slow due to many zeros
+ * Question: can we learn where we have the zeros?
  * @param[in] nrhs Description
  */
 template <class T> double RGF<T>::SecondStageSolve(size_t nrhs) {
@@ -651,18 +677,21 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
 
 /************************************************************************************************/
 /**
- * @brief Summary
- * @details compute the cholesky factor for all the blocks
+ * @brief Blocked Cholesky Factorization
+ * @details Compute the cholesky factor for all the blocks uning block Cholesky
+ * factorization.
  */
 template <class T> double RGF<T>::factorize() {
-    create_blocks();
+        // finds maximum over all blocks and set it to b_size
+        create_blocks();
 
     // Data allocation
     if (!MF_dev_allocated) {
-        MF = new T[matrix_n_nonzeros];
+        MF = new T[matrix_nnz];
         size_t max_supernode_nnz = matrix_nt > 1
                                        ? matrix_ns * (2 * matrix_ns + matrix_nd)
                                        : matrix_ns * (matrix_ns + matrix_nd);
+        // Calcualte size of last block for fixed effects (if we have fixed effects)
         size_t dense_supernode_nnz = matrix_nd > 0 ? matrix_nd * matrix_nd : 0;
         allocate_data_on_device((void **)&blockR_dev,
                                 max_supernode_nnz * sizeof(T));
@@ -738,12 +767,6 @@ template <class T> double RGF<T>::solve(T *x, T *b, size_t nrhs) {
 }
 
 /************************************************************************************************/
-/**
- * @brief Performs selective inversion
- * Note: atm returns only inverse diagonal elements
- * @details Description
- * @param[inout] diag Description
- */
 template <class T> double RGF<T>::RGFdiag(T *diag) {
     if (!factorization_completed)
         factorize();
@@ -822,6 +845,10 @@ template <class T> double RGF<T>::residualNormNormalized(T *x, T *b) {
 
 /************************************************************************************************/
 
+/**
+ * @brief Calculates the largest block size
+ * @details finds maximum over all blocks and sets \p b_size to it.
+ */
 template <class T> void RGF<T>::create_blocks() {
     size_t IB;
 

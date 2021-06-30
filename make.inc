@@ -83,6 +83,7 @@ ifeq ($(BUILD_TYPE),kaust)
 	LAPHOME       = $(MKLHOME)
 	SCAHOME       = $(MKLHOME)
 	CUDAHOME      = /usr/local/cuda
+#   $(INTEL64)/compiler/lib/intel64
 	LOADER        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
 	MPICXX        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
 	NVCC          = nvcc

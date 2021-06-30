@@ -1,6 +1,14 @@
+/**
+ * @file      main.cpp
+ * @brief     Runner file that assembles the SPDE and runs the RGF solver
+ * @date      Mon Jun 21 08:57:06 2021
+ * @author    Radim & Lisa
+ *
+ */
+
 // main_const_ind
 
-#include "RGF.h"
+#include "RGF.hpp"
 #include <iostream>
 #include <limits>
 #include <math.h>
@@ -31,11 +39,20 @@ stored: size (matrix size) n_nonzeros (number of non-zero elements) fortran
 index (0 or 1) index_i index_j real imag (4 columns per matrix entry)
 */
 
+/**
+ * @brief creates CSR format for sparse matrix A
+ * @details Description
+ * @param[in] filename Description
+ * @param[in] n column/row size of matrix \f$A\in\R^{n\times n}\f$
+ * @param[in] nnz number of non-zero elements of A
+ * @param[out] ia row_ptr of size(row_ptr)=n+1
+ * @param[out] ja row_idx of size(row_ptr)=nnz(A)
+ * @param[out] a values of size(a)=nnz(A)
+ */
 void readCSR(std::string filename, int &n, int &nnz, int *ia, int *ja,
              double *a) {
 
     fstream fin(filename, ios::in);
-    fin >> n;
     fin >> n;
     fin >> nnz;
 
@@ -133,6 +150,14 @@ arma::sp_mat readCSC_sym(std::string filename) {
     return A;
 }
 
+/**
+ * @brief Summary
+ * @details Description
+ * @param[in] filename Description
+ * @param[in] n_row Description
+ * @param[in] n_col Description
+ * @return Description
+ */
 arma::mat read_matrix(std::string filename, int n_row, int n_col) {
 
     arma::mat B(n_row, n_col);
@@ -164,6 +189,15 @@ void file_exists(std::string file_name) {
 // void construct_Q_spatial(arma::vec& theta, arma::sp_mat* Qs, \
 //                         arma::sp_mat* c0, arma::sp_mat* g1, arma::sp_mat*
 //                         g2){
+/**
+ * @brief Summary
+ * @details Description
+ * @param[in] theta_u Description
+ * @param[in] c0 Description
+ * @param[in] g1 Description
+ * @param[in] g2 Description
+ * @return Description
+ */
 arma::sp_mat construct_Q_spatial(arma::vec theta_u, arma::sp_mat c0,
                                  arma::sp_mat g1, arma::sp_mat g2) {
 
@@ -213,13 +247,13 @@ arma::sp_mat construct_Q_spat_temp(arma::vec theta_u, arma::sp_mat c0,
 /**
  * @brief Runs Recursive Green Function algorithm
  * @details Solve block diagonal arrow matrices using the RGF algorithm
- * @param[in] argc Description:
- * [1]: path to data folder
- * [2]: [integer:ns] - number of spatial grid points
- * [3]: [integer:nt] - number of temporal grid points
- * [4]: [integer:nb] - number of fixed effects
- * [5]: [integer:no] - number of data samples
- * @param[out] argv Description
+ * @param[in] argc: Argument counter
+ * @param[out] argv: Command line arguments:
+ * - [1]: path to data folder - \p base_path
+ * - [2]: number of spatial grid points - \p ns
+ * - [3]: number of temporal grid points - \p nt
+ * - [4]: number of fixed effects - \p nd/nb
+ * - [5]: number of data samples - \p no
  * @return saves the selective inverse to a file
  */
 int main(int argc, char *argv[]) {
@@ -248,20 +282,17 @@ int main(int argc, char *argv[]) {
     // start timer
     double overall_time = -omp_get_wtime();
 
-    std::string base_path = argv[1];
-    size_t ns = atoi(argv[2]);
-    size_t nt = atoi(argv[3]);
-    size_t nb = atoi(argv[4]);
-    size_t no = atoi(argv[5]);
-
-    size_t nu = ns * nt;
-
+    std::string base_path = argv[1]; /* base_path: File path to data folder*/
+    size_t ns = atoi(argv[2]);       /* ns: Number of spatial points*/
+    size_t nt = atoi(argv[3]);       /* nt: Number of temporal points */
+    size_t nb = atoi(argv[4]);       /* nb: Number of fixed effects */
+    size_t no = atoi(argv[5]);       /* no: Number of data samples */
+    size_t nu = ns * nt;             /* no: Number of fixed effects */
     // also save as string
     std::string ns_s = std::to_string(ns);
     std::string nt_s = std::to_string(nt);
     std::string nb_s = std::to_string(nb);
     std::string no_s = std::to_string(no);
-
     std::string nu_s = std::to_string(nu);
 
     std::cout << "./RGF CALL  " << ns_s << " " << nt_s << " " << nb_s << " "
@@ -344,17 +375,20 @@ int main(int argc, char *argv[]) {
     // y (vector)
     arma::vec y = read_matrix(y_file, no, 1);
 
-    /* ----------------------- initialise random theta
-     * -------------------------------- */
+    /* ----------------------- initialise random theta  -------------------------------- */
 
     arma::vec theta;
 
     if (nt == 1) {
         theta = {-1.5, -5, -2};
-        // theta.print();
+        #ifdef DEBUG
+            theta.print();
+        #endif
     } else {
         theta = {5, -10, 2.5, 1};
-        // theta.print();
+        #ifdef DEBUG
+            theta.print();
+        #endif
     }
 
     arma::sp_mat Qu;
@@ -404,7 +438,7 @@ int main(int argc, char *argv[]) {
     // std::cout << "size(Qxy)" << size(Qxy) << std::endl;
     // std::cout << "size(bxy)" << size(bxy) << std::endl;
 
-    // TAKE ENTIRE MATRIX FOR THIS SOLVER
+    // TAKE ENTIRE MATRIX FOR THIS SOLVER (copy lower triangular part as Qxy is symmetric)
     arma::sp_mat Qxy_lower = arma::trimatl(Qxy);
 
     // require CSR format
@@ -416,7 +450,7 @@ int main(int argc, char *argv[]) {
     size_t *ja;
     double *a;
 
-    // allocate memory
+    // Assemble triplet format of Qxy_lower
     ia = new size_t[n + 1];
     ja = new size_t[nnz];
     a = new double[nnz];

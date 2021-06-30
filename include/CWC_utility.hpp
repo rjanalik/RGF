@@ -1,4 +1,14 @@
-#include "Types.h"
+/**
+ * @file      CWC_utility.hpp
+ * @brief     Includes useful cuda kernels
+ * @date      Mon Jun 21 10:16:39 2021
+ * @author    Radim and orginially ...
+ *
+ * This module
+ */
+
+#include "types.hpp"
+/** TODO \todo we want to inlcude the local magama?*/
 #include "magma_v2.h"
 #include <cuda_runtime.h>
 #include <stdio.h>
@@ -10,13 +20,32 @@ void cublas_init(void **);
 void cublas_finalize(void *);
 void cusparse_init(void **);
 void cusparse_finalize(void *);
+/**
+ * @name Device (de)allocation routines
+ * @{
+ */
+/**
+ * @param[inout] data: data pointer
+ * @param[in] size_data: the size of data
+ * @return Description
+ */
 size_t allocate_data_on_device(void **, size_t);
 void deallocate_data_on_device(void *);
 size_t deallocate_data_on_dev(void *, size_t);
 void copy_data_to_device(void *, void *, int, int, size_t);
+/**
+ * @}
+ */
+/**
+ * @name Device memory transfer routines
+ * @{
+ */
 void memcpy_to_device(void *, void *, size_t);
 void copy_data_to_host(void *, void *, int, int, size_t);
 void memcpy_to_host(void *, void *, size_t);
+/**
+ * @}
+ */
 void dgemm_on_dev(void *, char, char, int, int, int, double, double *, int,
                   double *, int, double, double *, int);
 void zgemm_on_dev(void *, char, char, int, int, int, CPX, CPX *, int, CPX *,

@@ -1,7 +1,18 @@
+/**
+ * @file      utilities.h
+ * @brief     TODO
+ * \todo add brief description of utlities.h
+ * @date      Mon Jun 21 10:22:38 2021
+ * @author    Radim
+ * @copyright
+ *
+ * This module
+ */
+
 #ifndef __UTILITIES
 #define __UTILITIES
 
-#include "Blas.h"
+#include "Blas.hpp"
 #include <cmath>
 #include <ctime>
 #include <math.h>

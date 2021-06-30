@@ -1,8 +1,18 @@
+/**
+ * @file      Blas.hpp
+ * @brief     Wrapper file that wraps Fortran Blas function calls into extern C function calls.
+ * @date      Mon Jun 21 10:21:02 2021
+ * @author    Radim...
+ * @copyright
+ *
+ * This module
+ */
+
 #ifndef __BLAS
 #define __BLAS
 
-#include "CWC_utility.cuh"
-#include "Types.h"
+#include "CWC_utility.hpp"
+#include "types.hpp"
 #include "magma_v2.h"
 #include <iostream>
 
