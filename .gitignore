@@ -3,6 +3,8 @@
 RGFSolver
 build/
 .deps
+compile_commands.json
+# Data Folders
 
 # vim swap file
 *.swp
@@ -15,3 +17,9 @@ build/
 
 # Language Server Cache
 .ccls-cache/
+
+# Caches
+.cache/
+
+# R
+.Rhistory

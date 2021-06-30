@@ -1,5 +1,13 @@
+/**
+ * @file      CWC_utility.cu
+ * @date      Mon Jun 21 12:14:18 2021
+ * @author    Radim and ...
+ * @brief     useful cuda kernels
+ * @details uses \p c_memory variable in order to keep track of totally allocated GPU memory
+ */
+
 #include <stdio.h>
-#include "Types.h"
+#include "types.hpp"
 #include "cublas_v2.h"
 #include "cusparse_v2.h"
 #include "cuda.h"
@@ -13,6 +21,11 @@
 #define BLOCK_DIM 16
 #endif
 
+/**
+ * @var c_memory
+ * @brief Store totally allocated memory on GPU
+ * @details Increases whenever we use another kernel to allocates memory on the GPU
+ */
 static volatile size_t c_memory = 0;
 
 extern "C"
