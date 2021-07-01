@@ -9,9 +9,9 @@
 
 // main_const_ind
 
-#include "RGF.hpp"
 #include "ModelGenerator.hpp"
-#include "utilities.h"
+#include "RGF.hpp"
+#include "utilities.hpp"
 #include <iostream>
 #include <limits>
 #include <math.h>
@@ -31,8 +31,6 @@ typedef CPX T;
 typedef double T;
     #define assign_T(val) val
 #endif
-
-void parse_args(int argc, char *argv[]);
 
 /**
  * @brief Runs Recursive Green Function algorithm
@@ -55,21 +53,21 @@ int main(int argc, char *argv[]) {
     std::string ns_s, nt_s, nb_s, no_s, nu_s;
     arma::vec theta;
     ModelGenerator *model;
-    parse_args(argc, argv, base_path, ns, nt, nb, no, theta);
+    parse_args(argc, argv, base_path, ns, nt, nb, no);
 #ifdef DEBUG
     theta.print();
 #endif
-///////////////////////////////////////////////////////////////////////////////
-//                             Generate Model                                //
-///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////
+    //                             Generate Model                                //
+    ///////////////////////////////////////////////////////////////////////////////
     model = new ModelGenerator(ns, nt, nb, no, theta, base_path);
     model->construct_model();
     model->assemble_triplet_format();
     printf("\nAll matrices assembled. Passing to RGF solver now.\n");
 
-///////////////////////////////////////////////////////////////////////////////
-//                                 RGF SOLVER                                //
-///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////
+    //                                 RGF SOLVER                                //
+    ///////////////////////////////////////////////////////////////////////////////
     int i;
     double data;
     double t_factorise;
@@ -86,7 +84,6 @@ int main(int argc, char *argv[]) {
     time(&rawtime);
     timeinfo = localtime(&rawtime);
     printf("The current date/time is: %s\n", asctime(timeinfo));
-
 
     b = new T[n];
     x = new T[n];

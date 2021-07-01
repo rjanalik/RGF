@@ -12,15 +12,14 @@ class ModelGenerator {
     virtual ~ModelGenerator();
     void getData();
     bool file_exists(const std::string &file_name);
-    void if_not_exists_abort(std::fstream const file_name);
     size_t get_n();
     size_t get_nnz();
     void construct_model();
     void assemble_triplet_format();
     struct Triplet {
-      size_t *row_idx;
-      size_t *col_ptr;
-      double *val;
+        size_t *row_idx;
+        size_t *col_ptr;
+        double *val;
     } triplets;
 
   private:
@@ -33,13 +32,16 @@ class ModelGenerator {
     void construct_Qx();
     void construct_Qxy_lower();
     void construct_b();
-    void if_not_exists_abort(std::initializer_list<std::fstream> const file_names);
+    void if_not_exists_abort(std::string const file_name);
+    void if_not_exists_abort(std::initializer_list<std::string> const file_names);
+    arma::sp_mat readCSC(std::string filename);
     arma::sp_mat readCSC_sym(std::string const filename);
     arma::mat read_matrix(std::string filename, int n_row, int n_col);
     size_t ns_;
     size_t nt_;
     size_t nb_;
     size_t no_;
+    size_t nu_;
     std::string ns_s;
     std::string nt_s;
     std::string nb_s;

@@ -11,10 +11,10 @@
 #ifndef __RGF
 #define __RGF
 
-#include "CWC_utility.hpp"
-#include "Utilities.h"
-#include "cublas_v2.h"
 #include "types.hpp"
+#include "CWC_utility.hpp"
+#include "utilities.hpp"
+#include "cublas_v2.h"
 #include <cuda.h> // for CUDA_VERSION
 #include <string.h>
 
@@ -39,7 +39,6 @@ class RGF {
     T logDet();
     double residualNorm(T *, T *);
     double residualNormNormalized(T *, T *);
-    void create_blocks();
     double flop_count_factorise();
 
   private:

@@ -1,5 +1,5 @@
 /**
- * @file      utilities.h
+ * @file      utilities.hpp
  * @brief     TODO
  * \todo add brief description of utlities.h
  * @date      Mon Jun 21 10:22:38 2021
@@ -50,5 +50,5 @@ template <> inline double convert(double val) { return val; }
 template <> inline CPX convert(double val) { return CPX(val, 0.0); }
 
 /************************************************************************************************/
-void parse_args(int argc, char *argv[], std::string &base_path, int &ns, int &nt, int &nb, int &nu, int &no, arma::vec &theta);
+void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns, size_t &nt, size_t &nb, size_t &no);
 #endif
