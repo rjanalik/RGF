@@ -1,5 +1,5 @@
 /**
- * @file      utilities.h
+ * @file      utilities.hpp
  * @brief     TODO
  * \todo add brief description of utlities.h
  * @date      Mon Jun 21 10:22:38 2021
@@ -13,13 +13,13 @@
 #define __UTILITIES
 
 #include "Blas.hpp"
+#include <armadillo>
 #include <cmath>
 #include <ctime>
 #include <math.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <armadillo>
 
 void icopy(int, int *, int *);
 
@@ -32,9 +32,9 @@ double get_time(double);
 template <typename T> void init_var(T *var, int N);
 
 template <typename T> void init_var(T *var, int N) {
-    for (int i = 0; i < N; i++) {
-        var[i] = (T)0;
-    }
+  for (int i = 0; i < N; i++) {
+    var[i] = (T)0;
+  }
 }
 
 /************************************************************************************************/
@@ -50,5 +50,6 @@ template <> inline double convert(double val) { return val; }
 template <> inline CPX convert(double val) { return CPX(val, 0.0); }
 
 /************************************************************************************************/
-void parse_args(int argc, char *argv[], std::string &base_path, int &ns, int &nt, int &nb, int &nu, int &no, arma::vec &theta);
+void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
+                size_t &nt, size_t &nb, size_t &no);
 #endif

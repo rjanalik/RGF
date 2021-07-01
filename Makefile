@@ -15,10 +15,10 @@ DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
 
-CC_SRC := $(wildcard $(SRC_DIR)/*.c)
+CC_SRC := $(wildcard $(SRC_DIR)/*.cpp)
 CU_SRC := $(wildcard $(SRC_DIR)/*.cu)
-CC_OBJ := $(CC_SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-# same as: CC_OBJ := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(CC_SRC))
+CC_OBJ := $(CC_SRC:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+# same as: CC_OBJ := $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(CC_SRC))
 CU_OBJ := $(CU_SRC:$(SRC_DIR)/%.cu=$(OBJ_DIR)/%.o)
 # same as: CU_OBJ := $(patsubst $(SRC_DIR)/%.cu, $(OBJ_DIR)/%.o, $(CU_SRC))
 
@@ -29,9 +29,9 @@ $(EXEC): $(CC_OBJ) $(CU_OBJ)
 	$(LOADER) $^ $(LOADFLAGS) $(LIBS) -lm -o $@ $(DEBUG)
 
 # Compile C++ source files to object files:
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR) $(BIN_DIR) $(DEPDIR)
-	@echo "Compiling .c files"
-	$(CXX) $(CXXFLAGS) $(DEBUG) $(FLAGS) $(INC_CC) $(INC_MAG) $(DEPFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR) $(BIN_DIR) $(DEPDIR)
+	@echo "Compiling .cpp files"
+	$(CXX) $(CXXFLAGS) $(DEBUG) $(FLAGS) $(INC_CC) $(INC_MAG) -c $< -o $@ # $(DEPFLAGS)
 
 # Compile CUDA source files to object files:
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cu | $(OBJ_DIR) $(BIN_DIR)
@@ -47,7 +47,7 @@ $(OBJ_DIR):
 $(DEPDIR):
 	@mkdir -p $@
 
-DEPFILES := $(SRCS:%.c=$(DEPDIR)/%.d)
+DEPFILES := $(SRCS:%.cpp=$(DEPDIR)/%.d)
 $(DEPFILES):
 	include $(wildcard $(DEPFILES))
 
