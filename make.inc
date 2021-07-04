@@ -77,29 +77,30 @@ ifeq ($(BUILD_TYPE),icsmaster-gnu64)
 endif
 
 ifeq ($(BUILD_TYPE),kaust)
-	FLAGS         = -DAdd_ -DSOLVE_CRAY -D__MINMAX -Wno-write-strings
 	MKLHOME       = $(MKLROOT)/lib/intel64
-	BLAHOME       = $(MKLHOME)
-	LAPHOME       = $(MKLHOME)
-	SCAHOME       = $(MKLHOME)
-	CUDAHOME      = /usr/local/cuda
-#   $(INTEL64)/compiler/lib/intel64
+#   $(INTEL64) does not exist
 	LOADER        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
-	MPICXX        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+	LOADFLAGS     = -O3 -ffast-math -funroll-loops -lgfortran -L$(INTEL64)/compiler/lib/intel64 -L$(MPIHOME)/lib/ #-lmpifort
+# F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
+	F90_LIBS      =  -lgfortran
+# LAPACK
+	LAPHOME       = $(MKLHOME)
+	LAPACK        = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
+# LAPACK
+	SCAHOME       = $(MKLHOME)
+	SCALAPACK     = -L/lib/x86_64-linux-gnu -lscalapack-openmpi #-L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
+# OPENMP
+	OPENMP        = -fopenmp
+# CUDA
+	CUDAHOME      = /usr/local/cuda
 	NVCC          = nvcc
 	NVCC_LIBS     =
-	CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
-	LOADFLAGS     = -O3 -ffast-math -funroll-loops -L$(GNU64)/lib64 -lgfortran -L$(INTEL64)/compiler/lib/intel64 -L$(MPIHOME)/lib/ #-lmpifort
-	NVCC_FLAGS     = -arch=compute_70 -code=sm_70
+	NVCC_FLAGS    = -arch=compute_70 -code=sm_70
 	CUDA_SDK      = 3
 	COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)
-	F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
-	LAPACK        = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
-	SCALAPACK     = -L/lib/x86_64-linux-gnu -lscalapack-openmpi #-L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
-	LINKS         = -Wl,-rpath -Wl,$(GNU64)/lib64
-	LIBSCI        =
-	BLAS          =
-	OPENMP        = -fopenmp
+# Other Flags
+	FLAGS         = -DAdd_ -DSOLVE_CRAY -D__MINMAX -Wno-write-strings
+	CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
 endif
 
