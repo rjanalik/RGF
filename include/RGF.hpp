@@ -654,7 +654,7 @@ double RGF<T>::factorize() {
 
     size_t nnz = matrix_ia[matrix_size];
     size_t max_rows = matrix_nt > 1 ? 2 * matrix_ns + matrix_nd : matrix_ns + matrix_nd;
-    size_t max_cols = max(matrix_ns, matrix_nd);
+    size_t max_cols = fmax(matrix_ns, matrix_nd);
 
     // Temp data allocation
     allocate_data_on_device((void **)&ia_dev, (max_cols + 1) * sizeof(size_t));
