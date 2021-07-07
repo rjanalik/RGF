@@ -68,7 +68,7 @@ option_list <- list(
     help = "Input file path [default= %default]", metavar = "character"
   ),
   make_option(c("-f", "--file"),
-    type = "character", default = "d2019.Rdata",
+    type = "character", default = "d2019.RData",
     help = "Input file name [default= %default]", metavar = "character"
   ),
   make_option(c("-o", "--output"),
