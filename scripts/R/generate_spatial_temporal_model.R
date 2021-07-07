@@ -72,8 +72,8 @@ option_list <- list(
     help = "Input file name [default= %default]", metavar = "character"
   ),
   make_option(c("-o", "--output"),
-    type = "character", default = "_default_",
-    help = "output folder directory [default= %input/matrices]", metavar = "character"
+    type = "character", default = "same as --input",
+    help = "output folder directory [default= %default]", metavar = "character"
   ),
   make_option(c("-w", "--write"),
     type = "logical", default = TRUE,
@@ -103,21 +103,21 @@ option_list <- list(
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
-if (opt$output == "_default_") {
+if (opt$output == "same as --input") {
   opt$output <- opt$input
 }
 #############################################################
 nt <- opt$temporal
-if(nt == 1){
-  SPATIAL_MODEL  <-  TRUE
-  SPATIO_TEMPORAL_MODEL  <- FALSE
-  opt$output <- file.path(opt$input,"spatial")
+if (nt == 1) {
+  SPATIAL_MODEL <- TRUE
+  SPATIO_TEMPORAL_MODEL <- FALSE
+  opt$output <- file.path(opt$input, "spatial")
   dir.create(opt$output)
 } else {
-  opt$output <- file.path(opt$input,"spatio_temporal")
+  opt$output <- file.path(opt$input, "spatio_temporal")
   dir.create(opt$output)
-  SPATIAL_MODEL  <-  FALSE
-  SPATIO_TEMPORAL_MODEL  <-  TRUE
+  SPATIAL_MODEL <- FALSE
+  SPATIO_TEMPORAL_MODEL <- TRUE
 }
 ############################################################
 t_resolution_list <- (opt$start):(opt$start + nt - 1)
@@ -135,15 +135,15 @@ if (opt$write == TRUE && SPATIAL_MODEL) {
   dir.create(dir_name, recursive = TRUE)
   sfem <- create_spatial_mat(gmesh, dir_name)
 } else {
-  dir_name <- file.path(opt$output,  paste0("ns", toString(ns), "_nt", toString(nt)))
+  dir_name <- file.path(opt$output, paste0("ns", toString(ns), "_nt", toString(nt)))
   dir.create(dir_name, recursive = TRUE)
   c(sfem, tmesh, tfem) %<-% create_spatio_temporal_mat(gmesh, nt, dir_name)
 }
 
 ########################### DATA PART ##########################################
 # load data which in our case is the d19.RData
-filepath  <-  file.path(opt$input, opt$file)
-assign('data', get(load(filepath)))
+filepath <- file.path(opt$input, opt$file)
+assign("data", get(load(filepath)))
 
 # wo welche zeichen eingelesen werden oder so.
 # Lagged differences
