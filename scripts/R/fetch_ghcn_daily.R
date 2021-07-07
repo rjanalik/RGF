@@ -18,7 +18,7 @@ fselect <- function(source) {
   # select columns from .csv.gz file and creat .Rdata object
   t0 <- Sys.time()
   dt <- fread(source)
-  dt  <- setNames(dt, c("ID","Date", "Element", "Value", "V5", "V6", "V7", "V8") )
+  dt <- setNames(dt, c("ID", "Date", "Element", "Value", "V5", "V6", "V7", "V8"))
   cat("Lines ", nrow(dt), "")
   t1 <- Sys.time()
   cat("t1 =", t1 - t0, "\n")
@@ -28,9 +28,9 @@ fselect <- function(source) {
   t2 <- Sys.time()
   cat("t2 =", t2 - t1, "\n")
   # Create an array of [Date][Type][Element]
-  #: chr [1:365] "20190101" "20190102" "20190103" "20190104" ...
-  #: ID     : chr [1:14226] "AE000041196"
-  #: Element: chr [1:2] "TM
+  # : chr [1:365] "20190101" "20190102" "20190103" "20190104" ...
+  # : ID     : chr [1:14226] "AE000041196"
+  # : Element: chr [1:2] "TM
   w <- tapply(dt$Value, dt[, c("Date", "ID", "Element")], as.integer)
   cat("dim =", dim(w), "")
   t3 <- Sys.time()
@@ -50,7 +50,7 @@ create_R_obj <- function(source, overwrite) {
     cat("creating ", dest, "\n")
     filename <- basename(file_path_without_csv)
     ## year <- gsub("[^0-9.-]", "", filename)
-    robj  <- filename
+    robj <- filename
     assign(
       robj,
       fselect(source),
@@ -67,7 +67,7 @@ create_R_obj <- function(source, overwrite) {
 
 # Max time until download interrupted
 options(timeout = 400)
-ftp_path <- "ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/"
+ftp_path <- "ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily"
 
 option_list <- list(
   make_option(c("-p", "--ftp"),
@@ -110,24 +110,24 @@ opt <- parse_args(opt_parser)
 # ================== START REAL PROGRAM =========================
 if (sys.nframe() == 0) {
   # runs only when script is run by itself
-  opt$output  <- file.path(opt$output, opt$year)
-  dir.create(opt$output, recursive = TRUE)
+  opt$output <- file.path(opt$output, opt$year)
+  dir.create(opt$output, recursive = TRUE, showWarnings = FALSE)
   fetch_file(
-    paste0(ftp_path, "by_year/", opt$year, ".csv.gz"),
-    paste0(opt$output, "d", opt$year, ".csv.gz"),
+    file.path(ftp_path, paste0("by_year/", opt$year, ".csv.gz")),
+    file.path(opt$output, paste0("d", opt$year, ".csv.gz")),
     opt$overwrite
   )
   if (opt$readme) {
     fetch_file(
-      paste0(ftp_path, "readme.txt"),
-      paste0(opt$output, "readme.txt"),
+      file.path(ftp_path, "readme.txt"),
+      file.path(opt$output, "readme.txt"),
       opt$overwrite
     )
   }
   if (opt$stations) {
     fetch_file(
-      paste0(ftp_path, "ghcnd-stations.txt"),
-      paste0(opt$output, "ghcnd-stations.txt"),
+      file.path(ftp_path, "ghcnd-stations.txt"),
+      file.path(opt$output, "ghcnd-stations.txt"),
       opt$overwrite
     )
   }
