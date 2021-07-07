@@ -3,7 +3,7 @@ ifeq ($(BUILD_TYPE),)
 # Set build type to kaust if non specified
 # BUILD_TYPE = ethz-gnu64
 # BUILD_TYPE = icsmaster-gnu64
-	BUILD_TYPE = arch
+	BUILD_TYPE = kaust
 endif
 
 # Default values which might be overridden
