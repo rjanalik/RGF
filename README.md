@@ -11,6 +11,7 @@
     │   │        ├── 2019
     │   │        └── ...
     │   └── output              # Output Files From ./main
+    ├── external                # External Libraries s.a. magma
     ├── include                 # Header Files
     ├── lib                     # Libraries
     ├── scripts                 # Scripts i.e. for setting up the environment
