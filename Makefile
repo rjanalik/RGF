@@ -26,7 +26,7 @@ CU_OBJ := $(CU_SRC:$(SRC_DIR)/%.cu=$(OBJ_DIR)/%.o)
 
 all: $(EXEC)
 $(EXEC): $(CC_OBJ) $(CU_OBJ)
-	$(LOADER) $^ $(LOADFLAGS) $(LIBS) -lm -o $@ $(DEBUG)
+	$(LOADER) $^ $(LINKFLAGS) $(LOADFLAGS) $(LIBS) -lm -o $@ $(DEBUG)
 
 # Compile C++ source files to object files:
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR) $(BIN_DIR) $(DEPDIR)
