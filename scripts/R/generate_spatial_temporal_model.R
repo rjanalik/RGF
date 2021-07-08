@@ -23,6 +23,22 @@ print_header  <- function(title="", length=100, symbol="=", sep_width=5, sep = "
   }
 }
 
+print_value  <- function(obj){
+    print(sprintf("Value of %-10s=%10i", deparse(substitute(obj)), obj))
+}
+
+print_dim  <- function(obj){
+  dim  <- dim(obj)
+  if(!is.null(dim)){
+    # Print 2D Object
+    print(sprintf("Dimension of %-20s %5i x %i", deparse(substitute(obj)), dim[1], dim[2]))
+  } else{
+    # Print 1D Object
+    dim  <- length(obj)
+    print(sprintf("Dimension of %-20s %5i", deparse(substitute(obj)), dim))
+  }
+}
+
 # Create FEM psi_i basis functions:
 # c0: c0[i,j] = < psi_i, 1 >
 # c1: c1[i,j] = < psi_i, psi_j >
@@ -142,7 +158,9 @@ t_resolution_list <- (opt$start):(opt$start + nt - 1)
 gmesh <- generate_mesh(opt$spatial)
 ### number of nodes in the spatial mesh
 ns <- gmesh$n
-sprintf("%-5s=%5d", "ns", ns)
+if(opt$verbose >= 1){
+  print_value(ns)
+}
 
 
 ########################### Create Mesh Matrices #############################
@@ -174,7 +192,7 @@ ws <- diff(c(0, 11, 20, 30, 37, 71, 75, 79, 85))
 stations <- read.fwf(file.path(opt$input, "ghcnd-stations.txt"), ws[1:4])
 colnames(stations) <- c("station", "latitude", "longitude", "altitude")
 id.stations <- pmatch(colnames(data), stations$station)
-if (opt$verbose) {
+if (opt$verbose >= 2) {
   head(stations)
   dim(stations)
   summary(stations)
@@ -191,9 +209,9 @@ if (SPATIAL_MODEL) {
 }
 
 if (opt$verbose >= 1) {
-  sprintf("Dimension of Ast: %d x %d", dim(Ast)[1], dim(Ast)[2])
+  print_dim(Ast)
 }
-if (opt$verbose) {
+if (opt$verbose >= 2) {
   print("Summary rowSums(Ast)")
   summary(rowSums(Ast))
   print("Summary colSums(Ast)")
@@ -202,10 +220,10 @@ if (opt$verbose) {
 ###
 ### the observation vector /20 black magic in order to store in single precission
 y <- as.vector(t(data[t_resolution_list, ])) / 20
-if (opt$verbose) {
+if (opt$verbose >= 2) {
   table(y < (-90))
 }
-if (opt$verbose) {
+if (opt$verbose >= 2) {
   y[y < (-90)] <- NA
   summary(y)
   table(is.na(y))
@@ -217,7 +235,7 @@ if (opt$verbose) {
 y[y < (-50)] <- NA
 y[y > (50)] <- NA
 
-if (opt$verbose) {
+if (opt$verbose >= 2) {
   length(y) == nrow(Ast)
 }
 
@@ -225,24 +243,24 @@ iisel <- which(!is.na(y))
 A.select <- Ast[iisel, ]
 y.select <- y[iisel]
 
-if (opt$verbose) {
+if (opt$verbose >= 2) {
   length(iisel)
 }
-if (opt$verbose) {
+if (opt$verbose >= 2) {
   summary(rowSums(A.select))
   summary(colSums(A.select))
 }
 
 ### y = B * b + A * u + e
 alt.km <- stations$altitude[id.stations] / 1000
-if (opt$verbose >= 1) {
+if (opt$verbose >= 2) {
   summary(alt.km)
 }
-if (opt$verbose >= 1) {
+if (opt$verbose >= 2) {
   table(alt.km < (-0.95))
 }
 alt.km[alt.km < (-0.95)] <- 0 ### just for now
-if (opt$verbose >= 1) {
+if (opt$verbose >= 2) {
   summary(alt.km)
 }
 
@@ -255,6 +273,11 @@ nb <- dim(B)[2]
 
 # combine A.select & B
 A.x <- cbind(A.select, B)
+if (opt$verbose >= 1) {
+  print_dim(A.select)
+  print_dim(B)
+  print_dim(A.x)
+}
 
 # store A.x and not A.st & B separately
 print_header("Store Model Ax & y")
