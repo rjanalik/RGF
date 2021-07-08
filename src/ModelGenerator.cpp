@@ -135,7 +135,7 @@ void ModelGenerator::getTemporalData() {
     std::string g1_file = base_path_ + "/g1_" + ns_s + ".dat";
     std::string g2_file = base_path_ + "/g2_" + ns_s + ".dat";
     std::string filename_ending = "_ns" + ns_s + "_nt" + nt_s + ".dat";
-    std::string Ax_file = base_path_ + "/Ax_" + no_s + "_" + std::to_string(nu_ + nb_ + 2) + filename_ending;
+    std::string Ax_file = base_path_ + "/Ax_" + no_s + "_" + std::to_string(nu_ + nb_) + filename_ending;
     std::string y_file = base_path_ + "/y_" + no_s + "_1" + filename_ending;
     if_not_exists_abort({c0_file, g1_file, g2_file, Ax_file, y_file});
     data.c0 = readCSC_sym(c0_file);
