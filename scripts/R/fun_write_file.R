@@ -35,14 +35,14 @@ mat_to_file_sp.fun <- function(M, file_name, file_path, ns=NULL, nt=NULL){
   nnz <- nnzero(M) #+ sum(M@x==0) # have to also count diagonal entries
   M.df <- data.frame(c(dim_M[1], dim_M[2], nnz, M@i, M@p, M@x))
   
-  if( is.null(ns) != TRUE & is.null(nt) != TRUE){
-    input_file = file.path(file_path, paste(file_name, "_", toString(dim_M[1]), "_", toString(dim_M[2]), "_ns", toString(ns), "_nt", toString(nt), ".dat", sep=""))
+  if(is.null(ns) != TRUE & is.null(nt) != TRUE){
+    output_file = file.path(file_path, paste(file_name, "_", toString(dim_M[1]), "_", toString(dim_M[2]), "_ns", toString(ns), "_nt", toString(nt), ".dat", sep=""))
   } else{
-    input_file = file.path(file_path, paste(file_name, "_", toString(dim_M[1]), "_", toString(dim_M[2]), ".dat", sep=""))    
+    output_file = file.path(file_path, paste(file_name, "_", toString(dim_M[1]), "_", toString(dim_M[2]), ".dat", sep=""))
   }
 
-  fwrite(M.df, input_file, append = FALSE, sep = " ", dec = ".", row.names = FALSE, col.names = FALSE)
-  print(paste("wrote matrix to file under :", input_file))
+  fwrite(M.df, output_file, append = FALSE, sep = " ", dec = ".", row.names = FALSE, col.names = FALSE)
+  print(paste("wrote matrix to file under :", output_file))
   
 }
 
