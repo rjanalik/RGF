@@ -9,14 +9,27 @@ ModelGenerator::ModelGenerator(size_t ns, size_t nt, size_t nb, size_t no, arma:
     nb_s = std::to_string(nb_);
     no_s = std::to_string(no_);
     nu_s = std::to_string(nu_);
+
+    if(theta_.is_empty()){
+        if(nt_ == 1){
+            theta_ = {-1.5,-5,-2};
+        } else {
+            theta_ = {5, -10, 2.5, 1};
+        }
+    }
+    getData();
 };
 ///////////////////////////////////////////////////////////////////////////////
 //                          Model creation routines                          //
 ///////////////////////////////////////////////////////////////////////////////
 void ModelGenerator::construct_model() {
+    printf("Constructing Qu\n");
     construct_Qu();
+    printf("Constructing Qb\n");
     construct_Qb();
+    printf("Constructing Qxy\n");
     construct_Qxy_lower();
+    printf("Constructing b\n");
     construct_b();
 }
 void ModelGenerator::construct_Qu() {
@@ -121,8 +134,9 @@ void ModelGenerator::getTemporalData() {
     std::string c0_file = base_path_ + "/c0_" + ns_s + ".dat";
     std::string g1_file = base_path_ + "/g1_" + ns_s + ".dat";
     std::string g2_file = base_path_ + "/g2_" + ns_s + ".dat";
-    std::string Ax_file = base_path_ + "/Ax_" + no_s + "_" + std::to_string(nu_ + nb_) + ".dat";
-    std::string y_file = base_path_ + "/y_" + no_s + "_1.dat";
+    std::string filename_ending = "_ns" + ns_s + "_nt" + nt_s + ".dat";
+    std::string Ax_file = base_path_ + "/Ax_" + no_s + "_" + std::to_string(nu_ + nb_ + 2) + filename_ending;
+    std::string y_file = base_path_ + "/y_" + no_s + "_1" + filename_ending;
     if_not_exists_abort({c0_file, g1_file, g2_file, Ax_file, y_file});
     data.c0 = readCSC_sym(c0_file);
     data.g1 = readCSC_sym(g1_file);
@@ -156,8 +170,7 @@ void ModelGenerator::if_not_exists_abort(std::string const file_name) {
     if(file_exists(file_name))
         return;
     std::cerr << file_name
-              << " couldn\'t be opened (not existing or failed to "
-                 "open)\n";
+              << " couldn\'t be opened (not existing or failed to open)\n";
     exit(1);
 }
 void ModelGenerator::if_not_exists_abort(std::initializer_list<std::string> const file_names) {
