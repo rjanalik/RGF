@@ -92,9 +92,6 @@ void set_cml_option(char *begin[], char *end[], option<T> &option) {
     itr = std::find(begin, end, option.long_name_);
     if (itr != end && ++itr != end)
       *(option.value_ptr_) = *itr;
-    else {
-      exit(1);
-    }
   }
 }
 template <>
@@ -107,9 +104,6 @@ void set_cml_option(char *begin[], char *end[], option<size_t> &option) {
     itr = std::find(begin, end, option.long_name_);
     if (itr != end && ++itr != end)
       *(option.value_ptr_) = atoi(*itr);
-    else {
-      exit(1);
-    }
   }
 }
 
