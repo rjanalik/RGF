@@ -9,52 +9,66 @@ source("./fun_write_file.R")
 generate_mesh <- function(spatial_res_param, ...) {
   return(inla.mesh.create(globe = spatial_res_param, ...))
 }
+
+print_header  <- function(title="", length=100, symbol="=", sep_width=5, sep = " ")
+{
+  str_length  <- nchar(title)
+  symbol_length = length-str_length-2*sep_width
+  sep = strrep(" ", sep_width)
+  if(str_length==0){
+    print(strrep(symbol,length), quote = FALSE)
+  } else
+  {
+    print(paste0(strrep(symbol, symbol_length/2), strrep(" ", sep_width), title, strrep(" ", sep_width), strrep(symbol, symbol_length/2)),quote = FALSE)
+  }
+}
+
+# Create FEM psi_i basis functions:
+# c0: c0[i,j] = < psi_i, 1 >
+# c1: c1[i,j] = < psi_i, psi_j >
+# g1: g1[i,j] = < grad psi_i, grad psi_j >
+# g2: g2 = g1 * c0^-1 * g1
+# gk: gk = g1 * (c0^-1 * g1)^(k-1), up to and including k=order
 create_spatial_mat <- function(mesh, base_path, order = 2) {
   # model order 2 for spatial
+  print_header("Creating Spatial FEM Basis Functions")
   sfem <- inla.mesh.fem(mesh, order = order)
-
+  # Coerce sfem$<var> to sparse compressed column format dgCMatrix
   c0 <- as(sfem$c0, "dgCMatrix")
-  mat_to_file_sym.fun(c0, "c0", base_path)
   g1 <- as(sfem$g1, "dgCMatrix")
-  mat_to_file_sym.fun(g1, "g1", base_path)
   g2 <- as(sfem$g2, "dgCMatrix")
+  mat_to_file_sym.fun(c0, "c0", base_path)
+  mat_to_file_sym.fun(g1, "g1", base_path)
   mat_to_file_sym.fun(g2, "g2", base_path)
-
+  if(order > 2){
+    g3 <- as(sfem$g3, "dgCMatrix")
+    mat_to_file_sym.fun(g3, "g3", base_path)
+  }
   return(sfem)
 }
-create_spatio_temporal_mat <- function(mesh, nt, base_path, order = 3) {
+create_spatio_temporal_mat <- function(mesh, nt, base_path, order = 3, verbose = FALSE) {
   # model order 3 for spatial-temporal
   ### define the spatial Finite Element Matrices
-  sfem <- inla.mesh.fem(gmesh, order = order)
+############################      Spatial Matrices     #############################
+  sfem  <- create_spatial_mat(mesh, base_path, order = order)
+############################      Temporal Matrices     #############################
+  print_header("Creating Temporal FEM Basis Functions")
   ### define the temporal mesh for a given number of times
   tmesh <- inla.mesh.1d(loc = 1:nt)
-
   ### define the temporal Finite Element Matrices
   tfem <- inla.mesh.fem(tmesh, order = 2)
-
-  # spatial matrices
-  c0 <- as(sfem$c0, "dgCMatrix")
-  mat_to_file_sym.fun(c0, "c0", base_path)
-  g1 <- as(sfem$g1, "dgCMatrix")
-  mat_to_file_sym.fun(g1, "g1", base_path)
-  g2 <- as(sfem$g2, "dgCMatrix")
-  mat_to_file_sym.fun(g2, "g2", base_path)
-  g3 <- as(sfem$g3, "dgCMatrix")
-  mat_to_file_sym.fun(g3, "g3", base_path)
-
-  # temporal matrices
   # convert to dgCMatrix format
-  M0_ddi <- tfem$c0
   # M0 <- sparseMatrix(i=c(1:M0_ddi@Dim[1]),j=c(1:M0_ddi@Dim[2]),x=M0_ddi@x,dims=list(M0_ddi@Dim[1],M0_ddi@Dim[2]))
+  ## M0_ddi <- tfem$c0
   M0 <- as(tfem$c0, "dgCMatrix")
-  mat_to_file_sym.fun(M0, "M0", base_path)
   M1 <- sparseMatrix(
     i = c(1, nt),
     j = c(1, nt),
     x = c(0.5, 0.5)
   )
-  mat_to_file_sym.fun(M1, "M1", base_path)
   M2 <- tfem$g1
+  mat_to_file_sym.fun(M0, "M0", base_path)
+  mat_to_file_sym.fun(M1, "M1", base_path)
   mat_to_file_sym.fun(M2, "M2", base_path)
   return(list(sfem, tmesh, tfem))
 }
@@ -92,8 +106,8 @@ option_list <- list(
     help = "temporal resolution [days], [nt < 366]. if t=1 => spatial model [default= %default]", metavar = "number"
   ),
   make_option(c("-v", "--verbose"),
-    type = "logical", default = FALSE,
-    help = "verbose output [default= %default]", metavar = "character"
+    type = "integer", default = FALSE,
+    help = "verbose output with levels 1,2 [default= %default]", metavar = "character"
   ),
   make_option(c("--solve"),
     type = "logical", default = FALSE,
@@ -101,43 +115,49 @@ option_list <- list(
   )
 )
 
+###################### Parse Options ####################
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 if (opt$output == "same as --input") {
   opt$output <- opt$input
 }
-#############################################################
+
 nt <- opt$temporal
 if (nt == 1) {
   SPATIAL_MODEL <- TRUE
   SPATIO_TEMPORAL_MODEL <- FALSE
   opt$output <- file.path(opt$input, "spatial")
-  dir.create(opt$output)
+  dir.create(opt$output, showWarnings = FALSE)
 } else {
   opt$output <- file.path(opt$input, "spatio_temporal")
-  dir.create(opt$output)
+  dir.create(opt$output, showWarnings = FALSE)
   SPATIAL_MODEL <- FALSE
   SPATIO_TEMPORAL_MODEL <- TRUE
 }
-############################################################
 t_resolution_list <- (opt$start):(opt$start + nt - 1)
+############################################################
 
 ################### MESH PART ##############################
 ### create a mesh over the globe for a given resolution
 gmesh <- generate_mesh(opt$spatial)
 ### number of nodes in the spatial mesh
-(ns <- gmesh$n)
+ns <- gmesh$n
+sprintf("%-5s=%5d", "ns", ns)
+
 
 ########################### Create Mesh Matrices #############################
-
+opt$output <- file.path(opt$output, paste0("ns", toString(ns), "_nt", toString(nt)))
+dir.create(opt$output, recursive = TRUE, showWarnings = FALSE)
 if (opt$write == TRUE && SPATIAL_MODEL) {
-  dir_name <- file.path(opt$output, "spatial", paste0("ns", toString(ns)))
-  dir.create(dir_name, recursive = TRUE)
-  sfem <- create_spatial_mat(gmesh, dir_name)
+  print_header()
+  print_header("Creating Spatial Model", symbol =" ")
+  print_header()
+  sfem <- create_spatial_mat(gmesh, opt$output)
 } else {
-  dir_name <- file.path(opt$output, paste0("ns", toString(ns), "_nt", toString(nt)))
-  dir.create(dir_name, recursive = TRUE)
-  c(sfem, tmesh, tfem) %<-% create_spatio_temporal_mat(gmesh, nt, dir_name)
+  print_header()
+  print_header("Creating Spatiotemporal Model", symbol =" ")
+  print_header()
+  c(sfem, tmesh, tfem) %<-% create_spatio_temporal_mat(gmesh, nt, opt$output)
 }
 
 ########################### DATA PART ##########################################
@@ -148,8 +168,7 @@ assign("data", get(load(filepath)))
 # wo welche zeichen eingelesen werden oder so.
 # Lagged differences
 # 11  9 10  7 34  4  4  6
-(ws <- diff(c(0, 11, 20, 30, 37, 71, 75, 79, 85)))
-
+ws <- diff(c(0, 11, 20, 30, 37, 71, 75, 79, 85))
 # read station information
 # extract particular stations, longitute, latitude & altitude information
 stations <- read.fwf(file.path(opt$input, "ghcnd-stations.txt"), ws[1:4])
@@ -166,46 +185,49 @@ longlat <- as.matrix(stations[id.stations, 3:2])
 coo.mollweide <- inla.mesh.map(longlat, "longlat", inverse = TRUE)
 ###
 if (SPATIAL_MODEL) {
-  dim(Ast <- inla.spde.make.A(gmesh, coo.mollweide))
+  Ast <- inla.spde.make.A(gmesh, coo.mollweide)
 } else {
-  dim(Ast <- inla.spde.make.A(gmesh, kronecker(
-    matrix(1, length(t_resolution_list)),
-    coo.mollweide
-  ),
-  group = rep(t_resolution_list, each = nrow(coo.mollweide)),
-  group.mesh = tmesh
-  ))
+  Ast <- inla.spde.make.A(gmesh, kronecker(matrix(1, length(t_resolution_list)), coo.mollweide), group = rep(t_resolution_list, each = nrow(coo.mollweide)), group.mesh = tmesh)
 }
 
+if (opt$verbose >= 1) {
+  sprintf("Dimension of Ast: %d x %d", dim(Ast)[1], dim(Ast)[2])
+}
 if (opt$verbose) {
+  print("Summary rowSums(Ast)")
   summary(rowSums(Ast))
+  print("Summary colSums(Ast)")
   summary(colSums(Ast))
 }
 ###
 ### the observation vector /20 black magic in order to store in single precission
 y <- as.vector(t(data[t_resolution_list, ])) / 20
-table(y < (-90))
-y[y < (-90)] <- NA
-
 if (opt$verbose) {
-  summary(y)
+  table(y < (-90))
 }
-table(is.na(y))
-
-table(y < (-50))
-table(y > (50))
-
-hist(y, -74:1531, xlim = c(-50, 50))
+if (opt$verbose) {
+  y[y < (-90)] <- NA
+  summary(y)
+  table(is.na(y))
+  table(y < (-50))
+  table(y > (50))
+  hist(y, -74:1531, xlim = c(-50, 50))
+}
 
 y[y < (-50)] <- NA
 y[y > (50)] <- NA
 
-length(y) == nrow(Ast)
+if (opt$verbose) {
+  length(y) == nrow(Ast)
+}
 
-length(iisel <- which(!is.na(y)))
+iisel <- which(!is.na(y))
 A.select <- Ast[iisel, ]
 y.select <- y[iisel]
 
+if (opt$verbose) {
+  length(iisel)
+}
 if (opt$verbose) {
   summary(rowSums(A.select))
   summary(colSums(A.select))
@@ -213,10 +235,16 @@ if (opt$verbose) {
 
 ### y = B * b + A * u + e
 alt.km <- stations$altitude[id.stations] / 1000
-summary(alt.km)
-table(alt.km < (-0.95))
+if (opt$verbose >= 1) {
+  summary(alt.km)
+}
+if (opt$verbose >= 1) {
+  table(alt.km < (-0.95))
+}
 alt.km[alt.km < (-0.95)] <- 0 ### just for now
-summary(alt.km)
+if (opt$verbose >= 1) {
+  summary(alt.km)
+}
 
 # construct B
 B <- cbind(
@@ -229,9 +257,10 @@ nb <- dim(B)[2]
 A.x <- cbind(A.select, B)
 
 # store A.x and not A.st & B separately
+print_header("Store Model Ax & y")
 if (opt$write) {
-  mat_to_file_sp.fun(A.x, "Ax", opt$output)
-  mat_to_file.fun(y.select, "y", opt$output)
+  mat_to_file_sp.fun(A.x, "Ax", opt$output, ns=ns, nt=nt)
+  mat_to_file.fun(y.select, "y", opt$output, ns=ns, nt=nt)
 }
 
 # get number of observations
@@ -277,7 +306,8 @@ Qst.fun <- function(sfem, tfem, g = exp(rep(0, 3))) {
     kronecker(M2 * g[2]^2, q1s)))
 }
 
-if (TRUE) {
+# TODO WHAT IS HAPPENING HERE?
+if (FALSE) {
   theta <- c(5, -10, 2.5, 1)
   theta.u <- theta[2:4]
 
@@ -321,3 +351,4 @@ if (TRUE) {
     mat_to_file.fun(drop(x), "x_sol_R", opt$output)
   }
 }
+print_header("DONE - GOOD BYE!")
