@@ -67,21 +67,44 @@ void ModelGenerator::construct_Qu_spatio_temporal(arma::vec theta_u) {
         theta_u[0] * (kron(data.M0, q3s) + kron(data.M1 * 2 * theta_u[1], q2s) + kron(data.M2 * theta_u[1] * theta_u[1], q1s));
 }
 void ModelGenerator::construct_Qb() {
+#ifdef DEBUG
+    print_header("2. construct_Qb()");
+#endif
     // Q.b : diag(1e-5), dim : nb nb
     data.Qb = 1e-5 * arma::speye(nb_, nb_);
 #ifdef DEBUG
         data.Qb.print();
 #endif
 }
+
+/**
+ * @brief Summary
+ * @details Description
+ */
 void ModelGenerator::construct_Qxy_lower() {
+#ifdef DEBUG
+    print_header("3. ModelGenerator::construct_Qxy_lower()");
+#endif
     // Qub0  --> create here, all zeros
     arma::sp_mat Qub0(nb_, ns_ * nt_);
     Qub0.zeros();
     // assemble Q.x = block_diagonal(Q.u, Q.b)
-    n = size(data.Qu)[1] + size(data.Qb)[1];
+    // n = ns+nb i.e. spatial + fixed effects
+    // TODO Check if this is correct with LISA
+    n_ = size(data.Qu)[1] + size(data.Qb)[1];
     // std::cout << "n : " << n << std::endl;
-    arma::sp_mat Qx(n, n);
+    arma::sp_mat Qx(n_, n_);
     Qx(0, 0, size(data.Qu)) = data.Qu;
+#ifdef DEBUG
+    std::cout << "n_ = " << n_ << std::endl;
+    std::cout << "nu_ = " << nu_ << std::endl;
+    std::cout << "size(data.Qu)[1] = " << size(data.Qu)[1] << std::endl;
+    std::cout << "size(data.Qu)[2] = " << size(data.Qu)[2] << std::endl;
+    std::cout << "size(data.Qb)[1] = " << size(data.Qb)[1] << std::endl;
+    std::cout << "size(data.Qb)[2] = " << size(data.Qb)[2] << std::endl;
+    std::cout << "size(Qub0)) = " << size(Qub0) << std::endl;
+    std::cout << "size(Qub0.t())) = " << size(Qub0.t()) << std::endl;
+#endif
     Qx(0, nu_, size(Qub0.t())) = Qub0.t();
     Qx(nu_, 0, size(Qub0)) = Qub0;
     Qx(nu_, nu_, size(data.Qb)) = data.Qb;
@@ -91,10 +114,13 @@ void ModelGenerator::construct_Qxy_lower() {
     Qxy = Qx + exp(theta_[0]) * data.Ax.t() * data.Ax;
     // arma::mat(Qx).submat(0,0,10,10).print();
     data.Qxy_lower = arma::trimatl(Qxy);
-    nnz = data.Qxy_lower.n_nonzero;
+    nnz_ = data.Qxy_lower.n_nonzero;
 }
 
 void ModelGenerator::construct_b() {
+#ifdef DEBUG
+    print_header("4. construct_b()");
+#endif
     data.b = exp(theta_[0]) * data.Ax.t() * data.y;
 #ifdef DEBUG
     data.b.print();
@@ -102,24 +128,24 @@ void ModelGenerator::construct_b() {
 }
 
 void ModelGenerator::assemble_triplet_format(){
-    triplets.row_idx = new size_t[nnz];
-    triplets.col_ptr = new size_t[n+1];
-    triplets.val = new double[nnz];
-    for (int i = 0; i < nnz; ++i)
+    triplets.row_idx = new size_t[nnz_];
+    triplets.col_ptr = new size_t[n_+1];
+    triplets.val = new double[nnz_];
+    for (size_t i = 0; i < nnz_; ++i)
         triplets.row_idx[i] = data.Qxy_lower.row_indices[i];
-    for (int i = 0; i < n + 1; ++i)
+    for (size_t i = 0; i < n_ + 1; ++i)
         triplets.col_ptr[i] = data.Qxy_lower.col_ptrs[i];
-    for (int i = 0; i < nnz; ++i)
+    for (size_t i = 0; i < nnz_; ++i)
         triplets.val[i] = data.Qxy_lower.values[i];
 }
 ///////////////////////////////////////////////////////////////////////////////
 //                              Getter & Setter                              //
 ///////////////////////////////////////////////////////////////////////////////
 size_t ModelGenerator::get_n(){
-    return n;
+    return n_;
 }
 size_t ModelGenerator::get_nnz(){
-    return nnz;
+    return nnz_;
 }
 ///////////////////////////////////////////////////////////////////////////////
 //                               Data Fetching                               //
@@ -156,15 +182,31 @@ void ModelGenerator::getSpatialData() {
     data.M2 = readCSC_sym(M2_file);
 #ifdef DEBUG
     arma::mat(data.g3).submat(0, 0, 10, 10).print();
-    arma::mat(data.M0).submat(0, 0, nt - 1, nt - 1).print();
-    arma::mat(data.M1).submat(0, 0, nt - 1, nt - 1).print();
-    arma::mat(data.M2).submat(0, 0, nt - 1, nt - 1).print();
+    arma::mat(data.M0).submat(0, 0, nt_ - 1, nt_ - 1).print();
+    arma::mat(data.M1).submat(0, 0, nt_ - 1, nt_ - 1).print();
+    arma::mat(data.M2).submat(0, 0, nt_ - 1, nt_ - 1).print();
 #endif
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 //                             Utility Functions                             //
 ///////////////////////////////////////////////////////////////////////////////
+
+void ModelGenerator::print_header(std::string title, size_t length, char symbol, size_t sep_width, char sep, std::ostream &stream) const {
+    size_t title_length = title.length();
+    size_t symbol_length = length-title.length()-2*sep_width;
+    // print only header line
+    if(title_length == 0){
+        stream << std::string(length, symbol) << std::endl;
+    } else if(symbol_length <= 0){
+        // print only title if title to long
+        stream << title << std::endl;
+    } else{
+        stream << std::string(symbol_length/2, symbol) << std::string(sep_width, sep) << title << std::string(sep_width, sep) << std::string(symbol_length/2, symbol) << std::endl;
+    }
+  }
+
+
 bool ModelGenerator::file_exists(const std::string &file_name) { return std::fstream{file_name} ? true : false; }
 void ModelGenerator::if_not_exists_abort(std::string const file_name) {
     if(file_exists(file_name))
@@ -218,11 +260,11 @@ arma::sp_mat ModelGenerator::readCSC_sym(std::string filename) {
     arma::uvec col_ptr(n + 1);
     arma::vec a(nnz);
 
-    for (int i = 0; i < nnz; i++)
+    for (size_t i = 0; i < nnz; i++)
         fin >> row_ind[i];
-    for (int i = 0; i < n + 1; i++)
+    for (size_t i = 0; i < n + 1; i++)
         fin >> col_ptr[i];
-    for (int i = 0; i < nnz; i++)
+    for (size_t i = 0; i < nnz; i++)
         fin >> a[i];
     fin.close();
     arma::sp_mat A_lower(row_ind, col_ptr, a, n, n);

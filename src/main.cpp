@@ -60,6 +60,7 @@ int main(int argc, char *argv[]) {
   ///////////////////////////////////////////////////////////////////////////////
   //                             Generate Model //
   ///////////////////////////////////////////////////////////////////////////////
+  printf("\nStart Assembling matrices.\n");
   model = new ModelGenerator(ns, nt, nb, no, theta, base_path);
   model->construct_model();
   model->assemble_triplet_format();
