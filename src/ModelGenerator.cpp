@@ -23,20 +23,25 @@ ModelGenerator::ModelGenerator(size_t ns, size_t nt, size_t nb, size_t no, arma:
 //                          Model creation routines                          //
 ///////////////////////////////////////////////////////////////////////////////
 void ModelGenerator::construct_model() {
-    printf("Constructing Qu\n");
+    print_header();
     construct_Qu();
-    printf("Constructing Qb\n");
     construct_Qb();
-    printf("Constructing Qxy\n");
     construct_Qxy_lower();
-    printf("Constructing b\n");
     construct_b();
 }
 void ModelGenerator::construct_Qu() {
-    if (nt_ > 1)
+    if (nt_ == 1){
+#ifdef DEBUG
+        print_header("1. construct_Qu_spatial(exp(theta_(arma::span(1, 2))))");
+#endif
         construct_Qu_spatial(exp(theta_(arma::span(1, 2))));
-    else
+    }
+    else{
+#ifdef DEBUG
+        print_header("1. construct_Qu()construct_Qu_spatio_temporal(exp(theta_(arma::span(1, 3))))");
+#endif
         construct_Qu_spatio_temporal(exp(theta_(arma::span(1, 3))));
+    }
 }
 
 /**
