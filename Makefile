@@ -1,7 +1,6 @@
 #include ./make.inc_kaust
 include ./make.inc
 
-DEBUG       =     #-g -fsanitize=address,signed-integer-overflow
 
 LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
 
@@ -13,6 +12,18 @@ OBJ_DIR := $(BUILD_DIR)/obj
 EXEC := $(BIN_DIR)/main
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+
+DEBUG ?= 1
+ifeq ($(DEBUG), 1)
+	DEBUG_FLAGS  =-DDEBUG -g -fsanitize=address,signed-integer-overflow -Wall
+	DEBUG_FLAGS_NVCC=-DDEBUG -g
+	CXXFLAGS     += -O0
+else
+	CXXFLAGS     += -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
+	DEBUG_FLAGS=-DNDEBUG
+	DEBUG_FLAGS_NVCC=-DNDEBUG
+endif
+
 
 
 CC_SRC := $(wildcard $(SRC_DIR)/*.cpp)
@@ -26,17 +37,17 @@ CU_OBJ := $(CU_SRC:$(SRC_DIR)/%.cu=$(OBJ_DIR)/%.o)
 
 all: $(EXEC)
 $(EXEC): $(CC_OBJ) $(CU_OBJ)
-	$(LOADER) $^ $(LINKFLAGS) $(LOADFLAGS) $(LIBS) -lm -o $@ $(DEBUG)
+	$(LOADER) $^ $(LINKFLAGS) $(LOADFLAGS) $(LIBS) -lm -o $@ $(DEBUG_FLAGS)
 
 # Compile C++ source files to object files:
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR) $(BIN_DIR) $(DEPDIR)
 	@echo "Compiling .cpp files"
-	$(CXX) $(CXXFLAGS) $(DEBUG) $(FLAGS) $(INC_CC) $(INC_MAG) -c $< -o $@ # $(DEPFLAGS)
-
+	$(CXX) $(CXXFLAGS) $(FLAGS) $(INC_CC) $(INC_MAG) $(DEBUG_FLAGS) -c $< -o $@
+# $(DEPFLAGS)
 # Compile CUDA source files to object files:
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cu | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .cu files"
-	$(NVCC) $(NVCC_FLAGS) $(INC_CC) $(INC_CUD) $(INC_MAG) -c $< -o $@ $(NVCC_LIBS)
+	$(NVCC) $(NVCC_FLAGS) $(INC_CC) $(INC_CUD) $(INC_MAG) $(DEBUG_FLAGS_NVCC) -c $< -o $@ $(NVCC_LIBS)
 
 $(BIN_DIR):
 	@mkdir -p $@

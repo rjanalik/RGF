@@ -14,6 +14,7 @@ AR_FLAGS = ruv
 RANLIB   = ranlib
 # Local Directories
 # Platform/compiler specific definitions
+#OPTIMIZATION_FLAGS = -O3 -ffast-math -funroll-loops
 
 ifeq ($(BUILD_TYPE),ethz-gnu64)
 	FLAGS         = -DAdd_ -DSOLVE_CRAY -D__MINMAX -Wno-write-strings
@@ -80,7 +81,7 @@ ifeq ($(BUILD_TYPE),kaust)
 	MKLHOME       = $(MKLROOT)/lib/intel64
 #   $(INTEL64) does not exist
 	LOADER        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
-	LOADFLAGS     = -O3 -ffast-math -funroll-loops -lgfortran -L$(INTEL64)/compiler/lib/intel64 -L$(MPIHOME)/lib/ #-lmpifort
+	LOADFLAGS     = $(OPTIMIZATION_FLAGS) -lgfortran -L$(INTEL64)/compiler/lib/intel64 -L$(MPIHOME)/lib/ #-lmpifort
 	LINKFLAGS     =  -L${MKLROOT}/lib/intel64 -lmkl_scalapack_ilp64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -lmkl_blacs_intelmpi_ilp64 -lpthread -lm -ldl
 # F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
 	F90_LIBS      =  -lgfortran
@@ -101,7 +102,6 @@ ifeq ($(BUILD_TYPE),kaust)
 	COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)
 # Other Flags
 	FLAGS         = -DAdd_ -DSOLVE_CRAY -D__MINMAX -Wno-write-strings
-	CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
 endif
 
