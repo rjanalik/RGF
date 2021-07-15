@@ -42,8 +42,9 @@ $(EXEC): $(CC_OBJ) $(CU_OBJ)
 # Compile C++ source files to object files:
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR) $(BIN_DIR) $(DEPDIR)
 	@echo "Compiling .cpp files"
-	$(CXX) $(CXXFLAGS) $(FLAGS) $(INC_CC) $(INC_MAG) $(DEBUG_FLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(FLAGS) $(OPEN_MP) $(INC_CC) $(INC_MAG) $(DEBUG_FLAGS) -c $< -o $@
 # $(DEPFLAGS)
+
 # Compile CUDA source files to object files:
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cu | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .cu files"
