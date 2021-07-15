@@ -149,3 +149,19 @@ void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
     set_cml_option<size_t>(argv, argv + argc, opt);
   }
 }
+
+namespace utilities {
+  void print_header(std::string title, size_t length, char symbol, size_t sep_width, char sep, std::ostream &stream) {
+      size_t title_length = title.length();
+      size_t symbol_length = length-title.length()-2*sep_width;
+      // print only header line
+      if(title_length == 0){
+          stream << std::string(length, symbol) << std::endl;
+      } else if(symbol_length <= 0){
+          // print only title if title to long
+          stream << title << std::endl;
+      } else{
+          stream << std::string(symbol_length/2, symbol) << std::string(sep_width, sep) << title << std::string(sep_width, sep) << std::string(symbol_length/2, symbol) << std::endl;
+      }
+  }
+}

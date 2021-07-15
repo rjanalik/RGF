@@ -21,6 +21,8 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 
+using namespace utilities;
+
 template <class T>
 class RGF {
 
@@ -129,6 +131,9 @@ class RGF {
 // size_t size = ns * nt + nd;
 template <class T>
 RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
+#ifdef DEBUG
+        print_header("RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd)");
+#endif
     matrix_ia = ia;
     matrix_ja = ja;
     matrix_a = a;
@@ -189,6 +194,9 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
 
 template <class T>
 RGF<T>::~RGF() {
+#ifdef DEBUG
+        print_header("~RGF()");
+#endif
     if (MF_dev_allocated) {
         size_t max_supernode_nnz = matrix_nt > 1 ? matrix_ns * (2 * matrix_ns + matrix_nd) : matrix_ns * (matrix_ns + matrix_nd);
         size_t dense_supernode_nnz = matrix_nd > 0 ? matrix_nd * matrix_nd : 0;
@@ -436,9 +444,8 @@ double RGF<T>::FirstStageFactor() {
  */
 template <class T>
 double RGF<T>::SecondStageSolve(size_t nrhs) {
-    int info;
     size_t IB;
-    size_t NR, NM, NP;
+    size_t NR, NM; // NP;
     T ONE = f_one();
 
     // Forward pass
@@ -533,7 +540,7 @@ template <class T>
 double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
     int info;
     size_t IB;
-    size_t NR, NM, NP, ND;
+    size_t NR, NP, ND; // NM
     T ONE = f_one();
     T ZERO = f_zero();
 
@@ -655,7 +662,7 @@ double RGF<T>::factorize() {
         MF_dev_allocated = true;
     }
 
-    size_t nnz = matrix_ia[matrix_size];
+    // size_t nnz = matrix_ia[matrix_size];
     size_t max_rows = matrix_nt > 1 ? 2 * matrix_ns + matrix_nd : matrix_ns + matrix_nd;
     size_t max_cols = fmax(matrix_ns, matrix_nd);
 
@@ -869,7 +876,7 @@ inline void RGF<T>::copy_supernode_diag(T *src, size_t supernode) {
     size_t supernode_fc = supernode * matrix_ns;
     size_t supernode_lc = supernode < matrix_nt ? (supernode + 1) * matrix_ns : matrix_ns * matrix_nt + matrix_nd;
     size_t offset = mf_block_index(supernode, supernode);
-    size_t rows = mf_block_lda(supernode, supernode);
+    // size_t rows = mf_block_lda(supernode, supernode);
     size_t cols = supernode_lc - supernode_fc;
 
     indexed_copy_offset_dev(src, &diag_dev[supernode_fc], &diag_pos_dev[supernode_fc], cols, offset);

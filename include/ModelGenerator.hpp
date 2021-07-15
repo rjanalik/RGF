@@ -4,13 +4,13 @@
 #include <armadillo>
 #include <string>
 #include <vector>
+#include "utilities.hpp"
 
 class ModelGenerator {
 public:
   ModelGenerator();
   ModelGenerator(size_t ns, size_t nt, size_t nb, size_t no, arma::vec theta,
                  std::string base_path);
-  ~ModelGenerator();
   void getData();
   bool file_exists(const std::string &file_name);
   size_t get_n();
@@ -40,7 +40,6 @@ private:
   void construct_b();
   void if_not_exists_abort(std::string const file_name);
   void if_not_exists_abort(std::initializer_list<std::string> const file_names);
-  void print_header(std::string title = "", size_t length = 100, char symbol = '=', size_t sep_width = 5, char sep = ' ', std::ostream &stream = std::cout) const;
   arma::sp_mat readCSC(std::string filename);
   arma::sp_mat readCSC_sym(std::string const filename);
   arma::mat read_matrix(std::string filename, int n_row, int n_col);
