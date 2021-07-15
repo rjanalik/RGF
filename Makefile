@@ -2,7 +2,7 @@
 include ./make.inc
 
 
-LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
+LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPEN_MP) $(CUDA) $(MAGMA) $(F90_LIBS)
 
 SRC_DIR := src
 INC_DIR := include
@@ -13,13 +13,18 @@ EXEC := $(BIN_DIR)/main
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-DEBUG ?= 1
+DEBUG ?= 0
 ifeq ($(DEBUG), 1)
-	DEBUG_FLAGS  =-DDEBUG -g -fsanitize=address,signed-integer-overflow -Wall
+	DEBUG_FLAGS  =-DDEBUG -g -Wall
 	DEBUG_FLAGS_NVCC=-DDEBUG -g
 	CXXFLAGS     += -O0
+else ifeq ($(DEBUG), 2)
+	DEBUG_FLAGS  +=-DDEBUG -g -fsanitize=address,signed-integer-overflow -Wall
+	CXXFLAGS     += -O0
+	DEBUG_FLAGS_NVCC=-DDEBUG -g
 else
 	CXXFLAGS     += -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
+	NVCC_FLAGS   +=
 	DEBUG_FLAGS=-DNDEBUG
 	DEBUG_FLAGS_NVCC=-DNDEBUG
 endif
@@ -42,7 +47,7 @@ $(EXEC): $(CC_OBJ) $(CU_OBJ)
 # Compile C++ source files to object files:
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR) $(BIN_DIR) $(DEPDIR)
 	@echo "Compiling .cpp files"
-	$(CXX) $(CXXFLAGS) $(FLAGS) $(OPEN_MP) $(INC_CC) $(INC_MAG) $(DEBUG_FLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(FLAGS) $(INC_CC) $(INC_MAG) $(DEBUG_FLAGS) -c $< -o $@
 # $(DEPFLAGS)
 
 # Compile CUDA source files to object files:
