@@ -1,6 +1,6 @@
 # --------- DIFFERENT FUNCTIONS TO WRITE TO FILE --------------------#
 library(data.table)
-
+options(scipen=999)
 
 # write DENSE matrix to file
 mat_to_file.fun <- function(M, file_name, file_path, append = FALSE, ns=NULL, nt=NULL){
