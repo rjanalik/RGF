@@ -73,7 +73,6 @@ arma::sp_mat readCSC(std::string filename){
   fin >> n_cols;
   fin >> nnz;
 
-
    // allocate memory
   arma::uvec row_ind(nnz);
   arma::uvec col_ptr(n_cols+1);
@@ -81,12 +80,12 @@ arma::sp_mat readCSC(std::string filename){
 
   for (int i = 0; i < nnz; i++){
     fin >> row_ind[i];
-    }
+  }
 
   for (int i = 0; i < n_cols+1; i++){
     fin >> col_ptr[i];
     //std::cout <<col_ptr[i] << std::endl;
-    }
+  }
 
   for (int i = 0; i < nnz; i++){
     fin >> a[i];
@@ -283,6 +282,7 @@ int main(int argc, char* argv[])
   // temperature values y
   std::string y_file        =  base_path + "/y_" + no_s + "_1.dat";
   file_exists(y_file);
+  //std::cout << y_file << std::endl;
 
   // ------------------------------- read in files  --------------------------------- //
 
@@ -317,7 +317,8 @@ int main(int argc, char* argv[])
 
   // Ax (sparse)
   arma::sp_mat Ax = readCSC(Ax_file);
-  //std::cout << "non zeros A_st " << A_st.n_nonzero << std::endl;
+  //std::cout << "non zeros A_st " << Ax.n_nonzero << std::endl;
+  //arma::mat(M0).submat(0,0,nt-1,nt-1).print();
 
   //y (vector)
   arma::vec y = read_matrix(y_file, no, 1);
@@ -362,7 +363,7 @@ int main(int argc, char* argv[])
 
   // assemble Q.x = block_diagonal(Q.u, Q.b)
   size_t n = size(Qu)[1] + size(Qb)[1];
-  //std::cout << "n : " << n << std::endl;
+  std::cout << "n : " << n << std::endl;
   arma::sp_mat Qx(n,n);
   Qx(0,0, size(Qu))          = Qu;
   Qx(0,nu, size(Qub0.t()))    = Qub0.t();
@@ -406,21 +407,20 @@ int main(int argc, char* argv[])
 
   for (int i = 0; i < nnz; ++i){
     ja[i] = Qxy_lower.row_indices[i];
-    std::cout << ja[i] << std::endl;     
+    //std::cout << ja[i] << std::endl;     
 
   } 
 
   for (int i = 0; i < n+1; ++i){
     ia[i] = Qxy_lower.col_ptrs[i]; 
-    std::cout << ia[i] << std::endl;   
+    //std::cout << ia[i] << std::endl;   
   }  
 
   for (int i = 0; i < nnz; ++i){
     a[i] = Qxy_lower.values[i];
-    std::cout << a[i] << std::endl;     
+    //std::cout << a[i] << std::endl;     
 
   }  
-
 
   printf("\nAll matrices assembled. Passing to RGF solver now.\n");
 

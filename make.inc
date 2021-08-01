@@ -90,7 +90,7 @@ ifeq ($(BUILD_TYPE),kaust)
         COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)
         F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
         LAPACK        = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
-        SCALAPACK     = -L/lib/x86_64-linux-gnu -lscalapack-openmpi #-L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
+        #SCALAPACK     = -L/lib/x86_64-linux-gnu -lscalapack-openmpi #-L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
         LINKS         = -Wl,-rpath -Wl,$(GNU64)/lib64
         LIBSCI        =
         BLAS          =
