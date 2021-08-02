@@ -1,6 +1,8 @@
 #include "ModelGenerator.hpp"
 #include <string>
 
+using namespace utilities;
+
 ModelGenerator::ModelGenerator(size_t ns, size_t nt, size_t nb, size_t no, arma::vec theta, std::string base_path)
     : ns_(ns), nt_(nt), nb_(nb), no_(no), theta_(theta), base_path_(base_path) {
     nu_ = ns_ * nt_;
@@ -136,12 +138,32 @@ void ModelGenerator::assemble_triplet_format(){
     triplets.row_idx = new size_t[nnz_];
     triplets.col_ptr = new size_t[n_+1];
     triplets.val = new double[nnz_];
-    for (size_t i = 0; i < nnz_; ++i)
+    #ifdef DEBUG
+    print_header("Assembling Triplets");
+    #endif
+    for (size_t i = 0; i < nnz_; ++i){
         triplets.row_idx[i] = data.Qxy_lower.row_indices[i];
-    for (size_t i = 0; i < n_ + 1; ++i)
+        #ifdef DEBUG
+        // std::cout << triplets.row_idx[i] << std::endl;
+        #endif
+    }
+    for (size_t i = 0; i < n_ + 1; ++i){
         triplets.col_ptr[i] = data.Qxy_lower.col_ptrs[i];
-    for (size_t i = 0; i < nnz_; ++i)
+        #ifdef DEBUG
+        // std::cout << triplets.col_ptr[i] << std::endl;
+        #endif
+    }
+    for (size_t i = 0; i < nnz_; ++i){
         triplets.val[i] = data.Qxy_lower.values[i];
+        #ifdef DEBUG
+        // std::cout << triplets.val[i] << std::endl;
+        #endif
+    }
+    #ifdef DEBUG
+    std::cout << "n = " << n_ << std::endl;
+    std::cout << "nnz = " << nnz_ << std::endl;
+    print_header();
+    #endif
 }
 ///////////////////////////////////////////////////////////////////////////////
 //                              Getter & Setter                              //
@@ -197,21 +219,6 @@ void ModelGenerator::getSpatialData() {
 //                             Utility Functions                             //
 ///////////////////////////////////////////////////////////////////////////////
 
-void ModelGenerator::print_header(std::string title, size_t length, char symbol, size_t sep_width, char sep, std::ostream &stream) const {
-    size_t title_length = title.length();
-    size_t symbol_length = length-title.length()-2*sep_width;
-    // print only header line
-    if(title_length == 0){
-        stream << std::string(length, symbol) << std::endl;
-    } else if(symbol_length <= 0){
-        // print only title if title to long
-        stream << title << std::endl;
-    } else{
-        stream << std::string(symbol_length/2, symbol) << std::string(sep_width, sep) << title << std::string(sep_width, sep) << std::string(symbol_length/2, symbol) << std::endl;
-    }
-  }
-
-
 bool ModelGenerator::file_exists(const std::string &file_name) { return std::fstream{file_name} ? true : false; }
 void ModelGenerator::if_not_exists_abort(std::string const file_name) {
     if(file_exists(file_name))
@@ -257,7 +264,7 @@ arma::sp_mat ModelGenerator::readCSC(std::string filename){
 
 arma::sp_mat ModelGenerator::readCSC_sym(std::string filename) {
     std::ifstream fin(filename, std::ios::in);
-    int n, nnz;
+    size_t n, nnz;
     fin >> n;
     fin >> n;
     fin >> nnz;

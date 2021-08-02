@@ -42,7 +42,7 @@ ifeq ($(BUILD_TYPE),ethz-gnu64)
 	LINKS         = -Wl,-rpath -Wl,$(GNU64)/lib64
 	LIBSCI        =
 	BLAS          =
-	OPENMP        = -fopenmp
+	OPEN_MP        = -fopenmp
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
 endif
 
@@ -71,7 +71,7 @@ ifeq ($(BUILD_TYPE),icsmaster-gnu64)
 	LINKS         = -Wl,-rpath -Wl,$(GNU64)/lib64
 	LIBSCI        =
 	BLAS          =
-	OPENMP        = -fopenmp
+	OPEN_MP        = -fopenmp
 	INC_MAG        =
 	MAGMA         = -lmagma
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
@@ -91,8 +91,8 @@ ifeq ($(BUILD_TYPE),kaust)
 # LAPACK
 	SCAHOME       = $(MKLHOME)
 # SCALAPACK     = -L/lib/x86_64-linux-gnu -lscalapack-openmpi #-L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
-# OPENMP
-	OPENMP        = -fopenmp
+# OPEN_MP
+	OPEN_MP        = -fopenmp
 # CUDA
 	CUDAHOME      = /usr/local/cuda
 	NVCC          = nvcc
@@ -129,7 +129,7 @@ ifeq ($(BUILD_TYPE),arch)
 	LINKS         = -Wl,-rpath -Wl,$(GNU64)/lib64
 	LIBSCI        =
 	BLAS          =
-	OPENMP        = -fopenmp
+	OPEN_MP        = -fopenmp
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
 endif
 
