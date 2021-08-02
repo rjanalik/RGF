@@ -17,7 +17,7 @@ mainConstInd: $(CC_FILES) $(CU_FILES)
 	$(CXX) -c $< $(CXXFLAGS) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
 
 CWC_utility.o: CWC_utility.cu
-	$(NVCC) -c CWC_utility.cu $(NVCCFLAGS) $(INCCUD)
+	$(NVCC) -c CWC_utility.cu $(NVCCFLAGS) $(INCLUDEDIR)
 
 clean:	
 	rm -f *.o *.c *.h RGFSolver

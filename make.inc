@@ -32,7 +32,7 @@ ifeq ($(BUILD_TYPE),ethz-gnu64)
 	NVCCFLAGS     = -arch=compute_60 -code=sm_60
         CUDA_SDK      = 3
         COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)       
- 	F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
+	F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
         LAPACK        = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
         BLACS         = -L$(BLAHOME) -lmkl_blacs_sgimpt_lp64 -Wl,-rpath -Wl,$(MKLHOME)
         SCALAPACK     = -L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
@@ -100,8 +100,8 @@ endif
 
 #INCCUD        = -I$(CUDAHOME)/include
 #CUDA          = -L$(CUDAHOME)/lib64 -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
-INCMAG        = -I/home/x_gaedkelb/applications/magma-2.5.4/include
-MAGMA         = -L/home/x_gaedkelb/applications/magma-2.5.4/lib -lmagma
+INCMAG        = -I/home/x_pollakgr/RGF/applications/magma-2.5.4/include
+MAGMA         = -L/home/x_pollakgr/applications/magma-2.5.4/lib -lmagma
 
 INCCUD	      = -I$(CUDAHOME)/include
 CUDA          = -L/usr/lib64/ -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
