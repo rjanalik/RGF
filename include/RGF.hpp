@@ -314,6 +314,7 @@ double RGF<T>::FirstStageFactor() {
         // UPDATE NEXT DIAGONAL BLOCK
         // rj dgemm NT M[IB,IB-1] M[IB,IB-1]
         // todo rj: 3-last parameter ZERO in PARDISO
+        // C_i C_i^T
         tgemm_dev('N', 'T', NR, NR, NM, -ONE, &blockM_dev[NM], mf_block_lda(IB, IB - 1), &blockM_dev[NM], mf_block_lda(IB, IB - 1),
                   ONE, blockR_dev, mf_block_lda(IB, IB), magma_queue);
         flops += 2.0 * NR * NR * NR;
@@ -347,7 +348,7 @@ double RGF<T>::FirstStageFactor() {
         // printf("RJ: ttrsm NR: %d, a: %d, lda: %d, b: %d, ldb: %d\n", NR,
         // mf_block_index(IB-1, IB-1), mf_block_lda(IB-1, IB-1),
         // mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1));
-
+        // TODO: can be done during initalizition of the next supernode
         copy_supernode_to_host(blockR_dev, IB);
     }
 
