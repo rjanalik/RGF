@@ -71,3 +71,7 @@
     ```sh
     CUDA_VISIBLE_DEVICES="nb" ./main <data_folder_path> ns nt nb no > <folder_path/output.txt>
     ```
+    i.e.
+    ```sh
+    CUDA_VISIBLE_DEVICES=0 ./build/bin/main -p data/input/ghcn/2019/spatio_temporal/ns42_nt3 -s 42 -t 3 -f 2 -n 35542
+    ```
