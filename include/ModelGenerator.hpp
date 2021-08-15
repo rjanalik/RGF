@@ -18,13 +18,13 @@ public:
   void construct_model();
   void assemble_triplet_format();
   struct Triplet {
-    size_t *row_idx;
-    size_t *col_ptr;
-    double *val;
+    size_t *ja;
+    size_t *ia;
+    double *a;
     ~Triplet() {
-      delete[] row_idx;
-      delete[] col_ptr;
-      delete[] val;
+      delete[] ja;
+      delete[] ia;
+      delete[] a;
     }
   } triplets;
 

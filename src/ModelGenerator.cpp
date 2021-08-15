@@ -56,13 +56,13 @@ void ModelGenerator::construct_Qu() {
  */
 void ModelGenerator::construct_Qu_spatial(arma::vec theta_u) {
     // Qs <- g[1]^2*Qgk.fun(sfem, g[2], order)
-    arma::sp_mat Qs(data.c0.n_rows, data.c0.n_cols);
+    data.Qu.resize(data.c0.n_rows, data.c0.n_cols);
     data.Qu = pow(theta_u[0], 2) * (pow(theta_u[1], 4) * data.c0 + 2 * pow(theta_u[1], 2) * data.g1 + data.g2);
 }
 
 void ModelGenerator::construct_Qu_spatio_temporal(arma::vec theta_u) {
     int n_st = data.c0.n_rows * data.M0.n_rows;
-    arma::sp_mat Qst(n_st, n_st);
+    data.Qu.resize(n_st, n_st);
     // g^2 * fem$c0 + fem$g1
     arma::sp_mat q1s = pow(theta_u[2], 2) * data.c0 + data.g1;
     // std::cout << "q1s :" << std::endl;
@@ -72,8 +72,7 @@ void ModelGenerator::construct_Qu_spatio_temporal(arma::vec theta_u) {
     // g^6 * fem$c0 + 3 * g^4 * fem$g1 + 3 * g^2 * fem$g2 + fem$g3
     arma::sp_mat q3s = pow(theta_u[2], 6) * data.c0 + 3 * pow(theta_u[2], 4) * data.g1 + 3 * pow(theta_u[2], 2) * data.g2 + data.g3;
     // assemble overall precision matrix Q.st
-    data.Qu =
-        theta_u[0] * (kron(data.M0, q3s) + kron(data.M1 * 2 * theta_u[1], q2s) + kron(data.M2 * theta_u[1] * theta_u[1], q1s));
+    data.Qu = theta_u[0] * (kron(data.M0, q3s) + kron(data.M1 * 2 * theta_u[1], q2s) + kron(data.M2 * theta_u[1] * theta_u[1], q1s));
 }
 void ModelGenerator::construct_Qb() {
 #ifdef DEBUG
@@ -137,28 +136,28 @@ void ModelGenerator::construct_b() {
 }
 
 void ModelGenerator::assemble_triplet_format(){
-    triplets.row_idx = new size_t[nnz_];
-    triplets.col_ptr = new size_t[n_+1];
-    triplets.val = new double[nnz_];
+    triplets.ia = new size_t[n_+1];
+    triplets.ja = new size_t[nnz_];
+    triplets.a = new double[nnz_];
     #ifdef DEBUG
     print_header("Assembling Triplets");
     #endif
     for (size_t i = 0; i < nnz_; ++i){
-        triplets.row_idx[i] = data.Qxy_lower.row_indices[i];
+        triplets.ja[i] = data.Qxy_lower.row_indices[i];
         #ifdef DEBUG
-        // std::cout << triplets.row_idx[i] << std::endl;
+        // std::cout << triplets.ja[i] << std::endl;
         #endif
     }
-    for (size_t i = 0; i < n_ + 1; ++i){
-        triplets.col_ptr[i] = data.Qxy_lower.col_ptrs[i];
+    for (size_t i = 0; i < n_+1; ++i){
+        triplets.ia[i] = data.Qxy_lower.col_ptrs[i];
         #ifdef DEBUG
         // std::cout << triplets.col_ptr[i] << std::endl;
         #endif
     }
     for (size_t i = 0; i < nnz_; ++i){
-        triplets.val[i] = data.Qxy_lower.values[i];
+        triplets.a[i] = data.Qxy_lower.values[i];
         #ifdef DEBUG
-        // std::cout << triplets.val[i] << std::endl;
+        // std::cout << triplets.a[i] << std::endl;
         #endif
     }
     #ifdef DEBUG

@@ -88,24 +88,24 @@ int main(int argc, char *argv[]) {
   // b = new T[n];
   // x = new T[n];
   // invDiag = new T[n];
-  size_t* ia;
-  size_t* ja;
-  double* a;
-  ia = new size_t[model->get_n()+1];
-  ja = new size_t[model->get_nnz()];
-  a = new double[model->get_nnz()];
-    for (size_t i = 0; i < model->get_nnz(); ++i){
-      ia[i] = model->triplets.row_idx[i];
-    }
-    for (size_t i = 0; i < model->get_n() + 1; ++i){
-      ja[i] = model->triplets.col_ptr[i];
-    }
-    for (size_t i = 0; i < model->get_nnz(); ++i){
-      a[i] = model->triplets.val[i];
-    }
+  // size_t* ia;
+  // size_t* ja;
+  // double* a;
+  // ia = new size_t[model->get_n()+1];
+  // ja = new size_t[model->get_nnz()];
+  // a = new double[model->get_nnz()];
+  //   for (size_t i = 0; i < model->get_nnz(); ++i){
+  //     ia[i] = model->triplets.row_idx[i];
+  //   }
+  //   for (size_t i = 0; i < model->get_n() + 1; ++i){
+  //     ja[i] = model->triplets.col_ptr[i];
+  //   }
+  //   for (size_t i = 0; i < model->get_nnz(); ++i){
+  //     a[i] = model->triplets.val[i];
+  //   }
 
 // Initialize Solver ///////////////////////////////////////////////////////////
-  solver = new RGF<T>(ia, ja, a, ns, nt, nb);
+  solver = new RGF<T>(model->triplets.ia, model->triplets.ja, model->triplets.a, ns, nt, nb);
 
   t_factorise = get_time(0.0);
   // solver->solve_equation(GR);
@@ -185,9 +185,9 @@ int main(int argc, char *argv[]) {
   // free memory
   delete model;
   delete solver;
-  delete[] a;
-  delete[] ia;
-  delete[] ja;
+  // delete[] a;
+  // delete[] ia;
+  // delete[] ja;
   delete[] b;
   delete[] x;
   delete[] invDiag;
