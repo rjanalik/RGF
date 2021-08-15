@@ -6,11 +6,6 @@ using namespace utilities;
 ModelGenerator::ModelGenerator(size_t ns, size_t nt, size_t nb, size_t no, arma::vec theta, std::string base_path)
     : ns_(ns), nt_(nt), nb_(nb), no_(no), theta_(theta), base_path_(base_path) {
     nu_ = ns_ * nt_;
-    ns_s = std::to_string(ns_);
-    nt_s = std::to_string(nt_);
-    nb_s = std::to_string(nb_);
-    no_s = std::to_string(no_);
-    nu_s = std::to_string(nu_);
 
     if(theta_.is_empty()){
         if(nt_ == 1){
@@ -31,6 +26,13 @@ void ModelGenerator::construct_model() {
     construct_Qxy_lower();
     construct_b();
 }
+
+/**
+ * @brief Constructs Qu
+ * @details selects between:
+   - Qu_spatial
+   - Qu_spatiotemporal
+ */
 void ModelGenerator::construct_Qu() {
     if (nt_ == 1){
 #ifdef DEBUG
@@ -184,6 +186,10 @@ void ModelGenerator::getData() {
         getSpatialData();
 };
 void ModelGenerator::getTemporalData() {
+    std::string ns_s = std::to_string(ns_);
+    std::string nt_s = std::to_string(nt_);
+    std::string no_s = std::to_string(no_);
+
     std::string c0_file = base_path_ + "/c0_" + ns_s + ".dat";
     std::string g1_file = base_path_ + "/g1_" + ns_s + ".dat";
     std::string g2_file = base_path_ + "/g2_" + ns_s + ".dat";
@@ -198,6 +204,9 @@ void ModelGenerator::getTemporalData() {
     data.y = read_matrix(y_file, no_, 1);
 };
 void ModelGenerator::getSpatialData() {
+    std::string ns_s = std::to_string(ns_);
+    std::string nt_s = std::to_string(nt_);
+
     std::string g3_file = base_path_ + "/g3_" + ns_s + ".dat";
     std::string M0_file = base_path_ + "/M0_" + nt_s + ".dat";
     std::string M1_file = base_path_ + "/M1_" + nt_s + ".dat";

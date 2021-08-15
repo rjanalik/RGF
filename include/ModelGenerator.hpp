@@ -49,11 +49,6 @@ private:
   size_t nb_;
   size_t no_;
   size_t nu_;
-  std::string ns_s;
-  std::string nt_s;
-  std::string nb_s;
-  std::string no_s;
-  std::string nu_s;
   size_t n_;
   size_t nnz_;
   arma::vec theta_;
