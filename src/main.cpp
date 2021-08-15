@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
   std::string base_path;
   size_t ns, nt, nb, no;
   std::string ns_s, nt_s, nb_s, no_s, nu_s;
-  arma::vec theta;
+  arma::vec theta = {};
   ModelGenerator *model;
   parse_args(argc, argv, base_path, ns, nt, nb, no);
 #ifdef DEBUG
@@ -103,6 +103,8 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < model->get_nnz(); ++i){
       a[i] = model->triplets.val[i];
     }
+
+// Initialize Solver ///////////////////////////////////////////////////////////
   solver = new RGF<T>(ia, ja, a, ns, nt, nb);
 
   t_factorise = get_time(0.0);
