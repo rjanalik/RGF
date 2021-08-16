@@ -10,7 +10,7 @@ no=236680
 
 
 #folder_path=/home/x_gaedkelb/RGF/data/ns${ns}
-folder_path=/home/x_pollakgr/RGF/data/input/ghcn/2019/spatio_temporal/ns${ns}_nt${nt}
+folder_path=/home/x_pollakgr/RGF/data/input/ghcn/2019_old/spatio_temporal/ns${ns}_nt${nt}
 
 nb=2
 year=2019
