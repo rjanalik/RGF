@@ -15,11 +15,11 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
 DEBUG ?= 0
 ifeq ($(DEBUG), 1)
-	DEBUG_FLAGS  =-DDEBUG -g -Wall
+	DEBUG_FLAGS  =-DDEBUG -g -Wall -fsanitize=address,signed-integer-overflow
 	DEBUG_FLAGS_NVCC=-DDEBUG -g
 	CXXFLAGS     += -O0
 else ifeq ($(DEBUG), 2)
-	DEBUG_FLAGS  +=-DDEBUG -g -fsanitize=address,signed-integer-overflow -Wall
+	DEBUG_FLAGS  +=-DDEBUG -g -Wall -fno-stack-protector
 	CXXFLAGS     += -O0
 	DEBUG_FLAGS_NVCC=-DDEBUG -g
 else

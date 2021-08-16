@@ -57,6 +57,9 @@ int main(int argc, char *argv[]) {
 #ifdef DEBUG
   theta.print();
 #endif
+#ifdef LISA
+
+#else
   ///////////////////////////////////////////////////////////////////////////////
   //                             Generate Model //
   ///////////////////////////////////////////////////////////////////////////////
@@ -65,7 +68,7 @@ int main(int argc, char *argv[]) {
   model->construct_model();
   model->assemble_triplet_format();
   printf("\nAll matrices assembled. Passing to RGF solver now.\n");
-
+#endif
   ///////////////////////////////////////////////////////////////////////////////
   //                                 RGF SOLVER //
   ///////////////////////////////////////////////////////////////////////////////
@@ -85,24 +88,9 @@ int main(int argc, char *argv[]) {
   timeinfo = localtime(&rawtime);
   printf("The current date/time is: %s\n", asctime(timeinfo));
 
-  // b = new T[n];
-  // x = new T[n];
-  // invDiag = new T[n];
-  // size_t* ia;
-  // size_t* ja;
-  // double* a;
-  // ia = new size_t[model->get_n()+1];
-  // ja = new size_t[model->get_nnz()];
-  // a = new double[model->get_nnz()];
-  //   for (size_t i = 0; i < model->get_nnz(); ++i){
-  //     ia[i] = model->triplets.row_idx[i];
-  //   }
-  //   for (size_t i = 0; i < model->get_n() + 1; ++i){
-  //     ja[i] = model->triplets.col_ptr[i];
-  //   }
-  //   for (size_t i = 0; i < model->get_nnz(); ++i){
-  //     a[i] = model->triplets.val[i];
-  //   }
+  b = new T[n];
+  x = new T[n];
+  invDiag = new T[n];
 
 // Initialize Solver ///////////////////////////////////////////////////////////
   solver = new RGF<T>(model->triplets.ia, model->triplets.ja, model->triplets.a, ns, nt, nb);
@@ -185,9 +173,9 @@ int main(int argc, char *argv[]) {
   // free memory
   delete model;
   delete solver;
-  // delete[] a;
-  // delete[] ia;
-  // delete[] ja;
+  delete[] a;
+  delete[] ia;
+  delete[] ja;
   delete[] b;
   delete[] x;
   delete[] invDiag;
