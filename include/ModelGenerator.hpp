@@ -53,24 +53,22 @@ private:
   size_t nnz_;
   arma::vec theta_;
   std::string base_path_;
-  struct Data {
-    // spatial matrices;
-    arma::sp_mat c0;
-    arma::sp_mat g1;
-    arma::sp_mat g2;
-    arma::sp_mat Ax;
-    arma::vec y;
-    // temporal matrices;
-    arma::sp_mat g3;
-    arma::sp_mat M0;
-    arma::sp_mat M1;
-    arma::sp_mat M2;
-    // model matrices
-    arma::sp_mat Qu;
-    arma::sp_mat Qb;
-    arma::sp_mat Qxy_lower;
-    arma::vec b;
-
-  } data;
+  // Data ================
+  // spatial matrices;
+  arma::sp_mat c0;
+  arma::sp_mat g1;
+  arma::sp_mat g2;
+  arma::sp_mat Ax;
+  arma::vec y;
+  // temporal matrices;
+  arma::sp_mat g3;
+  arma::sp_mat M0;
+  arma::sp_mat M1;
+  arma::sp_mat M2;
+  // model matrices
+  arma::sp_mat Qu;
+  arma::sp_mat Qb;
+  arma::sp_mat Qxy_lower;
+  arma::vec b;
 };
 #endif // __MODELGENERATOR_H_
