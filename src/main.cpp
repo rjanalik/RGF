@@ -62,8 +62,22 @@ int main(int argc, char *argv[]) {
   ///////////////////////////////////////////////////////////////////////////////
   printf("\nStart Assembling matrices.\n");
   model = new ModelGenerator(ns, nt, nb, no, theta, base_path);
+#ifndef LISA_VERSION
   model->construct_model();
   model->assemble_triplet_format();
+  size_t n = model->get_n();
+  size_t nnz = model->get_nnz();
+#else
+  // spatial matrices
+  arma::sp_mat c0 = model->c0;
+  arma::sp_mat g1 = model->g1;
+  arma::sp_mat g2 = model->g2;
+
+  arma::sp_mat g3 = model->g3;
+  arma::sp_mat M0 = model->M0;
+  arma::sp_mat M1 = model->M1;
+  arma::sp_mat M2 = model->M2;
+#endif
   printf("\nAll matrices assembled. Passing to RGF solver now.\n");
 
   ///////////////////////////////////////////////////////////////////////////////
@@ -73,8 +87,6 @@ int main(int argc, char *argv[]) {
   double t_factorise;
   double t_solve;
   double t_inv;
-  size_t n = model->get_n();
-  size_t nnz = model->get_nnz();
   T *b;
   T *x;
   T *invDiag;
