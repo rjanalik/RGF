@@ -3,7 +3,7 @@ ifeq ($(BUILD_TYPE),)
 # Set build type to kaust if non specified
 # BUILD_TYPE = ethz-gnu64
 # BUILD_TYPE = icsmaster-gnu64
-	BUILD_TYPE = kaust
+	BUILD_TYPE = arch
 endif
 
 # Default values which might be overridden
@@ -127,13 +127,13 @@ ifeq ($(BUILD_TYPE),arch)
 	LAPACK        = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
 	SCALAPACK     = -L/lib/x86_64-linux-gnu -lscalapack #-L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
 	LINKS         = -Wl,-rpath -Wl,$(GNU64)/lib64
+	INC_EIGEN      = -I/usr/include/eigen3
 	LIBSCI        =
 	BLAS          =
 	OPEN_MP        = -fopenmp
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
 endif
 
-INC_CC        = -Iinclude
 #INC_CUD      = -I$(CUDAHOME)/include
 #CUDA         = -L$(CUDAHOME)/lib64 -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
 

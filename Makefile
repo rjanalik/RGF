@@ -6,6 +6,7 @@ LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPEN_MP) $(CUDA) $
 
 SRC_DIR := src
 INC_DIR := include
+INC_CC  := -I$(INC_DIR)
 BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
@@ -47,13 +48,13 @@ $(EXEC): $(CC_OBJ) $(CU_OBJ)
 # Compile C++ source files to object files:
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR) $(BIN_DIR) $(DEPDIR)
 	@echo "Compiling .cpp files"
-	$(CXX) $(CXXFLAGS) $(FLAGS) $(INC_CC) $(INC_MAG) $(DEBUG_FLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(FLAGS) $(INC_CC) $(INC_MAG) $(INC_EIGEN) $(DEBUG_FLAGS) -c $< -o $@
 # $(DEPFLAGS)
 
 # Compile CUDA source files to object files:
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cu | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .cu files"
-	$(NVCC) $(NVCC_FLAGS) $(INC_CC) $(INC_CUD) $(INC_MAG) $(DEBUG_FLAGS_NVCC) -c $< -o $@ $(NVCC_LIBS)
+	$(NVCC) $(NVCC_FLAGS) $(INC_CC) $(INC_CUD) $(INC_MAG) $(INC_EIGEN) $(DEBUG_FLAGS_NVCC) -c $< -o $@ $(NVCC_LIBS)
 
 $(BIN_DIR):
 	@mkdir -p $@
