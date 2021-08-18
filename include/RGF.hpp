@@ -34,6 +34,7 @@ class RGF {
      */
 
   public:
+    RGF();
     RGF(size_t *, size_t *, T *, size_t, size_t, size_t);
 
     ~RGF();
@@ -182,6 +183,24 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
         }
     }
 
+    magma_init();
+    magma_device_t device;
+    magma_getdevice(&device);
+    magma_queue_create_from_cuda(device, NULL, NULL, NULL, &magma_queue);
+    stream_c = magma_queue_get_cuda_stream(magma_queue);
+    cublas_handle = magma_queue_get_cublas_handle(magma_queue);
+}
+/**
+ * @brief default constructor
+ * @details Description
+ * @return Description
+ */
+// size_t size = ns * nt + nd;
+template <class T>
+RGF<T>::RGF() {
+#ifdef DEBUG
+        print_header("RGF<T>::RGF()");
+#endif
     magma_init();
     magma_device_t device;
     magma_getdevice(&device);
