@@ -17,6 +17,8 @@
 #include "utilities.hpp"
 #include <cuda.h> // for CUDA_VERSION
 #include <string.h>
+#include <Eigen/Dense>
+#include <Eigen/SparseCore>
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define max(a, b) (((a) > (b)) ? (a) : (b))
@@ -38,9 +40,14 @@ class RGF {
     RGF(size_t *, size_t *, T *, size_t, size_t, size_t);
 
     ~RGF();
+    void initalize(SpMat& Q);
     double factorize();
     double solve(T *, size_t);
     double solve(T *, T *, size_t);
+
+    void factorize_solve(SpMat& Q, Vector& rhs, Vector& sol, double &log_det);
+    double factorize_solve(T *, T *, size_t);
+
     double RGFdiag(T *);
     T logDet();
     double residualNorm(T *, T *);
@@ -48,6 +55,17 @@ class RGF {
     double flop_count_factorise();
 
   private:
+    /**
+     * @name CPU ptr of CSR structure
+     *
+     * @{
+     */
+    size_t *ia;
+    size_t *ja;
+    T *a;
+    /**
+     * @}
+     */
     size_t *matrix_ia;
     size_t *matrix_ja;
     T *matrix_a;
@@ -93,6 +111,7 @@ class RGF {
     T *a_dev;
     T *diag_dev;
     size_t *diag_pos_dev;
+    bool is_inialized;
 
     inline size_t mf_block_index(size_t, size_t);
     inline size_t mf_block_lda(size_t, size_t);
@@ -182,7 +201,7 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
             diag_pos[nt * ns + i] = (nt - 1) * ns * (2 * ns + nd) + ns * (ns + nd) + i * (nd + 1);
         }
     }
-
+    is_inialized = true;
     magma_init();
     magma_device_t device;
     magma_getdevice(&device);
@@ -201,6 +220,7 @@ RGF<T>::RGF() {
 #ifdef DEBUG
         print_header("RGF<T>::RGF()");
 #endif
+    is_inialized = false;
     magma_init();
     magma_device_t device;
     magma_getdevice(&device);
@@ -232,6 +252,39 @@ RGF<T>::~RGF() {
     delete[] Bmin;
     delete[] Bmax;
     delete[] diag_pos;
+}
+
+/************************************************************************************************/
+template <class T>
+inline void RGF<T>::initalize(SpMat& Q){
+    SpMat Q_lower = Q.triangularView<Lower>();
+    size_t n = Q_lower.rows();
+    size_t nnz = Q_lower.nonZeros();
+    // check if nnz and Q_lower.nonZeros match
+    if(nnz_ != Q_lower.nonZeros()){
+        printf("Initial number of nonzeros and current number of nonzeros don't match!\n");
+        printf("nnz = %zu.\n nnz(Q_lower) = %ld\n", nnz, nnz_);
+    }
+    ia = new size_t[n+1];
+    ja = new size_t[nnz];
+    a = new double[nnz];
+    get_triplets_from_eigen(Q, ia, ja, a);
+}
+/************************************************************************************************/
+template <class T>
+inline void RGF<T>::factorize_solve(SpMat& Q, Vector& rhs, Vector& sol, double &log_det){
+    if(!is_inialized)
+        initialize();
+    factorize();
+    solve();
+}
+
+template <class T>
+inline void RGF<T>::factorize_solve(SpMat& Q, Vector& rhs, Vector& sol, double &log_det){
+    if(!is_inialized)
+        initialize();
+    factorize();
+    solve();
 }
 
 /************************************************************************************************/

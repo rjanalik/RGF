@@ -165,3 +165,24 @@ namespace utilities {
       }
   }
 }
+
+
+void get_triplets_from_eigen(spMat Q, int* ia, int* ja, double* a){
+    SpMat Q_lower = Q.triangularView<Lower>();
+    size_t n = Q_lower.rows();
+    size_t nnz = Q_lower.nonZeros();
+
+    Q_lower.makeCompressed();
+
+    for (int i = 0; i < n+1; ++i){
+        ia[i] = Q_lower.outerIndexPtr()[i]; 
+    }  
+
+    for (int i = 0; i < nnz; ++i){
+        ja[i] = Q_lower.innerIndexPtr()[i];
+    }  
+
+    for (int i = 0; i < nnz; ++i){
+        a[i] = Q_lower.valuePtr()[i];
+    }
+}
