@@ -1,7 +1,14 @@
 # object files, binaries
 *.o
 RGFSolver
-
+build/
+.deps
+compile_commands.json
+# Data Folders
+data/
+# Applications Folder
+applications/
+!applications/.keep
 # vim swap file
 *.swp
 
@@ -10,3 +17,13 @@ RGFSolver
 
 # data files
 .dat
+
+# Language Server Cache
+.ccls-cache/
+
+# Caches
+.cache/
+bin/
+
+# R
+.Rhistory
