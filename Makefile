@@ -66,9 +66,9 @@ build/obj/Utilities.o: src/Utilities.C include/Utilities.H | $(OBJ_DIR) $(BIN_DI
 	@echo "Compiling .$(C_EXTEN) files"
 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -o $@
 
-build/obj/CWC_utility.o: CWC_utility.cu | $(OBJ_DIR) $(BIN_DIR)
+build/obj/CWC_utility.o: src/CWC_utility.cu | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(CU_EXTEN) files"
-	$(NVCC) -c CWC_utility.cu $(INC_CC) $(NVCCFLAGS) $(INCLUDEDIR) -o $@
+	$(NVCC) -c $< $(INC_CC) $(NVCCFLAGS) $(INCLUDEDIR) -o $@
 
 $(BIN_DIR):
 	@mkdir -p $@
