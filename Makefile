@@ -1,17 +1,37 @@
 #include ./make.inc_kaust
+#         $(CXX) -c $< $(CXXFLAGS) $(DEBUG) $(OPENMP) $(FLAGS) $(INCLUDEDIR)
 include ./make.inc
-
-
-LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPEN_MP) $(CUDA) $(MAGMA) $(F90_LIBS)
 
 SRC_DIR := src
 INC_DIR := include
+INC_CC  := -I$(INC_DIR)
+C_EXTEN := C
+CU_EXTEN := cu
 BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
-EXEC := $(BIN_DIR)/main
-DEPDIR := .deps
-DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+EXEC := main
+
+OBJ_FILES := Utilities.o main.o
+CC_FILES := $(pathsubst %.o, %.$(C_EXTEN), $(OBJ_FILES))
+CU_FILES := $(CWC_utilitiy.cu)
+
+CC_SRC := $(addprefix $(SRC_DIR)/,$(CC_FILES))
+$(info $(CC_SRC))
+CU_SRC := $(addprefix $(SRC_DIR)/,$(CU_FILES))
+
+CC_OBJECTS:= $(addprefix $(OBJ_DIR)/,$(OBJ_FILES))
+CU_OBJECTS:= $(addprefix $(OBJ_DIR)/,CWC_utility.o)
+$(info $(CC_OBJECTS))
+$(info $(CU_OBJECTS))
+
+DEBUG       =     #-g -fsanitize=address,signed-integer-overflow
+
+INCLUDEDIR  = $(INCCUD) $(INCMAG)
+LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
+
+CC_FILES   = Utilities.o main.o
+CU_FILES   = CWC_utility.o
 
 DEBUG ?= 0
 ifeq ($(DEBUG), 1)
@@ -29,31 +49,26 @@ else
 	DEBUG_FLAGS_NVCC=-DNDEBUG
 endif
 
+.PHONY: clean
 
+$(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
+	$(LOADER) $(CC_OBJECTS) $(CU_OBJECTS) $(LOADFLAGS) $(LIBS) -lm -o $(BIN_DIR)/$@ $(DEBUG)
 
-CC_SRC := $(wildcard $(SRC_DIR)/*.cpp)
-CU_SRC := $(wildcard $(SRC_DIR)/*.cu)
-CC_OBJ := $(CC_SRC:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
-# same as: CC_OBJ := $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(CC_SRC))
-CU_OBJ := $(CU_SRC:$(SRC_DIR)/%.cu=$(OBJ_DIR)/%.o)
-# same as: CU_OBJ := $(patsubst $(SRC_DIR)/%.cu, $(OBJ_DIR)/%.o, $(CU_SRC))
+# canned old version of:  %.o : %.c
+# $(CC_OBJECTS): $(CC_SRC)
+# 	@echo "Compiling .$(C_EXTEN) files"
+# 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
+build/obj/main.o: src/main.C | $(OBJ_DIR) $(BIN_DIR)
+	@echo "Compiling .$(C_EXTEN) files"
+	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -o $@
 
-.PHONY: all clean
+build/obj/Utilities.o: src/Utilities.C include/Utilities.H | $(OBJ_DIR) $(BIN_DIR)
+	@echo "Compiling .$(C_EXTEN) files"
+	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -o $@
 
-all: $(EXEC)
-$(EXEC): $(CC_OBJ) $(CU_OBJ)
-	$(LOADER) $^ $(LINKFLAGS) $(LOADFLAGS) $(LIBS) -lm -o $@ $(DEBUG_FLAGS)
-
-# Compile C++ source files to object files:
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR) $(BIN_DIR) $(DEPDIR)
-	@echo "Compiling .cpp files"
-	$(CXX) $(CXXFLAGS) $(FLAGS) $(INC_CC) $(INC_MAG) $(DEBUG_FLAGS) -c $< -o $@
-# $(DEPFLAGS)
-
-# Compile CUDA source files to object files:
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cu | $(OBJ_DIR) $(BIN_DIR)
-	@echo "Compiling .cu files"
-	$(NVCC) $(NVCC_FLAGS) $(INC_CC) $(INC_CUD) $(INC_MAG) $(DEBUG_FLAGS_NVCC) -c $< -o $@ $(NVCC_LIBS)
+build/obj/CWC_utility.o: src/CWC_utility.cu | $(OBJ_DIR) $(BIN_DIR)
+	@echo "Compiling .$(CU_EXTEN) files"
+	$(NVCC) -c $< $(INC_CC) $(NVCCFLAGS) $(INCLUDEDIR) -o $@
 
 $(BIN_DIR):
 	@mkdir -p $@
@@ -61,12 +76,5 @@ $(BIN_DIR):
 $(OBJ_DIR):
 	@mkdir -p $@
 
-$(DEPDIR):
-	@mkdir -p $@
-
-DEPFILES := $(SRCS:%.cpp=$(DEPDIR)/%.d)
-$(DEPFILES):
-	include $(wildcard $(DEPFILES))
-
-clean:	
+clean:
 	@$(RM) -rv $(BUILD_DIR)

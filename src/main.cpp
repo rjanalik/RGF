@@ -185,9 +185,9 @@ int main(int argc, char *argv[]) {
   // free memory
   delete model;
   delete solver;
-  delete[] a;
-  delete[] ia;
-  delete[] ja;
+  // delete[] a;
+  // delete[] ia;
+  // delete[] ja;
   delete[] b;
   delete[] x;
   delete[] invDiag;
