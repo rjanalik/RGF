@@ -10,7 +10,7 @@ LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(
 CC_FILES   = Utilities.o main.o
 CU_FILES   = CWC_utility.o
 
-mainConstInd: $(CC_FILES) $(CU_FILES)
+main: $(CC_FILES) $(CU_FILES)
 	$(LOADER) $(CC_FILES) $(CU_FILES) $(LOADFLAGS) $(LIBS) -lm -o $@ $(DEBUG)
 
 .C.o:
