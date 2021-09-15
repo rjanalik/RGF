@@ -5,14 +5,14 @@ include ./make.inc
 SRC_DIR := src
 INC_DIR := include
 INC_CC  := -I$(INC_DIR)
-C_EXTEN := C
+C_EXTEN := cpp
 CU_EXTEN := cu
 BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
 EXEC := main
 
-OBJ_FILES := Utilities.o main.o
+OBJ_FILES := ModelGenerator.o utilities.o main.o
 CC_FILES := $(pathsubst %.o, %.$(C_EXTEN), $(OBJ_FILES))
 CU_FILES := $(CWC_utilitiy.cu)
 
@@ -30,7 +30,7 @@ DEBUG       =     #-g -fsanitize=address,signed-integer-overflow
 INCLUDEDIR  = $(INCCUD) $(INCMAG)
 LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
 
-CC_FILES   = Utilities.o main.o
+CC_FILES   = utilities.o main.o ModelGenerator.o
 CU_FILES   = CWC_utility.o
 
 DEBUG ?= 0
@@ -58,17 +58,22 @@ $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
 # $(CC_OBJECTS): $(CC_SRC)
 # 	@echo "Compiling .$(C_EXTEN) files"
 # 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
-build/obj/main.o: src/main.C | $(OBJ_DIR) $(BIN_DIR)
+build/obj/main.o: src/main.cpp | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -o $@
 
-build/obj/Utilities.o: src/Utilities.C include/Utilities.H | $(OBJ_DIR) $(BIN_DIR)
+build/obj/utilities.o: src/utilities.cpp include/utilities.hpp | $(OBJ_DIR) $(BIN_DIR)
+	@echo "Compiling .$(C_EXTEN) files"
+	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -o $@
+
+build/obj/ModelGenerator.o: src/ModelGenerator.cpp include/ModelGenerator.hpp | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -o $@
 
 build/obj/CWC_utility.o: src/CWC_utility.cu | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(CU_EXTEN) files"
 	$(NVCC) -c $< $(INC_CC) $(NVCCFLAGS) $(INCLUDEDIR) -o $@
+
 
 $(BIN_DIR):
 	@mkdir -p $@
