@@ -4,11 +4,10 @@ RGFSolver
 build/
 .deps
 compile_commands.json
+\#*#
 # Data Folders
-data/
-# Applications Folder
-applications/
-!applications/.keep
+# See data folder .gitignore
+bin/
 # vim swap file
 *.swp
 
@@ -23,7 +22,6 @@ applications/
 
 # Caches
 .cache/
-bin/
 
 # R
 .Rhistory

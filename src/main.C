@@ -276,11 +276,12 @@ int main(int argc, char* argv[])
   // INDEPENDENT OF HYPERPARAMETERS
 
   // Ax = cbind(As, B)
-  std::string Ax_file     =  base_path + "/Ax_" + no_s + "_" + std::to_string(nu+nb) + ".dat";
+  std::string filename_ending = "_ns" + ns_s + "_nt" + nt_s + ".dat";
+  std::string Ax_file     =  base_path + "/Ax_" + no_s + "_" + std::to_string(nu+nb) + filename_ending;
   file_exists(Ax_file);
 
   // temperature values y
-  std::string y_file        =  base_path + "/y_" + no_s + "_1.dat";
+  std::string y_file        =  base_path + "/y_" + no_s + "_1" + filename_ending;
   file_exists(y_file);
   //std::cout << y_file << std::endl;
 
