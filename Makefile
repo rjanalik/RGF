@@ -33,13 +33,13 @@ LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(
 CC_FILES   = utilities.o main.o ModelGenerator.o
 CU_FILES   = CWC_utility.o
 
-DEBUG ?= 0
+DEBUG ?= 1
 ifeq ($(DEBUG), 1)
 	DEBUG_FLAGS  =-DDEBUG -g -Wall -fsanitize=address,signed-integer-overflow
 	DEBUG_FLAGS_NVCC=-DDEBUG -g
 	CXXFLAGS     += -O0
 else ifeq ($(DEBUG), 2)
-	DEBUG_FLAGS  +=-DDEBUG -g -Wall -fno-stack-protector
+	DEBUG_FLAGS  +=-DDEBUG -g -Wall #-fno-stack-protector
 	CXXFLAGS     += -O0
 	DEBUG_FLAGS_NVCC=-DDEBUG -g
 else

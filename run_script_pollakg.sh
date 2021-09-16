@@ -15,8 +15,8 @@ folder_path=/home/x_pollakgr/RGF/data/input/ghcn/2019_old/spatio_temporal/ns${ns
 nb=2
 year=2019
 
-echo "GV100"
-echo "GPU 0 ./main ${folder_path} ${ns} ${nt} ${nb} ${no} >${folder_path}/RGF_output_sel_inv.txt"
+# echo "GV100"
+# echo "GPU 0 ./main ${folder_path} ${ns} ${nt} ${nb} ${no} >${folder_path}/RGF_output_sel_inv.txt"
 
 #CUDA_VISIBLE_DEVICES="0" ./mainConstInd ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no} >${folder_path}/RGF_output.txt
 # CUDA_VISIBLE_DEVICES="0" ./build/bin/main ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no}
