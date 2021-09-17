@@ -8,12 +8,10 @@ ns=1002
 nt=20
 no=236680
 
-
-#folder_path=/home/x_gaedkelb/RGF/data/ns${ns}
-folder_path=/home/x_pollakgr/RGF/data/input/ghcn/2019_old/spatio_temporal/ns${ns}_nt${nt}
-
 nb=2
 year=2019
+#folder_path=/home/x_gaedkelb/RGF/data/ns${ns}
+folder_path=/home/x_pollakgr/RGF/data/input/ghcn/${year}/spatio_temporal/ns${ns}_nt${nt}
 
 # echo "GV100"
 # echo "GPU 0 ./main ${folder_path} ${ns} ${nt} ${nb} ${no} >${folder_path}/RGF_output_sel_inv.txt"
