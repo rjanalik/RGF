@@ -516,6 +516,9 @@ int main(int argc, char* argv[])
   output_fh.open("/home/x_pollakgr/RGF/results/ghcn/results.csv", std::ofstream::app);
   output_fh.precision(17);
   output_fh << std::fixed << currentDateTime() <<
+    "," << no_s <<
+    "," << ns_s <<
+    "," << nt_s <<
     "," << t_factorise <<
     "," << flops_factorize <<
     "," << t_solve <<
