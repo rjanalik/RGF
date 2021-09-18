@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <limits>
 #include "RGF.H"
+#include <ctime>
 
 #include <omp.h>
 #include <armadillo>
@@ -20,6 +21,18 @@ typedef CPX T;
 typedef double T;
 #define assign_T(val) val
 #endif
+
+const std::string currentDateTime() {
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
+    // for more information about date/time format
+    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+
+    return buf;
+}
 
 /*
 Start simulations with RGF NBlock Bmin.dat Bmax.dat M.dat
@@ -499,7 +512,19 @@ int main(int argc, char* argv[])
 
 
   //exit(1);
+  std::ofstream output_fh;
+  output_fh.open("/home/x_pollakgr/RGF/results/ghcn/results.csv", std::ofstream::app);
+  output_fh.precision(17);
+  output_fh << std::fixed << currentDateTime() <<
+    "," << t_factorise <<
+    "," << flops_factorize <<
+    "," << t_solve <<
+    "," << flops_solve <<
+    "," << t_inv <<
+    "," << flops_inv <<
+    "\n";
 
+  output_fh.close();
 
   printf("RGF factorise time: %lg\n",t_factorise);
   printf("RGF solve     time: %lg\n",t_solve);
