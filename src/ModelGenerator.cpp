@@ -180,11 +180,11 @@ size_t ModelGenerator::get_nnz(){
 ///////////////////////////////////////////////////////////////////////////////
 void ModelGenerator::getData() {
     // spatial matrices
-    getTemporalData();
+    getSpatialData();
     if (nt_ > 1)
-        getSpatialData();
+        getTemporalData();
 };
-void ModelGenerator::getTemporalData() {
+void ModelGenerator::getSpatialData() {
     std::string ns_s = std::to_string(ns_);
     std::string nt_s = std::to_string(nt_);
     std::string no_s = std::to_string(no_);
@@ -202,7 +202,7 @@ void ModelGenerator::getTemporalData() {
     Ax = readCSC(Ax_file);
     y = read_matrix(y_file, no_, 1);
 };
-void ModelGenerator::getSpatialData() {
+void ModelGenerator::getTemporalData() {
     std::string ns_s = std::to_string(ns_);
     std::string nt_s = std::to_string(nt_);
 
