@@ -8,9 +8,9 @@ nt=$3
 # environment=${environment:-production}
 # school=${school:-is out}
 
-no=${1:-236680}
-ns=${2:-1212}
-nt=${3:-20}
+no=${1:-11790}
+ns=${2:-1002}
+nt=${3:-1}
 nb=${4:-2}
 year=${5:-2019}
 
@@ -24,7 +24,12 @@ while [ $# -gt 0 ]; do
 done
 
 #folder_path=/home/x_gaedkelb/RGF/data/ns${ns}
-folder_path=/home/x_pollakgr/RGF/data/input/ghcn/${year}/spatio_temporal/ns${ns}_nt${nt}
+if [[ "$nt" == 1 ]]; 
+then
+	folder_path=/home/x_pollakgr/RGF/data/input/ghcn/${year}/spatial/ns${ns}_nt${nt}
+else
+	folder_path=/home/x_pollakgr/RGF/data/input/ghcn/${year}/spatio_temporal/ns${ns}_nt${nt}
+fi
 
 echo "GV100"
 echo "GPU 0 ./main ${folder_path} ${ns} ${nt} ${nb} ${no} >${folder_path}/RGF_output_sel_inv.txt"
