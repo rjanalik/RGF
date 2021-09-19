@@ -33,18 +33,18 @@ CU_FILES   = CWC_utility.o
 
 DEBUG ?= 1
 ifeq ($(DEBUG), 1)
-	DEBUG_FLAGS  +=-DDEBUG -g -Wall -fsanitize=address,signed-integer-overflow
-	DEBUG_FLAGS_NVCC+=-DDEBUG -g
+	DEBUG_FLAGS  +=-DDEBUG=1 -g -Wall -DLISA_VERSION
+	DEBUG_FLAGS_NVCC+=-DDEBUG=1 -g -DLISA_VERSION
 	CXXFLAGS     = -O0
 else ifeq ($(DEBUG), 2)
-	DEBUG_FLAGS  +=-DDEBUG -g -Wall #-fno-stack-protector
+	DEBUG_FLAGS  +=-DDEBUG=2 -g -Wall #-fsanitize=signed-integer-overflow
 	CXXFLAGS     = -O0
-	DEBUG_FLAGS_NVCC=-DDEBUG -g
+	DEBUG_FLAGS_NVCC=-DDEBUG=2 -g
 else
 	CXXFLAGS     = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
 	NVCC_FLAGS   +=
-	DEBUG_FLAGS=-DNDEBUG
-	DEBUG_FLAGS_NVCC=-DNDEBUG
+	DEBUG_FLAGS+=-DNDEBUG
+	DEBUG_FLAGS_NVCC+=-DNDEBUG
 endif
 
 .PHONY: clean
@@ -58,15 +58,15 @@ $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
 # 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC)  $(FLAGS) $(INCLUDEDIR)
 build/obj/main.o: src/main.cpp | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
-	$(CXX) -c $< $(CXXFLAGS) $(INC_CC)  $(FLAGS) $(INCLUDEDIR) -o $@
+	$(CXX) -c $< $(CXXFLAGS) $(DEBUG_FLAGS) $(INC_CC)  $(FLAGS) $(INCLUDEDIR) -o $@
 
 build/obj/utilities.o: src/utilities.cpp include/utilities.hpp | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
-	$(CXX) -c $< $(CXXFLAGS) $(INC_CC)  $(FLAGS) $(INCLUDEDIR) -o $@
+	$(CXX) -c $< $(CXXFLAGS) $(DEBUG_FLAGS) $(INC_CC)  $(FLAGS) $(INCLUDEDIR) -o $@
 
 build/obj/ModelGenerator.o: src/ModelGenerator.cpp include/ModelGenerator.hpp | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
-	$(CXX) -c $< $(CXXFLAGS) $(INC_CC)  $(FLAGS) $(INCLUDEDIR) -o $@
+	$(CXX) -c $< $(CXXFLAGS) $(DEBUG_FLAGS) $(INC_CC)  $(FLAGS) $(INCLUDEDIR) -o $@
 
 build/obj/CWC_utility.o: src/CWC_utility.cu | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(CU_EXTEN) files"
