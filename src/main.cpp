@@ -18,11 +18,103 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <iostream>
 
 #include <armadillo>
 #include <omp.h>
 
 #ifdef LISA_VERSION
+void file_exists(std::string file_name)
+{
+    if (std::fstream{file_name}) ;
+    else {
+      std::cerr << file_name << " couldn\'t be opened (not existing or failed to open)\n";
+      exit(1);
+    }
+
+}
+
+arma::sp_mat readCSC_sym(std::string filename)
+{
+
+  int n;
+  int nnz;
+
+  std::fstream fin(filename, std::ios::in);
+  fin >> n;
+  fin >> n;
+  fin >> nnz;
+
+   // allocate memory
+  arma::uvec row_ind(nnz);
+  arma::uvec col_ptr(n+1);
+  arma::vec a(nnz);
+
+  for (int i = 0; i < nnz; i++){
+    fin >> row_ind[i];}
+
+  for (int i = 0; i < n+1; i++){
+    fin >> col_ptr[i];}
+
+  for (int i = 0; i < nnz; i++){
+    fin >> a[i];}
+
+  fin.close();
+
+  arma::sp_mat A_lower(row_ind, col_ptr, a, n, n);
+  // create entire matrix
+  arma::sp_mat A = arma::symmatl(A_lower);
+
+  return A;
+}
+
+arma::mat read_matrix(std::string filename,  int n_row, int n_col){
+
+  arma::mat B(n_row, n_col);
+  //std::cout << "size(matrix) : " << arma::size(B) << std::endl;
+  B.load(filename, arma::raw_ascii);  // check later if there is a faster alternative
+  //B.print();
+
+  return B;
+}
+
+arma::sp_mat readCSC(std::string filename){
+  int n_rows; int n_cols;
+  int nnz;
+
+  std::ifstream fin(filename);
+
+  fin >> n_rows;
+  fin >> n_cols;
+  fin >> nnz;
+
+   // allocate memory
+  arma::uvec row_ind(nnz);
+  arma::uvec col_ptr(n_cols+1);
+  arma::vec a(nnz);
+
+  for (int i = 0; i < nnz; i++){
+    fin >> row_ind[i];
+  }
+
+  for (int i = 0; i < n_cols+1; i++){
+    fin >> col_ptr[i];
+    //std::cout <<col_ptr[i] << std::endl;
+  }
+
+  for (int i = 0; i < nnz; i++){
+    fin >> a[i];
+   // std::cout <<a[i] << std::endl;
+    }
+
+  fin.close();
+
+  arma::sp_mat A(row_ind, col_ptr, a, n_rows, n_cols);
+
+  //std::cout << "nonzeros A " << A.n_nonzero << std::endl;
+  return A;
+}
+
 arma::sp_mat construct_Q_spatial(arma::vec theta_u, \
                          arma::sp_mat c0, arma::sp_mat g1, arma::sp_mat g2){
 
@@ -89,6 +181,7 @@ typedef double T;
  */
 int main(int argc, char *argv[]) {
 
+#ifndef LISA_VERSION
   // start timer
   double overall_time = -omp_get_wtime();
   std::string base_path;
@@ -105,22 +198,148 @@ int main(int argc, char *argv[]) {
 #ifdef DEBUG
   // model->get_theta().print();
 #endif
+#endif
 #ifdef LISA_VERSION
+ if (argc != 5 + 1) {
+    std::cerr << "RGF Call : path_to_folder ns nt nb no" << std::endl;
+
+
+    std::cerr << "[string:base_path]          path to folder containing all files " << std::endl;
+    std::cerr << "[integer:ns]                number of spatial grid points " << std::endl;
+    std::cerr << "[integer:nt]                number of temporal grid points " << std::endl;
+    std::cerr << "[integer:nb]                number of fixed effects" << std::endl;
+
+    std::cerr << "[integer:no]                number of data samples" << std::endl;
+
+    exit(1);
+  }
   // spatial matrices
-  arma::sp_mat c0 = model->c0_;
-  arma::sp_mat g1 = model->g1_;
-  arma::sp_mat g2 = model->g2_;
+  // arma::sp_mat c0 = model->c0_;
+  // arma::sp_mat g1 = model->g1_;
+  // arma::sp_mat g2 = model->g2_;
 
-  arma::sp_mat g3 = model->g3_;
-  arma::sp_mat M0 = model->M0_;
-  arma::sp_mat M1 = model->M1_;
-  arma::sp_mat M2 = model->M2_;
-  arma::sp_mat Qu;
+  // arma::sp_mat g3 = model->g3_;
+  // arma::sp_mat M0 = model->M0_;
+  // arma::sp_mat M1 = model->M1_;
+  // arma::sp_mat M2 = model->M2_;
+  // arma::sp_mat Qu;
 
-  arma::sp_mat Ax = model->Ax_;
-  arma::vec y = model->y_;
+  // arma::sp_mat Ax = model->Ax_;
+  // arma::vec y = model->y_;
+  std::string base_path = argv[1];
+  size_t ns                = atoi(argv[2]);
+  size_t nt                = atoi(argv[3]);
+  size_t nb                = atoi(argv[4]);
+  size_t no                = atoi(argv[5]);
+
   size_t nu                = ns*nt;
-  theta = model->get_theta();
+
+  // also save as string
+  std::string ns_s = std::to_string(ns);
+  std::string nt_s = std::to_string(nt);
+  std::string nb_s = std::to_string(nb);
+  std::string no_s = std::to_string(no);
+
+  std::string nu_s = std::to_string(nu);
+
+  std::cout << "./RGF CALL  " << ns_s << " " << nt_s << " " << nb_s << " " << no_s << "\n" << std::endl;
+
+  // ------------------- construct file names and check if files exist --------------------------
+
+  // files to construct Q.u depending on HYPERPARAMETERS theta
+  std::string c0_file      =  base_path + "/c0_" + ns_s + ".dat";
+  file_exists(c0_file);
+  std::string g1_file      =  base_path + "/g1_" + ns_s + ".dat";
+  file_exists(g1_file);
+  std::string g2_file      =  base_path + "/g2_" + ns_s + ".dat";
+  file_exists(g2_file);
+
+
+  std::string g3_file;
+  std::string M0_file;
+  std::string M1_file;
+  std::string M2_file;
+
+  #if 1
+  if(nt > 1){
+    g3_file      =  base_path + "/g3_" + ns_s + ".dat";
+    file_exists(g3_file);
+
+    M0_file      =  base_path + "/M0_" + nt_s + ".dat";
+    file_exists(M0_file);
+    M1_file      =  base_path + "/M1_" + nt_s + ".dat";
+    file_exists(M1_file);
+    M2_file      =  base_path + "/M2_" + nt_s + ".dat";
+    file_exists(M2_file);
+  }
+  #endif
+
+  // INDEPENDENT OF HYPERPARAMETERS
+
+  // Ax = cbind(As, B)
+  std::string filename_ending = "_ns" + ns_s + "_nt" + nt_s + ".dat";
+  std::string Ax_file     =  base_path + "/Ax_" + no_s + "_" + std::to_string(nu+nb) + filename_ending;
+  file_exists(Ax_file);
+
+  // temperature values y
+  std::string y_file        =  base_path + "/y_" + no_s + "_1" + filename_ending;
+  file_exists(y_file);
+  //std::cout << y_file << std::endl;
+
+  // ------------------------------- read in files  --------------------------------- //
+
+  // READ IN MATRICES
+
+  // spatial matrices
+  arma::sp_mat c0 = readCSC_sym(c0_file);
+  arma::sp_mat g1 = readCSC_sym(g1_file);
+  arma::sp_mat g2 = readCSC_sym(g2_file);
+
+  arma::sp_mat g3;
+  arma::sp_mat M0;
+  arma::sp_mat M1;
+  arma::sp_mat M2;
+
+  if(nt > 1){
+    g3 = readCSC_sym(g3_file);
+    //arma::mat(g3).submat(0,0,10,10).print();
+
+
+    // temporal matrices
+    M0 = readCSC_sym(M0_file);
+    //arma::mat(M0).submat(0,0,nt-1,nt-1).print();
+    M1 = readCSC_sym(M1_file);
+    //arma::mat(M1).submat(0,0,nt-1,nt-1).print();
+    M2 = readCSC_sym(M2_file);
+    //arma::mat(M2).submat(0,0,nt-1,nt-1).print();
+
+  }
+
+
+
+  // Ax (sparse)
+  arma::sp_mat Ax = readCSC(Ax_file);
+  //std::cout << "non zeros A_st " << Ax.n_nonzero << std::endl;
+  //arma::mat(M0).submat(0,0,nt-1,nt-1).print();
+
+  //y (vector)
+  arma::vec y = read_matrix(y_file, no, 1);
+
+  /* ----------------------- initialise random theta -------------------------------- */
+
+  arma::vec theta;
+
+  if(nt == 1){
+    theta = {-1.5,-5,-2};
+    //theta.print();
+  } else {
+    theta = {5, -10, 2.5, 1};
+    //theta.print();
+  }
+
+  arma::sp_mat Qu;
+  // size_t nu                = ns*nt;
+  // theta = model->get_theta();
 
  // assemble Qs for given theta
   if(nt == 1){
