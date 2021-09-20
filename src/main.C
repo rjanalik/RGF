@@ -515,16 +515,17 @@ int main(int argc, char* argv[])
   std::ofstream output_fh;
   output_fh.open("/home/x_pollakgr/RGF/results/ghcn/results.csv", std::ofstream::app);
   output_fh.precision(17);
+  std::string sep = "\t";
   output_fh << std::fixed << currentDateTime() <<
-    "," << no_s <<
-    "," << ns_s <<
-    "," << nt_s <<
-    "," << t_factorise <<
-    "," << flops_factorize <<
-    "," << t_solve <<
-    "," << flops_solve <<
-    "," << t_inv <<
-    "," << flops_inv <<
+    sep << no_s <<
+    sep << ns_s <<
+    sep << nt_s <<
+    sep << t_factorise <<
+    sep << flops_factorize <<
+    sep << t_solve <<
+    sep << flops_solve <<
+    sep << t_inv <<
+    sep << flops_inv <<
     "\n";
 
   output_fh.close();
