@@ -56,10 +56,10 @@ class RGF {
     size_t matrix_ns;   /**< same as ns*/
     size_t matrix_nt;   /**< same as nt*/
     size_t matrix_nd;   /**< same as nd*/
-    size_t *Bmin;  /**< Bmin: Array of size NBlock with the first row start idx of the blocks*/
-    size_t *Bmax;  /**< Bmax: Array of size NBlock with the first row end idx of the block*/
-    size_t NBlock; /**< NBlock: Number of blocks in x/y with nt or nt+1 (with
-                      random effects)*/
+    size_t *Bmin;       /**< Bmin: Array of size NBlock with the first row start idx of the blocks*/
+    size_t *Bmax;       /**< Bmax: Array of size NBlock with the first row end idx of the block*/
+    size_t NBlock;      /**< NBlock: Number of blocks in x/y with nt or nt+1 (with
+                           random effects)*/
     size_t *diag_pos;
 
     size_t b_size;                        /**< b_size: Maximum possible blocksize*/
@@ -78,10 +78,10 @@ class RGF {
      * Description
      * @{
      */
-    T *MF;                 /**< Description */
-    T *blockR_dev;         /**< blockR_dev: first calculates A=LL^T and stores L^T; then calculates and stores trms(L_i^T, B_i)*/
-    T *blockM_dev;         /**< blockM_dev: Maximum possible blocksize*/
-    T *blockP_dev;         /**< blockP_dev: Maximum possible blocksize*/
+    T *MF;         /**< Description */
+    T *blockR_dev; /**< blockR_dev: first calculates A=LL^T and stores L^T; then calculates and stores trms(L_i^T, B_i)*/
+    T *blockM_dev; /**< blockM_dev: Maximum possible blocksize*/
+    T *blockP_dev; /**< blockP_dev: Maximum possible blocksize*/
     T *blockDense_dev;
     T *rhs;
     /**
@@ -132,7 +132,7 @@ class RGF {
 template <class T>
 RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
 #ifdef DEBUG
-        print_header("RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd)");
+    print_header("RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd)");
 #endif
     matrix_ia = ia;
     matrix_ja = ja;
@@ -188,7 +188,7 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
     magma_init();
     magma_device_t device;
     magma_getdevice(&device);
-    // TODO: do we need here already different streams?
+    // TODO: maybe create different queues already here?
     magma_queue_create_from_cuda(device, NULL, NULL, NULL, &magma_queue);
     stream_c = magma_queue_get_cuda_stream(magma_queue);
     cublas_handle = magma_queue_get_cublas_handle(magma_queue);
@@ -199,7 +199,7 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
 template <class T>
 RGF<T>::~RGF() {
 #ifdef DEBUG
-        print_header("~RGF()");
+    print_header("~RGF()");
 #endif
     if (MF_dev_allocated) {
         /**< max_supernode_nnz: size of supernode blocks
@@ -328,7 +328,7 @@ double RGF<T>::FirstStageFactor() {
 
     // TODO: shouldn't that be if matrix_nd>1 ?
     // rj dtrsm RLTN MF[IB,IB] MF[IB+1,IB]
-    if (matrix_nt > 1) {
+    if (matrix_nd > 1) {
         // UPDATE COLUMNS ACCORDING TO CHOLESKY FACTORISATION
         /**< triangular solve matrix: \p A*\p X = \p alpha \p B
          * X, B mxn
@@ -345,7 +345,7 @@ double RGF<T>::FirstStageFactor() {
          * b: on exit is overwritten by the solution matrix X
          * ldb: first dimension of B at least max(1,m)
          */
-        // TODO: understand this
+        // TODO: calculates C_1 understand this in detail
         ttrsm_dev('R', 'L', 'T', 'N', NR + matrix_nd, NR, ONE, blockR_dev, mf_block_lda(0, 0), &blockR_dev[NR], mf_block_lda(1, 0),
                   magma_queue);
         flops += 2.0 * (NR + matrix_nd) * NR * NR;
@@ -728,9 +728,9 @@ double RGF<T>::factorize() {
 
     // size_t nnz = matrix_ia[matrix_size];
     /**< max_rows: number of supernode blocks
-        * for nt=0 we have just one single block
-        * for nt>0 we have a big supernode block
-        */
+     * for nt=0 we have just one single block
+     * for nt>0 we have a big supernode block
+     */
     size_t max_rows = matrix_nt > 1 ? 2 * matrix_ns + matrix_nd : matrix_ns + matrix_nd;
     size_t max_cols = fmax(matrix_ns, matrix_nd);
 
