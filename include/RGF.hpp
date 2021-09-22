@@ -310,20 +310,42 @@ double RGF<T>::FirstStageFactor() {
     IB = 0;
     NR = Bmax[0] - Bmin[0];
 
+    // Allocate inital block and if exist fixed effect blocks
     init_supernode(blockR_dev, IB);
     if (matrix_nd > 0) {
         init_supernode(blockDense_dev, matrix_nt);
     }
 
-    // CHOLESKY FACTORISATION FIRST DIAGONAL BLOCK
+    // For the first Block /////////////////////////////////////////////////////
+    /**< CHOLESKY FACTORISATION A = L*L**T of the first NR=ns*ns diagonal Block
+    NAMING: type_positive_definite_triangular_factorization = Cholesky factorization*/
     tpotrf_dev('L', NR, blockR_dev, mf_block_lda(IB, IB), &info);
-    // printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(0, 0),
+    printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(0, 0),
     // mf_block_lda(0, 0));
-    flops += 0.5 * NR * NR * NR;
 
+    // TODO N^3/3 FLOPS instead of 0.5
+    flops += 1.0/3.0 * NR * NR * NR;
+
+    // TODO: shouldn't that be if matrix_nd>1 ?
     // rj dtrsm RLTN MF[IB,IB] MF[IB+1,IB]
     if (matrix_nt > 1) {
         // UPDATE COLUMNS ACCORDING TO CHOLESKY FACTORISATION
+        /**< triangular solve matrix: \p A*\p X = \p alpha \p B
+         * X, B mxn
+         * side: of A L or R
+         * uplo: is A upper or lower U or L
+         * tran: is A a transponsed or not N or T
+         * diag: is A a unit triangular U or N
+         * m: number of rows of B
+         * n: number columns of B
+         * alpha
+         * A lda x k
+         * k is m if side=L and n if side is R
+         * lda: firs dimension of A
+         * b: on exit is overwritten by the solution matrix X
+         * ldb: first dimension of B at least max(1,m)
+         */
+        // TODO: understand this
         ttrsm_dev('R', 'L', 'T', 'N', NR + matrix_nd, NR, ONE, blockR_dev, mf_block_lda(0, 0), &blockR_dev[NR], mf_block_lda(1, 0),
                   magma_queue);
         flops += 2.0 * (NR + matrix_nd) * NR * NR;
