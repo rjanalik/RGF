@@ -663,7 +663,19 @@ template <typename T>
 inline void tpotrf_dev(char uplo, int n, T *a, int lda, int *info);
 
 template <>
+
+/**
+ * @brief Summary
+ * @details Description
+ * @param[in] uplo: use upper "U" or lower "L" matrix.
+ * @param[in] n: number of matrix elements
+ * @param[out] a Description
+ * @param[in] lda Description
+ * @param[out] info Description
+ */
 inline void tpotrf_dev(char uplo, int n, double *a, int lda, int *info) {
+    // Convert LAPACK character constants to MAGMA constants
+    // I.e. for user who a comfortable with LAPACK conventions.
     magma_uplo_t magma_uplo = magma_uplo_const(uplo);
 
     magma_dpotrf_gpu(magma_uplo, n, a, lda, info);
