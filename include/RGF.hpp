@@ -104,6 +104,7 @@ class RGF {
     double ThirdStageRGF(T *, T *);
     void create_blocks();
     inline void init_supernode(T *M_dev, size_t supernode);
+    inline void init_supernode(T *M_dev, size_t supernode, cudaStream_t stream);
     inline void copy_supernode_to_host(T *M_dev, size_t supernode);
     inline void copy_supernode_to_device(T *M_dev, size_t supernode);
     inline void copy_supernode_diag(T *src, size_t supernode);
@@ -300,6 +301,14 @@ double RGF<T>::FirstStageFactor() {
     size_t NR, NM;
     T ONE = f_one();
 
+    // TODO: need to use pinned memory cudaMallocHost instead of cudaMalloc for transfer
+    cudaStream_t init_stream, d2h_stream;
+    cudaEvent_t h2d_event, computation_event;
+
+    cudaStreamCreate(&init_stream);
+    cudaStreamCreate(&d2h_stream);
+    cudaEventCreate(&h2d_event);
+    cudaEventCreate(&computation_event);
     // count floating point operations
     double flops = 0;
 
@@ -328,7 +337,7 @@ double RGF<T>::FirstStageFactor() {
 
     // TODO: shouldn't that be if matrix_nd>1 ?
     // rj dtrsm RLTN MF[IB,IB] MF[IB+1,IB]
-    if (matrix_nd > 1) {
+    if (matrix_nt > 1) {
         // UPDATE COLUMNS ACCORDING TO CHOLESKY FACTORISATION
         /**< triangular solve matrix: \p A*\p X = \p alpha \p B
          * X, B mxn
@@ -359,10 +368,35 @@ double RGF<T>::FirstStageFactor() {
         NR = Bmax[IB] - Bmin[IB];
         NM = Bmax[IB - 1] - Bmin[IB - 1];
 
-        // NOTE: here we swap the blocks A_i<-> TODO
+        // NOTE:
+        // here we swap the blocks A_i<-> TODO
+        // In the first round blockM_dev=blockR_dev=C_1
+        // and blockR_dev=0
+        // CPU call
         swap_pointers(&blockR_dev, &blockM_dev);
-        init_supernode(blockR_dev, IB);
-
+        // TODO init_supernode(blockR_dev, IB, STREAM_2);
+        init_supernode(blockR_dev, IB, init_stream);
+        /** Note: init_supernode does the following
+        // KERNEL
+        // fill_dev(M_dev, T(0.0), supernode_size);
+        // => Calls a kernel<girdDim, blockdim> to allocate memory for M_dev on dev and
+        // fills it with zero
+        //
+        // MEMCPY
+        // Copy tiplet pointers to device pointers ia_dev, ja_dev, a_dev
+        // memcpy_to_device(&matrix_ia[supernode_fc], ia_dev, (cols + 1) * sizeof(size_t));
+        // memcpy_to_device(&matrix_ja[supernode_offset], ja_dev, supernode_nnz * sizeof(size_t));
+        // memcpy_to_device(&matrix_a[supernode_offset], a_dev, supernode_nnz * sizeof(T));
+        // => they use cudaMemcpyAsync with NULL stream
+        //
+        // KERNEL
+        // set M_dev on dev from ia_dev, ja_dev, a_dev
+        // init_supernode_dev(M_dev, ia_dev, ja_dev, a_dev, supernode,
+        //                    supernode_nnz, supernode_offset, matrix_ns, matrix_nt, matrix_nd);
+        // => Calls a kernel<gridDim, blockdim> to allocate memory for M_dev and sets the matrix from
+        // the the triplets ia_dev, ja_dev, M_dev
+        // afterwards calls __syncthreads();
+        */
         // UPDATE NEXT DIAGONAL BLOCK
         // rj dgemm NT M[IB,IB-1] M[IB,IB-1]
         // todo rj: 3-last parameter ZERO in PARDISO
@@ -371,9 +405,10 @@ double RGF<T>::FirstStageFactor() {
          * S_i=(A_i-C_i S_i B_i)=(A_i-C_i blockM_dev)
          * TODO: blockM_dev is never initialized?
          * TODO: why do we have &blockM_dev[NM] and also blockM_dev[NM]*blockM_dev[NM]^T?
-         * TODO: Radim and lisa script are a bit different
          */
-
+        // enqueue event in stream
+        cudaEventRecord(h2d_event, init_stream);
+        cudaStreamWaitEvent(NULL, h2d_event, 0);
         /**<
          * C=beta C+alpha*AB
          * ...,alpha,A,...,B,...,beta,C
@@ -413,7 +448,20 @@ double RGF<T>::FirstStageFactor() {
         // mf_block_index(IB-1, IB-1), mf_block_lda(IB-1, IB-1),
         // mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1));
         // TODO: can be done during initalizition of the next supernode
-        copy_supernode_to_host(blockR_dev, IB);
+        // NOTE: at the moment we just have one stream and just swap the pointers and then initialize
+        // If we use two stream and make sure that the pointers are swaped on the device then we can start the initalization while
+        // also copying copy_supernode_to_host(blockR_dev, IB, STREAM); -> uses cudaMemcpyAsync already in background with NULL
+        // stream
+        // enqueue event in stream
+        cudaEventRecord(computation_event, NULL);
+        cudaStreamWaitEvent(d2h_stream, computation_event, 0);
+        copy_supernode_to_host(blockR_dev, IB, d2h_stream);
+        /** Note:
+        // Calls:
+        // memcpy_to_host(&MF[ind], M_dev=blockR_dev, rows * cols * sizeof(T));
+        // which in turn calls
+        // cudaMemcpyAsync(host_data=&MF[ind], device_data=blockR_dev, size_element,cudaMemcpyDeviceToHost, NULL);
+        */
     }
 
     if (matrix_nt > 1) {
@@ -461,6 +509,11 @@ double RGF<T>::FirstStageFactor() {
         // mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1));
 
         copy_supernode_to_host(blockR_dev, IB);
+        // TODO for copying non-zero blocks only
+        // CudaMemcpyAsync blockR_dev->tmp_buffer
+        // returns
+        // blockRdev
+        // CudaMemcpyAsync is copying tmp_buffer
     }
 
     if (matrix_nd > 0) {
@@ -487,6 +540,11 @@ double RGF<T>::FirstStageFactor() {
 
         copy_supernode_to_host(blockDense_dev, IB);
     }
+
+    cudaStreamDestroy(init_stream);
+    cudaStreamDestroy(d2h_stream);
+    cudaEventDestroy(h2d_event);
+    cudaEventDestroy(computation_event);
 
     return flops;
 }
@@ -658,6 +716,7 @@ double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
         NR = Bmax[IB] - Bmin[IB];
         NP = Bmax[IB + 1] - Bmin[IB + 1];
 
+        // TODO: same as in first stage
         swap_pointers(&blockR_dev, &blockP_dev);
         copy_supernode_diag(blockP_dev, IB + 1);
         copy_supernode_to_device(blockR_dev, IB);
@@ -919,6 +978,35 @@ inline void RGF<T>::init_supernode(T *M_dev, size_t supernode) {
     memcpy_to_device(&matrix_a[supernode_offset], a_dev, supernode_nnz * sizeof(T));
     // use triplet pointers on device to set M_dev
     init_supernode_dev(M_dev, ia_dev, ja_dev, a_dev, supernode, supernode_nnz, supernode_offset, matrix_ns, matrix_nt, matrix_nd);
+}
+
+/************************************************************************************************/
+
+template <class T>
+
+/**
+ * @brief Select a supernod that we want to initialize
+ * @details initializes M_dev supernode from a
+ * @param[inout] M_dev supernode on device to be initalized
+ * @param[in] supernode number of supernode to be initalize
+ */
+inline void RGF<T>::init_supernode(T *M_dev, size_t supernode, cudaStream_t stream) {
+    size_t supernode_fc = supernode * matrix_ns;
+    size_t supernode_lc = supernode < matrix_nt ? (supernode + 1) * matrix_ns : matrix_ns * matrix_nt + matrix_nd;
+    size_t supernode_nnz = matrix_ia[supernode_lc] - matrix_ia[supernode_fc];
+    size_t supernode_offset = matrix_ia[supernode_fc];
+    size_t rows = mf_block_lda(supernode, supernode);
+    size_t cols = supernode_lc - supernode_fc;
+    size_t supernode_size = rows * cols;
+
+    fill_dev(M_dev, T(0.0), supernode_size, stream);
+    // Copy tiplet pointers to device
+    memcpy_to_device(&matrix_ia[supernode_fc], ia_dev, (cols + 1) * sizeof(size_t), stream);
+    memcpy_to_device(&matrix_ja[supernode_offset], ja_dev, supernode_nnz * sizeof(size_t), stream);
+    memcpy_to_device(&matrix_a[supernode_offset], a_dev, supernode_nnz * sizeof(T), stream);
+    // use triplet pointers on device to set M_dev
+    init_supernode_dev(M_dev, ia_dev, ja_dev, a_dev, supernode, supernode_nnz, supernode_offset, matrix_ns, matrix_nt, matrix_nd,
+                       stream);
 }
 
 /************************************************************************************************/
