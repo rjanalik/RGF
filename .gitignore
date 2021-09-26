@@ -4,8 +4,10 @@ RGFSolver
 build/
 .deps
 compile_commands.json
+\#*#
 # Data Folders
-
+# See data folder .gitignore
+bin/
 # vim swap file
 *.swp
 

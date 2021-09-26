@@ -15,6 +15,7 @@ public:
   bool file_exists(const std::string &file_name);
   size_t get_n();
   size_t get_nnz();
+  arma::vec get_theta();
   void construct_model();
   void assemble_triplet_format();
   struct Triplet {
@@ -28,7 +29,7 @@ public:
     }
   } triplets;
 
-private:
+// private:
   void getTemporalData();
   void getSpatialData();
   void construct_Qu();
@@ -55,20 +56,20 @@ private:
   std::string base_path_;
   // Data ================
   // spatial matrices;
-  arma::sp_mat c0;
-  arma::sp_mat g1;
-  arma::sp_mat g2;
-  arma::sp_mat Ax;
-  arma::vec y;
+  arma::sp_mat c0_;
+  arma::sp_mat g1_;
+  arma::sp_mat g2_;
+  arma::sp_mat Ax_;
+  arma::vec y_;
   // temporal matrices;
-  arma::sp_mat g3;
-  arma::sp_mat M0;
-  arma::sp_mat M1;
-  arma::sp_mat M2;
+  arma::sp_mat g3_;
+  arma::sp_mat M0_;
+  arma::sp_mat M1_;
+  arma::sp_mat M2_;
   // model matrices
-  arma::sp_mat Qu;
-  arma::sp_mat Qb;
-  arma::sp_mat Qxy_lower;
-  arma::vec b;
+  arma::sp_mat Qu_;
+  arma::sp_mat Qb_;
+  arma::sp_mat Qxy_lower_;
+  arma::vec b_;
 };
 #endif // __MODELGENERATOR_H_
