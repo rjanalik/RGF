@@ -25,3 +25,9 @@ bin/
 
 # R
 .Rhistory
+CMakeLists.txt
+CMakeLists.txt_
+Pipfile
+documentation/
+latex/
+scripts/R/generate_spatial_temporal_model_old.R

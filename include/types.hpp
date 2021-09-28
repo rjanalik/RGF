@@ -1,7 +1,6 @@
 /**
  * @file      types.hpp
- * @brief     Includes common type defintions included by CWC_utility.hpp,
- * RGF.hpp, Blas.hpp
+ * @brief     Includes common type defintions included by CWC_utility.hpp, RGF.hpp, Blas.hpp
  * @date      Mon Jun 21 10:15:33 2021
  * @author    Radim
  *

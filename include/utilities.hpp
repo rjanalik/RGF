@@ -12,7 +12,8 @@
 #ifndef __UTILITIES
 #define __UTILITIES
 
-#include "Blas.H"
+#include "Blas.hpp"
+#include <armadillo>
 #include <cmath>
 #include <ctime>
 #include <math.h>
@@ -52,5 +53,10 @@ template <> inline CPX convert(double val) { return CPX(val, 0.0); }
 void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
                 size_t &nt, size_t &nb, size_t &no,
                 std::ostream &stream = std::cout);
+
+namespace utilities {
+  void print_header(std::string title = "", size_t length = 100, char symbol = '=', size_t sep_width = 5, char sep = ' ', std::ostream &stream = std::cout);
+}
+
 
 #endif
