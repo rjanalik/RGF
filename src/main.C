@@ -425,9 +425,12 @@ int main(int argc, char *argv[]) {
   double *a;
 
   // allocate memory
-  ia = new size_t[n + 1];
-  ja = new size_t[nnz];
-  a = new double[nnz];
+  // ia = new size_t[n + 1];
+  // ja = new size_t[nnz];
+  // a = new double[nnz];
+  cudaMallocHost(&ia, (n + 1) * sizeof(size_t));
+  cudaMallocHost(&ja, nnz * sizeof(size_t));
+  cudaMallocHost(&a, nnz * sizeof(size_t));
 
   std::cout << n << std::endl;
   std::cout << n << std::endl;

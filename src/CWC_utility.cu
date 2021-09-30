@@ -7,7 +7,7 @@
  */
 
 #include <stdio.h>
-#include "types.H"
+#include "Types.H"
 #include "cublas_v2.h"
 #include "cusparse_v2.h"
 #include "cuda.h"
@@ -94,7 +94,7 @@ void copy_data_to_device(void *host_data,void *device_data,int N,int M,size_t si
 }
 
 extern "C"
-void memcpy_to_device(void *host_data,void *device_data,size_t size_element, cudaStream_t stream=NULL){
+void memcpy_to_device(void *host_data,void *device_data,size_t size_element, cudaStream_t stream){
      cudaMemcpyAsync(device_data,host_data,size_element,cudaMemcpyHostToDevice, stream);
 }
 
