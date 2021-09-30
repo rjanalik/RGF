@@ -32,6 +32,6 @@ else
 fi
 
 echo "GV100"
-echo "GPU 0 ./main ${folder_path} ${ns} ${nt} ${nb} ${no} >${folder_path}/RGF_output_sel_inv.txt"
-CUDA_VISIBLE_DEVICES="0" /home/x_pollakgr/RGF/build/bin/main ${folder_path} ${ns} ${nt} ${nb} ${folder_path_data} ${no}
+echo "GPU 0 ./main -path ${folder_path} -ns ${ns} -nt ${nt} -nb ${nb} -no ${no} >${folder_path}/RGF_output_sel_inv.txt"
+CUDA_VISIBLE_DEVICES="0" /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb} --no ${no}
 #mv ${folder_path_data}/log_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_year${year}.dat ${folder_path_data}/log_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_year${year}_gpu0.dat

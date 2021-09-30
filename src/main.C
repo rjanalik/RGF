@@ -8,8 +8,14 @@
  */
 
 // main_const_ind
-
+#ifdef ASYNC
+#include "RGF_async.H"
+#define VERSION ASYNCHRONOUS_VERSION
+#else
 #include "RGF.H"
+#define VERSION BASELINE_VERSION
+#endif
+
 #include <ctime>
 #include <iostream>
 #include <limits>
@@ -231,34 +237,12 @@ arma::sp_mat construct_Q_spat_temp(arma::vec theta_u, arma::sp_mat c0,
 
 int main(int argc, char *argv[]) {
 
-  if (argc != 5 + 1) {
-    std::cerr << "RGF Call : path_to_folder ns nt nb no" << std::endl;
-
-    std::cerr
-        << "[string:base_path]          path to folder containing all files "
-        << std::endl;
-    std::cerr << "[integer:ns]                number of spatial grid points "
-              << std::endl;
-    std::cerr << "[integer:nt]                number of temporal grid points "
-              << std::endl;
-    std::cerr << "[integer:nb]                number of fixed effects"
-              << std::endl;
-
-    std::cerr << "[integer:no]                number of data samples"
-              << std::endl;
-
-    exit(1);
-  }
-
   // start timer
   double overall_time = -omp_get_wtime();
-
-  std::string base_path = argv[1];
-  size_t ns = atoi(argv[2]);
-  size_t nt = atoi(argv[3]);
-  size_t nb = atoi(argv[4]);
-  size_t no = atoi(argv[5]);
-
+  std::string base_path;
+  size_t ns, nt, nb, no;
+  enum version { base, aysnchronuous }; /**< version we use for timing*/
+  parse_args(argc, argv, base_path, ns, nt, nb, no);
   size_t nu = ns * nt;
 
   // also save as string
