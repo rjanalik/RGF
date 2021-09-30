@@ -101,7 +101,8 @@ private:
   void create_blocks();
   inline void init_supernode(T *M_dev, size_t supernode);
   inline void init_supernode(T *M_dev, size_t supernode, cudaStream_t stream);
-  inline void copy_supernode_to_host(T *M_dev, size_t supernode);
+  inline void copy_supernode_to_host(T *M_dev, size_t supernode,
+                                     cudaStream_t stream = NULL);
   inline void copy_supernode_to_device(T *M_dev, size_t supernode);
   inline void copy_supernode_diag(T *src, size_t supernode);
   inline void swap_pointers(T **ptr1, T **ptr2);
@@ -324,15 +325,16 @@ template <class T> double RGF<T>::FirstStageFactor() {
   NAMING: type_positive_definite_triangular_factorization = Cholesky
   factorization*/
   tpotrf_dev('L', NR, blockR_dev, mf_block_lda(IB, IB), &info);
-    printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(0, 0),
-    // mf_block_lda(0, 0));
+  // printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR, mf_block_index(0, 0),
+  // mf_block_lda(0, 0));
+  // mf_block_lda(0, 0));
 
-    // TODO N^3/3 FLOPS instead of 0.5
-    flops += 1.0/3.0 * NR * NR * NR;
+  // TODO N^3/3 FLOPS instead of 0.5
+  flops += 1.0 / 3.0 * NR * NR * NR;
 
-    // TODO: shouldn't that be if matrix_nd>1 ?
-    // rj dtrsm RLTN MF[IB,IB] MF[IB+1,IB]
-    if (matrix_nt > 1) {
+  // TODO: shouldn't that be if matrix_nd>1 ?
+  // rj dtrsm RLTN MF[IB,IB] MF[IB+1,IB]
+  if (matrix_nt > 1) {
     // UPDATE COLUMNS ACCORDING TO CHOLESKY FACTORISATION
     /**< triangular solve matrix: \p A*\p X = \p alpha \p B
      * X, B mxn
@@ -358,9 +360,9 @@ template <class T> double RGF<T>::FirstStageFactor() {
 
   copy_supernode_to_host(blockR_dev, IB);
 
-    // For the other Blocks /////////////////////////////////////////////////////
-    // rj IB = 1; IB < NBlock; IB++
-    for (IB = 1; IB < matrix_nt - 1; IB++) {
+  // For the other Blocks /////////////////////////////////////////////////////
+  // rj IB = 1; IB < NBlock; IB++
+  for (IB = 1; IB < matrix_nt - 1; IB++) {
     NR = Bmax[IB] - Bmin[IB];
     NM = Bmax[IB - 1] - Bmin[IB - 1];
 
@@ -477,9 +479,9 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // cudaMemcpyAsync(host_data=&MF[ind], device_data=blockR_dev,
     size_element,cudaMemcpyDeviceToHost, NULL);
     */
-    }
+  }
 
-    if (matrix_nt > 1) {
+  if (matrix_nt > 1) {
     IB = matrix_nt - 1;
     NR = Bmax[IB] - Bmin[IB];
     NM = Bmax[IB - 1] - Bmin[IB - 1];
@@ -540,7 +542,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // CudaMemcpyAsync is copying tmp_buffer
   }
 
-    if (matrix_nd > 0) {
+  if (matrix_nd > 0) {
     IB = NBlock - 1;
     NR = Bmax[IB] - Bmin[IB];
     NM = Bmax[IB - 1] - Bmin[IB - 1];
@@ -565,12 +567,12 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // mf_block_index(IB, IB), mf_block_lda(IB, IB));
 
     copy_supernode_to_host(blockDense_dev, IB);
-    }
+  }
 
-    cudaStreamDestroy(init_stream);
-    cudaStreamDestroy(d2h_stream);
-    cudaEventDestroy(h2d_event);
-    cudaEventDestroy(computation_event);
+  cudaStreamDestroy(init_stream);
+  cudaStreamDestroy(d2h_stream);
+  cudaEventDestroy(h2d_event);
+  cudaEventDestroy(computation_event);
 
   return flops;
 }
@@ -1076,7 +1078,8 @@ inline void RGF<T>::init_supernode(T *M_dev, size_t supernode,
 /************************************************************************************************/
 
 template <class T>
-inline void RGF<T>::copy_supernode_to_host(T *M_dev, size_t supernode) {
+inline void RGF<T>::copy_supernode_to_host(T *M_dev, size_t supernode,
+                                           cudaStream_t stream) {
   size_t supernode_fc = supernode * matrix_ns;
   size_t supernode_lc = supernode < matrix_nt
                             ? (supernode + 1) * matrix_ns

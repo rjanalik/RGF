@@ -7,6 +7,9 @@
  * This module
  */
 
+#ifndef __CWC_UTILITY
+#define __CWC_UTILITY
+
 #include "Types.H"
 #include "magma_v2.h"
 #include <cuda_runtime.h>
@@ -112,3 +115,5 @@ void z_init_supernode_on_dev(CPX *M, size_t *ia, size_t *ja, CPX *a,
                              size_t supernode_offset, size_t ns, size_t nt,
                              size_t nd, cudaStream_t stream = NULL);
 }
+
+#endif

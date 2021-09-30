@@ -1,5 +1,5 @@
 #include "Utilities.H"
-// #include <algorithm>
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <string>
