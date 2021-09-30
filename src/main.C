@@ -589,9 +589,9 @@ int main(int argc, char *argv[]) {
   // free memory
   delete[] invDiag;
   delete solver;
-  delete[] ia;
-  delete[] ja;
-  delete[] a;
+  cudaFreeHost(ia);
+  cudaFreeHost(ja);
+  cudaFreeHost(a);
   delete[] b;
   delete[] x;
 
