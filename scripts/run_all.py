@@ -3,7 +3,7 @@ import os
 import re
 from tqdm import tqdm
 import subprocess
-OVERWRITE_RESULTS = True
+OVERWRITE_RESULTS = False
 
 
 def get_list_of_experiments(base_path):
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     if(OVERWRITE_RESULTS):
         with open('../results/ghcn/results.csv', "w") as results_file:
-            results_file.write('Date/Time\tno\tns\tnt\tt_factorize\tflops_factorize\tt_solve\tflops_solve\tt_inv\tflops_inv\n')
+            results_file.write('Date/Time\tno\tns\tnt\tt_factorize\tflops_factorize\tt_solve\tflops_solve\tt_inv\tflops_inv\tRGF_Version\n')
     for no, ns, nt in tqdm(experiments):
         # print("Running no=%s, ns=%s nt=%s  experiments" % (no, ns, nt))
         result = subprocess.run(['bash ./run_single.sh '+str(no)+' '+str(ns)+' '+str(nt)], shell=True, capture_output=True)

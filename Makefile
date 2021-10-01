@@ -49,6 +49,20 @@ else
 	DEBUG_FLAGS_NVCC=-DNDEBUG
 endif
 
+# ASYNC, BASELINE
+ifeq ($(RGF_VERSION),)
+	RGF_VERSION := BASELINE
+else ifeq ($(RGF_VERSION),BASELINE)
+	RGF_VERSION := BASELINE
+endif
+
+ifdef ASYNC
+RGF_VERSION := ASYNC
+else
+RGF_VERSION := BASE_LINE
+endif
+
+
 .PHONY: clean
 
 $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
@@ -60,7 +74,7 @@ $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
 # 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
 build/obj/main.o: src/main.C | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
-	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -o $@
+	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -D$(RGF_VERSION) -o $@
 
 build/obj/Utilities.o: src/Utilities.C include/Utilities.H | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
