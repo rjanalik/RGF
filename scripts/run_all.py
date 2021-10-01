@@ -3,8 +3,11 @@ import os
 import re
 from tqdm import tqdm
 import subprocess
-OVERWRITE_RESULTS = False
-
+parser = argparse.ArgumentParser(parents=[get_optimizer_argparse()],
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-o', '--overwrite', help='overwrite file', type=str, default=False)
+args = parser.parse_args()
+OVERWRITE_RESULTS = args.overwrite
 
 def get_list_of_experiments(base_path):
     """

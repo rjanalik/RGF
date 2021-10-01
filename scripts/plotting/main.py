@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
+import argparse
 
 sns.set()
 # df = pd.read_csv("results.csv", sep="\t")
@@ -25,6 +26,12 @@ sns.set()
 
 
 if __name__ == '__main__':
+
+# Create results in here unless we specify a logdir
+BASE_DIR = 'result/'
+if FLAGS.logdir is not None and not os.path.exists(FLAGS.logdir):
+    os.mkdir(FLAGS.logdir)
+
     x_var = 'no'
     df = pd.read_csv ('../../results/ghcn/results.csv', sep="\t")
     df = df.sort_values(["ns", "no"], ascending=False)
@@ -38,6 +45,10 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     plt.scatter(df.loc[df['RGF_Version'] == "ASYNC"][x_var], df.loc[df['RGF_Version'] == "ASYNC"][TYPE+'_factorize'], label='Asynchronuous - factorize')
     plt.scatter(df.loc[df['RGF_Version'] == "BASELINE"][x_var], df.loc[df['RGF_Version'] == "BASELINE"][TYPE+'_factorize'], label='Baseline - factorize')
+    plt.scatter(df.loc[df['RGF_Version'] == "ASYNC"][x_var], df.loc[df['RGF_Version'] == "ASYNC"][TYPE+'_solve'], label='Asynchronuous - solve')
+    plt.scatter(df.loc[df['RGF_Version'] == "BASELINE"][x_var], df.loc[df['RGF_Version'] == "BASELINE"][TYPE+'_solve'], label='Baseline - solve')
+    plt.scatter(df.loc[df['RGF_Version'] == "ASYNC"][x_var], df.loc[df['RGF_Version'] == "ASYNC"][TYPE+'_inv'], label='Asynchronuous - inv')
+    plt.scatter(df.loc[df['RGF_Version'] == "BASELINE"][x_var], df.loc[df['RGF_Version'] == "BASELINE"][TYPE+'_inv'], label='Baseline - inv')
     # plt.scatter(df[x_var], df[TYPE+'_solve'], label='solve')
     # plt.scatter(df[x_var], df[TYPE+'_inv'], label='inversion')
     plt.ylabel("runtime [s]", fontsize=14, rotation=0)
