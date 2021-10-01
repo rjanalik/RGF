@@ -105,7 +105,7 @@ void copy_data_to_host(void *host_data,void *device_data,int N,int M,size_t size
 
 extern "C"
 void memcpy_to_host(void *host_data,void *device_data,size_t size_element){
-     cudaMemcpyAsync(host_data,device_data,size_element,cudaMemcpyDeviceToHost,NULL);
+     cudaMemcpyAsync(host_data,device_data,size_element,cudaMemcpyDeviceToHost, stream);
 }
 
 extern "C"
@@ -906,11 +906,11 @@ __global__ void d_indexed_copy_offset(double *src, double *dst, size_t *index, s
 }
 
 extern "C"
-void d_indexed_copy_offset_on_dev(double *src, double *dst, size_t *index, size_t N, size_t offset)
+void d_indexed_copy_offset_on_dev(double *src, double *dst, size_t *index, size_t N, size_t offset, cudaStream_t stream)
 {
     size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
-    d_indexed_copy_offset<<<i_size/BLOCK_DIM, BLOCK_DIM>>>(src, dst, index, N, offset);
+    d_indexed_copy_offset<<<i_size/BLOCK_DIM, BLOCK_DIM, 0, stream>>>(src, dst, index, N, offset);
 }
 
 __global__ void z_indexed_copy_offset(cuDoubleComplex *src, cuDoubleComplex *dst, size_t *index, size_t N, size_t offset)
@@ -926,11 +926,11 @@ __global__ void z_indexed_copy_offset(cuDoubleComplex *src, cuDoubleComplex *dst
 }
 
 extern "C"
-void z_indexed_copy_offset_on_dev(CPX *src, CPX *dst, size_t *index, size_t N, size_t offset)
+void z_indexed_copy_offset_on_dev(CPX *src, CPX *dst, size_t *index, size_t N, size_t offset, cudaStream_t stream)
 {
     size_t i_size = N + (BLOCK_DIM-(N%BLOCK_DIM));
 
-    z_indexed_copy_offset<<<i_size/BLOCK_DIM, BLOCK_DIM>>>((cuDoubleComplex*)src, (cuDoubleComplex*)dst, index, N, offset);
+    z_indexed_copy_offset<<<i_size/BLOCK_DIM, BLOCK_DIM, 0, stream>>>((cuDoubleComplex*)src, (cuDoubleComplex*)dst, index, N, offset);
 }
 
 __global__ void d_log(double *x, size_t N)

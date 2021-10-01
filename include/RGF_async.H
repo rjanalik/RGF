@@ -58,9 +58,8 @@ private:
   void *cublas_handle;
 
   /**
-   * TODO: probably the different blocks
-   * @name Group title
-   * Description
+   * @name Different blocks
+   * Description: pointers of the blocks get swaped each round.
    * @{
    */
   T *MF;         /**< Description */
@@ -93,8 +92,10 @@ private:
   inline void init_supernode(T *M_dev, size_t supernode, cudaStream_t stream);
   inline void copy_supernode_to_host(T *M_dev, size_t supernode,
                                      cudaStream_t stream = NULL);
-  inline void copy_supernode_to_device(T *M_dev, size_t supernode);
-  inline void copy_supernode_diag(T *src, size_t supernode);
+  inline void copy_supernode_to_device(T *M_dev, size_t supernode,
+                                       cudaStream_t stream = NULL);
+  inline void copy_supernode_diag(T *src, size_t supernode,
+                                  cudaStream_t stream = NULL);
   inline void swap_pointers(T **ptr1, T **ptr2);
 
   T f_one();
@@ -688,6 +689,10 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
   ND = matrix_nd;
 
   double flops = 0;
+  cudaStreamCreate(&init_stream);
+  cudaStreamCreate(&d2h_stream);
+  cudaEventCreate(&h2d_event);
+  cudaEventCreate(&computation_event);
 
   if (matrix_nd > 0) {
     // dense block
@@ -754,9 +759,16 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
     // TODO
     swap_pointers(&blockR_dev, &blockP_dev);
 
+    // enqueue event in stream
+    cudaEventRecord(computation_event, NULL);
+    cudaStreamWaitEvent(h2d_stream, computation_event, 0);
+
     copy_supernode_diag(blockP_dev, IB + 1);
-    copy_supernode_to_device(blockR_dev, IB);
-    // TODO
+    copy_supernode_to_device(blockR_dev, IB, h2d_stream);
+
+    // enqueue event in stream
+    cudaEventRecord(h2d_event, h2d_stream);
+    cudaStreamWaitEvent(NULL, h2d_event, 0);
 
     tril_dev(blockR_dev, mf_block_lda(IB, IB), NR);
     ttrtri_dev('L', 'N', NR, blockR_dev, mf_block_lda(IB, IB), &info);
@@ -1081,13 +1093,14 @@ inline void RGF<T>::copy_supernode_to_host(T *M_dev, size_t supernode,
   size_t rows = mf_block_lda(supernode, supernode);
   size_t cols = supernode_lc - supernode_fc;
 
-  memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T));
+  memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T), stream);
 }
 
 /************************************************************************************************/
 
 template <class T>
-inline void RGF<T>::copy_supernode_to_device(T *M_dev, size_t supernode) {
+inline void RGF<T>::copy_supernode_to_device(T *M_dev, size_t supernode,
+                                             cudaStream_t stream) {
   size_t supernode_fc = supernode * matrix_ns;
   size_t supernode_lc = supernode < matrix_nt
                             ? (supernode + 1) * matrix_ns
@@ -1096,13 +1109,14 @@ inline void RGF<T>::copy_supernode_to_device(T *M_dev, size_t supernode) {
   size_t rows = mf_block_lda(supernode, supernode);
   size_t cols = supernode_lc - supernode_fc;
 
-  memcpy_to_device(&MF[ind], M_dev, rows * cols * sizeof(T));
+  memcpy_to_device(&MF[ind], M_dev, rows * cols * sizeof(T), stream);
 }
 
 /************************************************************************************************/
 
 template <class T>
-inline void RGF<T>::copy_supernode_diag(T *src, size_t supernode) {
+inline void RGF<T>::copy_supernode_diag(T *src, size_t supernode,
+                                        cudaStream_t stream) {
   size_t supernode_fc = supernode * matrix_ns;
   size_t supernode_lc = supernode < matrix_nt
                             ? (supernode + 1) * matrix_ns
@@ -1112,7 +1126,7 @@ inline void RGF<T>::copy_supernode_diag(T *src, size_t supernode) {
   size_t cols = supernode_lc - supernode_fc;
 
   indexed_copy_offset_dev(src, &diag_dev[supernode_fc],
-                          &diag_pos_dev[supernode_fc], cols, offset);
+                          &diag_pos_dev[supernode_fc], cols, offset, stream);
 }
 
 /************************************************************************************************/

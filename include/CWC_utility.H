@@ -93,9 +93,10 @@ void z_tril_on_dev(CPX *A, int lda, int N);
 void d_indexed_copy_on_dev(double *src, double *dst, size_t *index, size_t N);
 void z_indexed_copy_on_dev(CPX *src, CPX *dst, size_t *index, size_t N);
 void d_indexed_copy_offset_on_dev(double *src, double *dst, size_t *index,
-                                  size_t N, size_t offset);
+                                  size_t N, size_t offset,
+                                  cudaStream_t stream = NULL);
 void z_indexed_copy_offset_on_dev(CPX *src, CPX *dst, size_t *index, size_t N,
-                                  size_t offset);
+                                  size_t offset, cudaStream_t stream = NULL);
 void d_log_on_dev(double *x, size_t N);
 void z_log_on_dev(CPX *x, size_t N);
 void d_fill_on_dev(double *x, const double value, size_t N,
