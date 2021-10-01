@@ -8,24 +8,29 @@
  */
 
 // main_const_ind
-#ifdef ASYNC
-#include "RGF_async.H"
-#define VERSION ASYNCHRONOUS_VERSION
-#else
-#include "RGF.H"
-#define VERSION BASELINE_VERSION
-#endif
 
+#include <armadillo>
 #include <ctime>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <math.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-#include <armadillo>
-#include <omp.h>
+enum RGF_version { BASELINE, ASYNCHRONOUS };
+std::map<RGF_version, std::string> enum_to_string{{BASELINE, "BASELINE"},
+                                                  {ASYNCHRONOUS, "ASYNC"}};
+
+#ifdef ASYNC
+#include "RGF_async.H"
+RGF_version rgf_ver = ASYNCHRONOUS;
+#else
+#include "RGF.H"
+RGF_version rgf_ver = BASELINE;
+#endif
 using namespace std;
 
 #if 0
@@ -409,12 +414,15 @@ int main(int argc, char *argv[]) {
   double *a;
 
   // allocate memory
-  // ia = new size_t[n + 1];
-  // ja = new size_t[nnz];
-  // a = new double[nnz];
-  cudaMallocHost(&ia, (n + 1) * sizeof(size_t));
-  cudaMallocHost(&ja, nnz * sizeof(size_t));
-  cudaMallocHost(&a, nnz * sizeof(size_t));
+  if (rgf_ver == ASYNCHRONOUS) {
+    cudaMallocHost(&ia, (n + 1) * sizeof(size_t));
+    cudaMallocHost(&ja, nnz * sizeof(size_t));
+    cudaMallocHost(&a, nnz * sizeof(size_t));
+  } else {
+    ia = new size_t[n + 1];
+    ja = new size_t[nnz];
+    a = new double[nnz];
+  }
 
   std::cout << n << std::endl;
   std::cout << n << std::endl;
@@ -522,7 +530,7 @@ int main(int argc, char *argv[]) {
   output_fh << std::fixed << currentDateTime() << sep << no_s << sep << ns_s
             << sep << nt_s << sep << t_factorise << sep << flops_factorize
             << sep << t_solve << sep << flops_solve << sep << t_inv << sep
-            << flops_inv << "\n";
+            << flops_inv << sep << enum_to_string[rgf_ver] << "\n";
 
   output_fh.close();
 
@@ -589,9 +597,15 @@ int main(int argc, char *argv[]) {
   // free memory
   delete[] invDiag;
   delete solver;
-  cudaFreeHost(ia);
-  cudaFreeHost(ja);
-  cudaFreeHost(a);
+  if (rgf_ver == ASYNCHRONOUS) {
+    cudaFreeHost(ia);
+    cudaFreeHost(ja);
+    cudaFreeHost(a);
+  } else {
+    delete[] ia;
+    delete[] ja;
+    delete[] a;
+  }
   delete[] b;
   delete[] x;
 
