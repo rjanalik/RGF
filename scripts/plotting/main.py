@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
+import argparse
 
 sns.set()
 # df = pd.read_csv("results.csv", sep="\t")
@@ -25,6 +26,12 @@ sns.set()
 
 
 if __name__ == '__main__':
+
+# Create results in here unless we specify a logdir
+BASE_DIR = 'result/'
+if FLAGS.logdir is not None and not os.path.exists(FLAGS.logdir):
+    os.mkdir(FLAGS.logdir)
+
     x_var = 'no'
     df = pd.read_csv ('../../results/ghcn/results.csv', sep="\t")
     df = df.sort_values(["ns", "no"], ascending=False)
