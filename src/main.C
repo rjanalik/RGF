@@ -434,6 +434,9 @@ int main(int argc, char *argv[]) {
   }
 
   for (int i = 0; i < n + 1; ++i) {
+    // n+1 row_ptr:  col_ind_first_non_zero_val_of_row_i = row_ptr[row_i]
+    // col_ind[row_ptr[row_i]] column number of first non-zero value in row_i in
+    // [0,n-1]
     ia[i] = Qxy_lower.col_ptrs[i];
     // std::cout << ia[i] << std::endl;
   }
