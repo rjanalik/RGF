@@ -414,7 +414,7 @@ int main(int argc, char *argv[]) {
   double *a;
 
   // allocate memory
-  if (rgf_ver == ASYNCHRONOUS) {
+  if (rgf_ver == RGF_version::ASYNCHRONOUS) {
     cudaMallocHost(&ia, (n + 1) * sizeof(size_t));
     cudaMallocHost(&ja, nnz * sizeof(size_t));
     cudaMallocHost(&a, nnz * sizeof(size_t));
@@ -597,7 +597,7 @@ int main(int argc, char *argv[]) {
   // free memory
   delete[] invDiag;
   delete solver;
-  if (rgf_ver == ASYNCHRONOUS) {
+  if (rgf_ver == RGF_version::ASYNCHRONOUS) {
     cudaFreeHost(ia);
     cudaFreeHost(ja);
     cudaFreeHost(a);

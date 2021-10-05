@@ -1,7 +1,54 @@
 # generate spatial-temporal matrices
 # & data files
-library("INLA")
 library("optparse")
+option_list <- list(
+  make_option(c("-i", "--input"),
+    type = "character", default = "../../data/input/ghcn/2019",
+    help = "Input file path [default= %default]", metavar = "character"
+  ),
+  make_option(c("-f", "--file"),
+    type = "character", default = "d2019.RData",
+    help = "Input file name [default= %default]", metavar = "character"
+  ),
+  make_option(c("-o", "--output"),
+    type = "character", default = "same as --input",
+    help = "output folder directory [default= %default]", metavar = "character"
+  ),
+  make_option(c("-w", "--write"),
+    type = "logical", default = TRUE,
+    help = "Write to file [default= %default]", metavar = "logical"
+  ),
+  make_option(c("-s", "--spatial"),
+    type = "integer", default = 2,
+    help = "spatial resolution  ns=concat(spatial^2,2) [default= %default]", metavar = "character"
+  ),
+  make_option(c("-0", "--start"),
+    type = "integer", default = 1,
+    help = "start date [day], [default= %default].  1 = 1st of January", metavar = "number"
+  ),
+  make_option(c("-t", "--temporal"),
+    type = "integer", default = 3,
+    help = "temporal resolution [days], [nt < 366]. if t=1 => spatial model [default= %default]", metavar = "number"
+  ),
+  make_option(c("-v", "--verbose"),
+    type = "integer", default = FALSE,
+    help = "verbose output with levels 1,2 [default= %default]", metavar = "character"
+  ),
+  make_option(c("--solve"),
+    type = "logical", default = FALSE,
+    help = "solve system [default= %default]", metavar = "character"
+  )
+)
+
+###################### Parse Options ####################
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
+if (opt$verbose >= 1) {
+# enable debugging
+	options(error=recover)
+}
+###################### Includes ####################
+library("INLA")
 library("zeallot")
 # source files with write functions
 source("./fun_write_file.R")
@@ -92,48 +139,8 @@ create_spatio_temporal_mat <- function(mesh, nt, base_path, order = 3, verbose =
 ##############################################################################
 ###########################     Main Program     #############################
 ##############################################################################
-option_list <- list(
-  make_option(c("-i", "--input"),
-    type = "character", default = "../../data/input/ghcn/2019",
-    help = "Input file path [default= %default]", metavar = "character"
-  ),
-  make_option(c("-f", "--file"),
-    type = "character", default = "d2019.RData",
-    help = "Input file name [default= %default]", metavar = "character"
-  ),
-  make_option(c("-o", "--output"),
-    type = "character", default = "same as --input",
-    help = "output folder directory [default= %default]", metavar = "character"
-  ),
-  make_option(c("-w", "--write"),
-    type = "logical", default = TRUE,
-    help = "Write to file [default= %default]", metavar = "logical"
-  ),
-  make_option(c("-s", "--spatial"),
-    type = "integer", default = 2,
-    help = "spatial resolution  ns=concat(spatial^2,2) [default= %default]", metavar = "character"
-  ),
-  make_option(c("-0", "--start"),
-    type = "integer", default = 1,
-    help = "start date [day], [default= %default].  1 = 1st of January", metavar = "number"
-  ),
-  make_option(c("-t", "--temporal"),
-    type = "integer", default = 3,
-    help = "temporal resolution [days], [nt < 366]. if t=1 => spatial model [default= %default]", metavar = "number"
-  ),
-  make_option(c("-v", "--verbose"),
-    type = "integer", default = FALSE,
-    help = "verbose output with levels 1,2 [default= %default]", metavar = "character"
-  ),
-  make_option(c("--solve"),
-    type = "logical", default = FALSE,
-    help = "solve system [default= %default]", metavar = "character"
-  )
-)
 
-###################### Parse Options ####################
-opt_parser <- OptionParser(option_list = option_list)
-opt <- parse_args(opt_parser)
+###################### Adapt Options ####################
 if (opt$output == "same as --input") {
   opt$output <- opt$input
 }

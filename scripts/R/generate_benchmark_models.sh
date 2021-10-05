@@ -5,9 +5,20 @@ set -euo pipefail
 # for ns in {1..10..1}
 ns=20
 # do
-    for nt in {1..20..1}
+    for nt in {0..730..10}
     # for nt in {3}
     do
-        Rscript generate_spatial_temporal_model.R -s $ns -t $nt 
+	if [[ "$nt" == 0 ]]
+       	then
+		# Sequential
+		# Rscript generate_spatial_temporal_model.R -s $ns -t $nt 
+		# Parallel
+		Rscript generate_spatial_temporal_model.R -s $ns -t $(($nt+1)) &
+	else
+		# Sequential
+		# Rscript generate_spatial_temporal_model.R -s $ns -t $nt 
+		# Parallel
+		Rscript generate_spatial_temporal_model.R -s $ns -t $nt &
+	fi
     done
 # done

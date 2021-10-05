@@ -3,9 +3,11 @@ import os
 import re
 from tqdm import tqdm
 import subprocess
-parser = argparse.ArgumentParser(parents=[get_optimizer_argparse()],
+import argparse
+
+parser = argparse.ArgumentParser(description='Run all available experiments in the data folder',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('-o', '--overwrite', help='overwrite file', type=str, default=False)
+parser.add_argument('-o', '--overwrite', help='overwrite file', action='store_true')
 args = parser.parse_args()
 OVERWRITE_RESULTS = args.overwrite
 

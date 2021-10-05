@@ -1101,18 +1101,19 @@ inline void indexed_copy_dev(CPX *src, CPX *dst, size_t *index, size_t N) {
 
 template <typename T>
 inline void indexed_copy_offset_dev(T *src, T *dst, size_t *index, size_t N,
-                                    size_t offset);
+                                    size_t offset, cudaStream_t stream = NULL);
 
 template <>
 inline void indexed_copy_offset_dev(double *src, double *dst, size_t *index,
-                                    size_t N, size_t offset) {
-  d_indexed_copy_offset_on_dev(src, dst, index, N, offset);
+                                    size_t N, size_t offset,
+                                    cudaStream_t stream) {
+  d_indexed_copy_offset_on_dev(src, dst, index, N, offset, stream);
 }
 
 template <>
 inline void indexed_copy_offset_dev(CPX *src, CPX *dst, size_t *index, size_t N,
-                                    size_t offset) {
-  z_indexed_copy_offset_on_dev(src, dst, index, N, offset);
+                                    size_t offset, cudaStream_t stream) {
+  z_indexed_copy_offset_on_dev(src, dst, index, N, offset, stream);
 }
 
 /************************************************************************************************/
