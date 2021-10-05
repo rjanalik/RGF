@@ -681,7 +681,7 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
   int info;
   size_t IB;
   size_t NR, NM, NP, ND;
-  cudaStream_t init_stream, d2h_stream;
+  cudaStream_t h2d_stream;
   cudaEvent_t h2d_event, computation_event;
   T ONE = f_one();
   T ZERO = f_zero();
@@ -689,9 +689,7 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
   ND = matrix_nd;
 
   double flops = 0;
-  cudaStreamCreate(&init_stream);
-  cudaStreamCreate(&d2h_stream);
-  cudaEventCreate(&h2d_event);
+  cudaStreamCreate(&h2d_stream);
   cudaEventCreate(&computation_event);
 
   if (matrix_nd > 0) {
@@ -759,10 +757,6 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
     // TODO
     swap_pointers(&blockR_dev, &blockP_dev);
 
-    // enqueue event in stream
-    cudaEventRecord(computation_event, NULL);
-    cudaStreamWaitEvent(h2d_stream, computation_event, 0);
-
     copy_supernode_diag(blockP_dev, IB + 1);
     copy_supernode_to_device(blockR_dev, IB, h2d_stream);
 
@@ -803,6 +797,9 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
     flops += 2.0 * NR * NR * NR;
     tlacpy_dev('F', NR, NR, tmp1_dev, NR, blockR_dev, mf_block_lda(IB, IB),
                magma_queue);
+    // enqueue event in stream
+    cudaEventRecord(computation_event, NULL);
+    cudaStreamWaitEvent(h2d_stream, computation_event, 0);
   }
 
   copy_supernode_diag(blockR_dev, 0);

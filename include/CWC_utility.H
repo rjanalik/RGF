@@ -44,7 +44,7 @@ void copy_data_to_device(void *, void *, int, int, size_t);
  */
 void memcpy_to_device(void *, void *, size_t, cudaStream_t stream = NULL);
 void copy_data_to_host(void *, void *, int, int, size_t);
-void memcpy_to_host(void *, void *, size_t);
+void memcpy_to_host(void *, void *, size_t, cudaStream_t stream = NULL);
 /**
  * @}
  */

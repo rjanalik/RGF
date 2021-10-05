@@ -104,7 +104,7 @@ void copy_data_to_host(void *host_data,void *device_data,int N,int M,size_t size
 }
 
 extern "C"
-void memcpy_to_host(void *host_data,void *device_data,size_t size_element){
+void memcpy_to_host(void *host_data,void *device_data,size_t size_element, cudaStream_t stream){
      cudaMemcpyAsync(host_data,device_data,size_element,cudaMemcpyDeviceToHost, stream);
 }
 
