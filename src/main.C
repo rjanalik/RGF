@@ -423,6 +423,7 @@ int main(int argc, char *argv[]) {
     ja = new size_t[nnz];
     a = new double[nnz];
   }
+  size_t first_col_idx_of_row_x = ia[row_x];
 
   std::cout << n << std::endl;
   std::cout << n << std::endl;
