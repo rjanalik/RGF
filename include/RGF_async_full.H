@@ -35,7 +35,7 @@ private:
   T *matrix_a;
   size_t matrix_size; /**< matrix_size: Total matrix size of size \p ns * \p
                          nt + \p nd*/
-  size_t matrix_nnz;  /**< number of non-zeros of sparse matrix A*/
+  size_t matrix_nnz;  /**< total number of non-zeros of the sparse matrix A*/
   size_t matrix_ns;   /**< same as ns*/
   size_t matrix_nt;   /**< same as nt*/
   size_t matrix_nd;   /**< same as nd*/
@@ -62,8 +62,12 @@ private:
    * Description: pointers of the blocks get swaped each round.
    * @{
    */
-  T *MF;         /**< Description */
+  T *MF;         /**< MF: matrix Factorizatoin Storage buffer */
   T *blockR_dev; /**< blockR_dev: first calculates A=LL^T and stores L^T; then
+                    calculates and stores trms(L_i^T, B_i)*/
+  T *blockR_dev1; /**< blockR_dev: first calculates A=LL^T and stores L^T; then
+                    calculates and stores trms(L_i^T, B_i)*/
+  T *blockR_dev2; /**< blockR_dev: first calculates A=LL^T and stores L^T; then
                     calculates and stores trms(L_i^T, B_i)*/
   T *blockM_dev; /**< blockM_dev: Maximum possible blocksize*/
   T *blockP_dev; /**< blockP_dev: Maximum possible blocksize*/
@@ -203,6 +207,8 @@ template <class T> RGF<T>::~RGF() {
     /**< dense_supernode_nnz: size of dense random effects blocks*/
     size_t dense_supernode_nnz = matrix_nd > 0 ? matrix_nd * matrix_nd : 0;
     deallocate_data_on_dev(blockR_dev, max_supernode_nnz * sizeof(T));
+    deallocate_data_on_dev(blockR_dev1, max_supernode_nnz * sizeof(T));
+    deallocate_data_on_dev(blockR_dev2, max_supernode_nnz * sizeof(T));
     deallocate_data_on_dev(blockM_dev, max_supernode_nnz * sizeof(T));
     deallocate_data_on_dev(blockP_dev, max_supernode_nnz * sizeof(T));
     deallocate_data_on_dev(blockDense_dev, dense_supernode_nnz * sizeof(T));
@@ -286,10 +292,11 @@ template <class T> double RGF<T>::FirstStageFactor() {
   size_t NR, NM;
   T ONE = f_one();
 
-  cudaStream_t init_stream, d2h_stream;
+  cudaStream_t init_stream1, init_stream2, d2h_stream,
   cudaEvent_t h2d_event, computation_event;
 
-  cudaStreamCreate(&init_stream);
+  cudaStreamCreate(&init_stream1);
+  cudaStreamCreate(&init_stream2);
   cudaStreamCreate(&d2h_stream);
   cudaEventCreate(&h2d_event);
   cudaEventCreate(&computation_event);
@@ -360,9 +367,17 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // In the first round blockM_dev=blockR_dev=C_1
     // and blockR_dev=0
     // CPU call
+    // TODO maybecreate many with a for loop
+    if(IB % 2 == 1){
+      blockR_dev = &blockR_dev1;
+    } else{
+      blockR_dev = &blockR_dev2;
+    }
     swap_pointers(&blockR_dev, &blockM_dev);
-    // TODO init_supernode(blockR_dev, IB, STREAM_2);
-    init_supernode(blockR_dev, IB, init_stream);
+
+    init_supernode(blockR_dev1, IB, init_stream1);
+    init_supernode(blockR_dev2, IB+1, init_stream2);
+
     /** Note: init_supernode does the following
     // KERNEL
     // fill_dev(M_dev, T(0.0), supernode_size);
@@ -396,12 +411,15 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // C_i C_i^T
     /**<
      * S_i=(A_i-C_i S_i B_i)=(A_i-C_i blockM_dev)
-     * TODO: blockM_dev is never initialized?
      * TODO: why do we have &blockM_dev[NM] and also
      * blockM_dev[NM]*blockM_dev[NM]^T?
      */
     // enqueue event in stream
-    cudaEventRecord(h2d_event, init_stream);
+    if(IB % 2 == 1){
+      cudaEventRecord(h2d_event, init_stream1);
+    } else{
+      cudaEventRecord(h2d_event, init_stream2);
+    }
     cudaStreamWaitEvent(NULL, h2d_event, 0);
     /**<
      * C=beta C+alpha*AB
@@ -681,6 +699,7 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
   int info;
   size_t IB;
   size_t NR, NM, NP, ND;
+  cudaStream_t init_stream1, init_stream2;
   cudaStream_t h2d_stream;
   cudaEvent_t h2d_event, computation_event;
   T ONE = f_one();
@@ -689,7 +708,10 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
   ND = matrix_nd;
 
   double flops = 0;
+  cudaStreamCreate(&init_stream1);
+  cudaStreamCreate(&init_stream2);
   cudaStreamCreate(&h2d_stream);
+  cudaEventCreate(&h2d_event);
   cudaEventCreate(&computation_event);
 
   if (matrix_nd > 0) {
@@ -757,6 +779,10 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
     // TODO
     swap_pointers(&blockR_dev, &blockP_dev);
 
+    // enqueue event in stream
+    cudaEventRecord(computation_event, NULL);
+    cudaStreamWaitEvent(h2d_stream, computation_event, 0);
+
     copy_supernode_diag(blockP_dev, IB + 1);
     copy_supernode_to_device(blockR_dev, IB, h2d_stream);
 
@@ -797,9 +823,6 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
     flops += 2.0 * NR * NR * NR;
     tlacpy_dev('F', NR, NR, tmp1_dev, NR, blockR_dev, mf_block_lda(IB, IB),
                magma_queue);
-    // enqueue event in stream
-    cudaEventRecord(computation_event, NULL);
-    cudaStreamWaitEvent(h2d_stream, computation_event, 0);
   }
 
   copy_supernode_diag(blockR_dev, 0);
@@ -834,6 +857,10 @@ template <class T> double RGF<T>::factorize() {
      * fixed effects*/
     size_t dense_supernode_nnz = matrix_nd > 0 ? matrix_nd * matrix_nd : 0;
     allocate_data_on_device((void **)&blockR_dev,
+                            max_supernode_nnz * sizeof(T));
+    allocate_data_on_device((void **)&blockR_dev1,
+                            max_supernode_nnz * sizeof(T));
+    allocate_data_on_device((void **)&blockR_dev2,
                             max_supernode_nnz * sizeof(T));
     allocate_data_on_device((void **)&blockM_dev,
                             max_supernode_nnz * sizeof(T));
