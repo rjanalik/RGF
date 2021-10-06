@@ -20,16 +20,20 @@
 #include <stdlib.h>
 #include <time.h>
 
-enum RGF_version { BASELINE, ASYNCHRONOUS };
+enum RGF_version { BASELINE, ASYNCHRONOUS, ASYNCHRONOUS_FULL };
 std::map<RGF_version, std::string> enum_to_string{{BASELINE, "BASELINE"},
-                                                  {ASYNCHRONOUS, "ASYNC"}};
+                                                  {ASYNCHRONOUS, "ASYNC"};
+                                                  {ASYNCHRONOUS_2S, "ASYNC_TWO_STREAMS"}};
 
-#ifdef ASYNC
-#include "RGF_async.H"
-RGF_version rgf_ver = ASYNCHRONOUS;
-#else
+#ifdef BASE
 #include "RGF.H"
 RGF_version rgf_ver = BASELINE;
+#elif defined ASYNC
+#include "RGF_async.H"
+RGF_version rgf_ver = ASYNCHRONOUS;
+#elif defined ASYNC_2S
+#include "RGF_async_2s.H"
+RGF_version rgf_ver = ASYNCHRONOUS_2S;
 #endif
 using namespace std;
 

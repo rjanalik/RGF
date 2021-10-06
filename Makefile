@@ -54,8 +54,10 @@ ifeq ($(RGF_VERSION),)
 	RGF_VERSION := BASE
 else ifeq ($(RGF_VERSION),BASELINE)
 	RGF_VERSION := BASE
-else
+else ifeq ($(RGF_VERSION),ASYNC)
 	RGF_VERSION := ASYNC
+else ifeq ($(RGF_VERSION),ASYNC_FULL)
+	RGF_VERSION := ASYNC_FULL
 endif
 
 .PHONY: clean
