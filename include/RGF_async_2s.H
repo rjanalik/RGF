@@ -292,7 +292,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
   size_t NR, NM;
   T ONE = f_one();
 
-  cudaStream_t init_stream1, init_stream2, d2h_stream,
+  cudaStream_t init_stream1, init_stream2, d2h_stream;
   cudaEvent_t h2d_event, computation_event;
 
   cudaStreamCreate(&init_stream1);
@@ -369,9 +369,9 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // CPU call
     // TODO maybecreate many with a for loop
     if(IB % 2 == 1){
-      blockR_dev = &blockR_dev1;
+      swap_pointers(&blockR_dev, &blockR_dev1);
     } else{
-      blockR_dev = &blockR_dev2;
+      swap_pointers(&blockR_dev, &blockR_dev2);
     }
     swap_pointers(&blockR_dev, &blockM_dev);
 
@@ -576,7 +576,8 @@ template <class T> double RGF<T>::FirstStageFactor() {
     copy_supernode_to_host(blockDense_dev, IB);
   }
 
-  cudaStreamDestroy(init_stream);
+  cudaStreamDestroy(init_stream1);
+  cudaStreamDestroy(init_stream2);
   cudaStreamDestroy(d2h_stream);
   cudaEventDestroy(h2d_event);
   cudaEventDestroy(computation_event);
