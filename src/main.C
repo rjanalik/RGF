@@ -20,20 +20,19 @@
 #include <stdlib.h>
 #include <time.h>
 
-enum RGF_version { BASELINE, ASYNCHRONOUS, ASYNCHRONOUS_FULL };
-std::map<RGF_version, std::string> enum_to_string{{BASELINE, "BASELINE"},
-                                                  {ASYNCHRONOUS, "ASYNC"};
+enum RGF_VERSIONS { BASELINE, ASYNCHRONOUS, ASYNCHRONOUS_2S };
+std::map<RGF_VERSIONS, std::string> enum_to_string{{BASELINE, "BASELINE"},
+                                                  {ASYNCHRONOUS, "ASYNC"},
                                                   {ASYNCHRONOUS_2S, "ASYNC_TWO_STREAMS"}};
-
 #ifdef BASE
 #include "RGF.H"
-RGF_version rgf_ver = BASELINE;
+RGF_VERSIONS rgf_ver = BASELINE;
 #elif defined ASYNC
 #include "RGF_async.H"
-RGF_version rgf_ver = ASYNCHRONOUS;
+RGF_VERSIONS rgf_ver = ASYNCHRONOUS;
 #elif defined ASYNC_2S
 #include "RGF_async_2s.H"
-RGF_version rgf_ver = ASYNCHRONOUS_2S;
+RGF_VERSIONS rgf_ver = ASYNCHRONOUS_2S;
 #endif
 using namespace std;
 
@@ -418,7 +417,7 @@ int main(int argc, char *argv[]) {
   double *a;
 
   // allocate memory
-  if (rgf_ver == RGF_version::ASYNCHRONOUS) {
+  if (rgf_ver == RGF_VERSIONS::ASYNCHRONOUS) {
     cudaMallocHost(&ia, (n + 1) * sizeof(size_t));
     cudaMallocHost(&ja, nnz * sizeof(size_t));
     cudaMallocHost(&a, nnz * sizeof(size_t));
@@ -427,7 +426,8 @@ int main(int argc, char *argv[]) {
     ja = new size_t[nnz];
     a = new double[nnz];
   }
-  size_t first_col_idx_of_row_x = ia[row_x];
+  // TODO
+  // size_t first_col_idx_of_row_x = ia[row_x];
 
   std::cout << n << std::endl;
   std::cout << n << std::endl;
@@ -605,7 +605,7 @@ int main(int argc, char *argv[]) {
   // free memory
   delete[] invDiag;
   delete solver;
-  if (rgf_ver == RGF_version::ASYNCHRONOUS) {
+  if (rgf_ver == RGF_VERSIONS::ASYNCHRONOUS) {
     cudaFreeHost(ia);
     cudaFreeHost(ja);
     cudaFreeHost(a);
