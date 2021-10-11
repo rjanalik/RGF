@@ -35,7 +35,7 @@ private:
   T *matrix_a;
   size_t matrix_size; /**< matrix_size: Total matrix size of size \p ns * \p
                          nt + \p nd*/
-  size_t matrix_nnz;  /**< number of non-zeros of sparse matrix A*/
+  size_t matrix_nnz;  /**< matrix_n_nonzeros: number of non-zeros of sparse matrix A*/
   size_t matrix_ns;   /**< same as ns*/
   size_t matrix_nt;   /**< same as nt*/
   size_t matrix_nd;   /**< same as nd*/
@@ -62,11 +62,11 @@ private:
    * Description: pointers of the blocks get swaped each round.
    * @{
    */
-  T *MF;         /**< Description */
-  T *blockR_dev; /**< blockR_dev: first calculates A=LL^T and stores L^T; then
-                    calculates and stores trms(L_i^T, B_i)*/
-  T *blockM_dev; /**< blockM_dev: Maximum possible blocksize*/
-  T *blockP_dev; /**< blockP_dev: Maximum possible blocksize*/
+  T *MF;         /**< MF: Result of matrix factorization on the host: has the size of matrix_n_nonzeros */
+  T *blockR_dev; /**< blockR_dev: is of size supernode i.e. two vertical blocks (if nt>1) plus fixed effects nd.
+                    first calculates A=LL^T and stores L^T; then calculates and stores trms(L_i^T, B_i)*/
+  T *blockM_dev; /**< blockM_dev: is of size supernode*/
+  T *blockP_dev; /**< blockP_dev: is of size supernode*/
   T *blockDense_dev;
   T *rhs;
   /**
@@ -132,6 +132,7 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
   matrix_nd = nd;
 
   matrix_size = ns * nt + nd;
+  // We factorize each block by itself => size of total blocks.
   matrix_nnz = 2 * (nt - 1) * ns * ns + ns * ns + matrix_size * nd;
 
   // NOTE: total number of blocks
@@ -228,7 +229,9 @@ template <class T> inline size_t RGF<T>::mf_block_index(size_t r, size_t c) {
 template <class T>
 /**
  * @brief returns the correct leading dimension lda
- * @details TODO why do we have an r and a c?
+ * @details this is function is an artifact and c is unused.
+ * It normally returns the veritical supernode size of two blocks plus the fixed effects.
+ * For the last block we only get one block plus the fixed effects
  * @param[in] r Description
  * @param[in] c Description
  * @return Description
@@ -238,10 +241,9 @@ inline size_t RGF<T>::mf_block_lda(size_t r, size_t c) {
   // two blocks
   if (c < matrix_nt - 1)
     return 2 * matrix_ns + matrix_nd;
-  // one block
+  // Last supernode/block
   if (c < matrix_nt)
     return matrix_ns + matrix_nd;
-  // dense block
   else
     return matrix_nd;
 }
@@ -1021,6 +1023,7 @@ template <class T>
  */
 inline void RGF<T>::init_supernode(T *M_dev, size_t supernode) {
   size_t supernode_fc = supernode * matrix_ns;
+  // if we reach the last block we take also the fixed effects otherwise just one more supernode
   size_t supernode_lc = supernode < matrix_nt
                             ? (supernode + 1) * matrix_ns
                             : matrix_ns * matrix_nt + matrix_nd;
