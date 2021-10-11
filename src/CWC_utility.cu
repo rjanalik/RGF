@@ -108,6 +108,83 @@ void memcpy_to_host(void *host_data,void *device_data,size_t size_element, cudaS
      cudaMemcpyAsync(host_data,device_data,size_element,cudaMemcpyDeviceToHost, stream);
 }
 
+__device__
+inline void get_column_offsets(size_t r, size_t c, size_t ns, size_t nt, size_t nd)
+{
+
+}
+
+/**
+ * @brief calculates the prefix sum/scan of the input array
+ * @details Description
+ * @param[in] data_in Description
+ * @param[out] data_out Description
+ * @param[in] n The number of elements in the arrays
+ */
+__device__
+inline void d_scan(double *data_in, double *data_out, size_t n)
+{
+
+}
+
+extern "C"
+void set_copy_buffer(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns){
+    // TODO: lunch kernel with ns x ns threads
+    // size_t i = blockIdx.x*blockDim.x + threadIdx.x;
+    // and use a for loop with if(idx < column_length)
+    //                             tmp[i] = M_dev[i];
+    size_t i_ns = ns + (BLOCK_DIM-(ns%BLOCK_DIM));
+    d_set_copy_buffer_on_dev<<< i_ns/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(MF_dev, out, column_offsets, row_length, ns);
+}
+
+__global__ void d_set_copy_buffer_on_dev(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns)
+{
+   // Note for now we only use one thread block for synchronization of the shared
+   // column offsets
+   // Should be ns i.e. per column one thread
+   size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+   size_t row_length = 2*ns;
+   if (idx < ns)
+   {
+       // TODO: different length of for loops => bad
+       size_t col_offset = column_offsets[idx];
+        // TODO about a way to make this more efficient
+       for (size_t j = 0; j < column_offsets[idx+1]-column_offsets[idx]; ++j){
+           out[col_offset+j] = MF_dev[idx*row_length+j];
+       }
+   }
+   __syncthreads();
+}
+
+
+// __global__ void d_set_copy_buffer_on_dev(double *MF_dev, double *tmp, size_t ns, size_t *ia, size_t *ja, double *a, size_t nnz, size_t ns, size_t nt, size_t nd)
+// {
+//    // Note for now we only use one thread block for synchronization of the shared
+//    // column offsets
+//    // Should be ns i.e. per column one thread
+//    size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+//    size_t row_length = 2*ns;
+//    __shared__ column_offsets[ns];
+
+//    if (idx < ns)
+//    {
+//        // TODO: different length of for loops => bad
+//        // Max non-zero bandwidth per column
+//        bandwidth[idx] = matrix_ia[idx + 1] - matrix_ia[idx];
+//        __syncthreads();
+//        // Calculate prefix sum to get the offsets
+//        d_scan(bandwidth, column_offsets, ns);
+
+//        // get offsets in order to fill tmp copy buffer
+//        size_t col_offset = column_offsets[idx];
+//         // TODO about a way to make this more efficient
+//        for (size_t j = 0; j < bandwidth[idx]; ++j){
+//            tmp[col_offset+j] = MF_dev[idx*row_length+j];
+//        }
+//    }
+//    __syncthreads();
+// }
+
 extern "C"
 void dgemm_on_dev(void *handle,char transa,char transb,int m,int n,int k,double alpha,\
       		  double *A,int lda,double *B,int ldb,double beta,double *C, int ldc){
@@ -1123,6 +1200,7 @@ void d_init_supernode_on_dev(double *M, size_t *ia, size_t *ja, double *a, size_
     size_t i_size = supernode_nnz + (BLOCK_DIM-(supernode_nnz%BLOCK_DIM));
 
     size_t supernode_fc = supernode * ns;
+    // Check if horizontally an intermediate or the last supernode with fixed effects
     size_t supernode_lc = supernode < nt ? (supernode+1) * ns : ns * nt + nd;
 
     d_init_supernode<<<i_size/BLOCK_DIM, BLOCK_DIM, 0, stream>>>(M, ia, ja, a, supernode_fc, supernode_lc, supernode_nnz, supernode_offset, ns, nt, nd);

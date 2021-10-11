@@ -3,11 +3,16 @@
 library("optparse")
 option_list <- list(
   make_option(c("-i", "--input"),
-    type = "character", default = "../../data/input/ghcn/2019",
+    type = "character", default = "../../data/input/ghcn",
     help = "Input file path [default= %default]", metavar = "character"
   ),
+  make_option(c("-y", "--years"),
+    type = "character", default = "2019",
+    help = "Years seperated by commas [default= %default]",
+    metavar = "character"
+  ),
   make_option(c("-f", "--file"),
-    type = "character", default = "d2019.RData",
+    type = "character", default = "d<year>.RData",
     help = "Input file name [default= %default]", metavar = "character"
   ),
   make_option(c("-o", "--output"),
@@ -45,7 +50,7 @@ opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 if (opt$verbose >= 1) {
 # enable debugging
-	options(error=recover)
+ options(error=recover)
 }
 ###################### Includes ####################
 library("INLA")
@@ -141,9 +146,16 @@ create_spatio_temporal_mat <- function(mesh, nt, base_path, order = 3, verbose =
 ##############################################################################
 
 ###################### Adapt Options ####################
+opt$year <- unlist(strsplit(opt$year, ","))
+
 if (opt$output == "same as --input") {
   opt$output <- opt$input
+  # Take the first year (if many) as output path
+  opt$output <- file.path(opt$input, opt$year[0])
 }
+
+
+
 
 nt <- opt$temporal
 if (nt == 1) {
@@ -188,6 +200,7 @@ if (opt$write == TRUE && SPATIAL_MODEL) {
 ########################### DATA PART ##########################################
 # load data which in our case is the d19.RData
 filepath <- file.path(opt$input, opt$file)
+# TODO: load both
 assign("data", get(load(filepath)))
 
 # wo welche zeichen eingelesen werden oder so.
