@@ -72,8 +72,9 @@ private:
   void create_blocks();
   inline void init_supernode(T *M_dev, size_t supernode);
   inline void copy_supernode_to_host(T *M_dev, size_t supernode);
-  inline void prefix_sum(T *arr, T *prefixSum, size_t n);
+  inline void prefix_sum(size_t *arr, size_t *prefixSum, size_t n);
   inline void copy_supernode_to_host_nz_band_only(T *M_dev, size_t supernode);
+  inline void set_MF_from_bands(T *MF, T *tmp, size_t *bandwidth, size_t *column_offsets,  size_t length, size_t rows);
   inline void copy_supernode_to_device(T *M_dev, size_t supernode);
   inline void copy_supernode_diag(T *src, size_t supernode);
   inline void swap_pointers(T **ptr1, T **ptr2);
@@ -836,9 +837,18 @@ inline void RGF<T>::copy_supernode_to_host(T *M_dev, size_t supernode) {
 
 /************************************************************************************************/
 template <class T>
-inline void RGF<T>::prefix_sum(T *arr, T *prefixSum, size_t n)
+inline void RGF<T>::set_MF_from_bands(T *MF, T *tmp, size_t *bandwidth, size_t *column_offsets,  size_t length, size_t rows)
 {
-    for (int i = 1; i < n; i++)
+  for(size_t j=0; j < matrix_ns; j++){
+    std::memcpy(&MF[j*rows], &tmp[column_offsets[j]], sizeof(T)*bandwidth[j]);
+  }
+}
+
+
+template <class T>
+inline void RGF<T>::prefix_sum(size_t *arr, size_t *prefixSum, size_t n)
+{
+    for (size_t i = 1; i < n; i++)
         prefixSum[i] = prefixSum[i - 1] + arr[i];
 }
 
@@ -852,16 +862,25 @@ inline void RGF<T>::copy_supernode_to_host_nz_band_only(T *M_dev,
   size_t ind = mf_block_index(supernode, supernode);
   size_t rows = mf_block_lda(supernode, supernode);
   size_t cols = supernode_lc - supernode_fc;
-  T *bandwidth, *column_offsets, *tmp;
-  bandwidth = new T[matrix_ns];
-  column_offsets = new T[matrix_ns];
+  size_t *bandwidth;
+  size_t *column_offsets;
+  T *tmp;
+  bandwidth = new size_t[matrix_ns];
+  column_offsets = new size_t[matrix_ns];
   // TODO:
   // 0. Callculate offsets that we need!
-  for (size_t col_j = 1; col_j < matrix_ns; col_j++) {
-    bandwidth[col_j] = matrix_ia[col_j + 1] - matrix_ia[col_j];
+  bandwidth[0] = 0;
+  for (size_t col_j = 0; col_j < matrix_ns; col_j++) {
+    bandwidth[col_j] = matrix_ia[supernode_fc+col_j + 1] - matrix_ia[supernode_fc+col_j];
+    assert(0 < bandwidth[col_j] < matrix_ns+matrix_nd);
   }
+  // std::cout << "bandwidth[2000]" << bandwidth[2000] << "\n";
   size_t length = 0;
   length = std::accumulate(bandwidth, bandwidth+matrix_ns, length);
+  assert(length <= rows * cols && "Non-zero bands cannot be larger than the whole matrix!");
+  // for(size_t i =0; i  < matrix_ns; i++){
+  //   length = std::accumulate(bandwidth, bandwidth+matrix_ns, length);
+  // }
   prefix_sum(bandwidth, column_offsets, matrix_ns);
   // 2. Allocate array of appropriate size
   cudaMalloc(&blockM_nz_dev, length*sizeof(T));
@@ -872,9 +891,14 @@ inline void RGF<T>::copy_supernode_to_host_nz_band_only(T *M_dev,
   // 4. Use a loop to set the correct values of M_dev to the array where we copy
   // blockM_nz_dev, M_dev
   tmp = new T[length];
-  set_copy_buffer(M_dev, blockM_nz_dev, supernode_nz_column_offsets, rows, matrix_ns);
-  // 4. Add asserts
-  memcpy_to_host(tmp, blockM_nz_dev, length * sizeof(T));
+  // set_copy_buffer(M_dev, blockM_nz_dev, supernode_nz_column_offsets, rows, matrix_ns);
+  // // 4. Add asserts
+  // memcpy_to_host(tmp, blockM_nz_dev, length * sizeof(T));
+  // set_MF_from_bands(&MF[ind], tmp, bandwidth, column_offsets, length, rows);
+  delete [] tmp;
+  delete [] bandwidth;
+  delete [] column_offsets;
+
   cudaFree(blockM_nz_dev);
   cudaFree(supernode_nz_column_offsets);
 }

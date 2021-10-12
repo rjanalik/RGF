@@ -25,7 +25,6 @@ CU_OBJECTS:= $(addprefix $(OBJ_DIR)/,CWC_utility.o)
 $(info $(CC_OBJECTS))
 $(info $(CU_OBJECTS))
 
-DEBUG       =     #-g -fsanitize=address,signed-integer-overflow
 
 INCLUDEDIR  = $(INCCUD) $(INCMAG)
 LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
@@ -35,18 +34,22 @@ CU_FILES   = CWC_utility.o
 
 DEBUG ?= 0
 ifeq ($(DEBUG), 1)
-	DEBUG_FLAGS  =-DDEBUG -g -Wall -fsanitize=address,signed-integer-overflow
-	DEBUG_FLAGS_NVCC=-DDEBUG -g
-	CXXFLAGS     += -O0
+$(info ============== Debugging Level 1 ==============)
+CXXFLAGS     = -O0 -DMPICH_IGNORE_CXX_SEEK
+DEBUG_FLAGS  =-g
+#DEBUG_FLAGS  =-g -Wall -fsanitize=address,signed-integer-overflow
+DEBUG_FLAGS_NVCC=-DDEBUG
 else ifeq ($(DEBUG), 2)
-	DEBUG_FLAGS  +=-DDEBUG -g -Wall -fno-stack-protector
-	CXXFLAGS     += -O0
-	DEBUG_FLAGS_NVCC=-DDEBUG -g
+$(info ============== Debugging Level 2 ==============)
+debug_flags  +=-ddebug -g -wall -fno-stack-protector
+CXXFLAGS     += -O0
+DEBUG_FLAGS_NVCC=-DDEBUG
 else
-	CXXFLAGS     += -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
-	NVCC_FLAGS   +=
-	DEBUG_FLAGS=-DNDEBUG
-	DEBUG_FLAGS_NVCC=-DNDEBUG
+$(info ============== No Debugging ==============)
+CXXFLAGS     = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
+NVCC_FLAGS   +=
+DEBUG_FLAGS=-DNDEBUG
+DEBUG_FLAGS_NVCC=-DNDEBUG
 endif
 
 # ASYNC, BASELINE
@@ -65,7 +68,7 @@ endif
 .PHONY: clean
 
 $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
-	$(LOADER) $(CC_OBJECTS) $(CU_OBJECTS) $(LOADFLAGS) $(LIBS) -lm -o $(BIN_DIR)/$@ $(DEBUG)
+	$(LOADER) $(CC_OBJECTS) $(CU_OBJECTS) $(LOADFLAGS) $(LIBS) -lm -o $(BIN_DIR)/$@
 
 # canned old version of:  %.o : %.c
 # $(CC_OBJECTS): $(CC_SRC)
@@ -73,11 +76,11 @@ $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
 # 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
 build/obj/main.o: src/main.C | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
-	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -D$(RGF_VERSION) -o $@
+	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(FLAGS) $(INCLUDEDIR) $(DEBUG_FLAGS) -D$(RGF_VERSION) -o $@
 
 build/obj/Utilities.o: src/Utilities.C include/Utilities.H | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
-	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR) -o $@
+	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(FLAGS) $(DEBUG_FLAGS) $(INCLUDEDIR) -o $@
 
 build/obj/CWC_utility.o: src/CWC_utility.cu | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(CU_EXTEN) files"
