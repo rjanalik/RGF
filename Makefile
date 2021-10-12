@@ -58,6 +58,8 @@ else ifeq ($(RGF_VERSION),ASYNC)
 	RGF_VERSION := ASYNC
 else ifeq ($(RGF_VERSION),ASYNC_2S)
 	RGF_VERSION := ASYNC_2S
+else ifeq ($(RGF_VERSION),BANDED)
+	RGF_VERSION := BANDED
 endif
 
 .PHONY: clean

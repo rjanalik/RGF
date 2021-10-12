@@ -53,7 +53,7 @@ private:
   T *blockDense_dev;
   T *rhs;
   T *blockM_nz_dev;
-  T *supernode_nz_column_offsets;
+  size_t *supernode_nz_column_offsets;
   size_t *ia_dev;
   size_t *ja_dev;
   T *a_dev;
@@ -852,7 +852,7 @@ inline void RGF<T>::copy_supernode_to_host_nz_band_only(T *M_dev,
   size_t ind = mf_block_index(supernode, supernode);
   size_t rows = mf_block_lda(supernode, supernode);
   size_t cols = supernode_lc - supernode_fc;
-  T *bandwidth, column_offsets;
+  T *bandwidth, *column_offsets, *tmp;
   bandwidth = new T[matrix_ns];
   column_offsets = new T[matrix_ns];
   // TODO:
@@ -860,7 +860,8 @@ inline void RGF<T>::copy_supernode_to_host_nz_band_only(T *M_dev,
   for (size_t col_j = 1; col_j < matrix_ns; col_j++) {
     bandwidth[col_j] = matrix_ia[col_j + 1] - matrix_ia[col_j];
   }
-  size_t length = std::accumulate(std::cbegin(bandwidth), std::cend(bandwidth), 0.0L);
+  size_t length = 0;
+  length = std::accumulate(bandwidth, bandwidth+matrix_ns, length);
   prefix_sum(bandwidth, column_offsets, matrix_ns);
   // 2. Allocate array of appropriate size
   cudaMalloc(&blockM_nz_dev, length*sizeof(T));
@@ -870,9 +871,10 @@ inline void RGF<T>::copy_supernode_to_host_nz_band_only(T *M_dev,
   memcpy_to_host(column_offsets, supernode_nz_column_offsets, matrix_ns * sizeof(size_t));
   // 4. Use a loop to set the correct values of M_dev to the array where we copy
   // blockM_nz_dev, M_dev
-  set_copy_buffer(M_dev, blockM_nz_dev, supernode_nz_column_offsets, rows, matrix_ns,);
+  tmp = new T[length];
+  set_copy_buffer(M_dev, blockM_nz_dev, supernode_nz_column_offsets, rows, matrix_ns);
   // 4. Add asserts
-  memcpy_bands_to_host(blockM_nz_dev, blockM_nz_dev, length * sizeof(T));
+  memcpy_to_host(tmp, blockM_nz_dev, length * sizeof(T));
   cudaFree(blockM_nz_dev);
   cudaFree(supernode_nz_column_offsets);
 }

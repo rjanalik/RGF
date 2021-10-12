@@ -20,10 +20,11 @@
 #include <stdlib.h>
 #include <time.h>
 
-enum RGF_VERSIONS { BASELINE, ASYNCHRONOUS, ASYNCHRONOUS_2S };
+enum RGF_VERSIONS { BASELINE, ASYNCHRONOUS, ASYNCHRONOUS_2S , BANDED_COPYING};
 std::map<RGF_VERSIONS, std::string> enum_to_string{{BASELINE, "BASELINE"},
                                                   {ASYNCHRONOUS, "ASYNC"},
-                                                  {ASYNCHRONOUS_2S, "ASYNC_TWO_STREAMS"}};
+                                                  {ASYNCHRONOUS_2S, "ASYNC_TWO_STREAMS"},
+                                                  {BANDED_COPYING, "COPYING_NZ_BANDS"}};
 #ifdef BASE
 #include "RGF.H"
 RGF_VERSIONS rgf_ver = BASELINE;
@@ -33,6 +34,9 @@ RGF_VERSIONS rgf_ver = ASYNCHRONOUS;
 #elif defined ASYNC_2S
 #include "RGF_async_2s.H"
 RGF_VERSIONS rgf_ver = ASYNCHRONOUS_2S;
+#elif defined BANDED
+#include "RGF_no_zero_copying.H"
+RGF_VERSIONS rgf_ver = BANDED_COPYING;
 #endif
 using namespace std;
 

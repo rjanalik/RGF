@@ -127,23 +127,12 @@ inline void d_scan(double *data_in, double *data_out, size_t n)
 
 }
 
-extern "C"
-void set_copy_buffer(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns){
-    // TODO: lunch kernel with ns x ns threads
-    // size_t i = blockIdx.x*blockDim.x + threadIdx.x;
-    // and use a for loop with if(idx < column_length)
-    //                             tmp[i] = M_dev[i];
-    size_t i_ns = ns + (BLOCK_DIM-(ns%BLOCK_DIM));
-    d_set_copy_buffer_on_dev<<< i_ns/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(MF_dev, out, column_offsets, row_length, ns);
-}
-
 __global__ void d_set_copy_buffer_on_dev(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns)
 {
    // Note for now we only use one thread block for synchronization of the shared
    // column offsets
    // Should be ns i.e. per column one thread
    size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
-   size_t row_length = 2*ns;
    if (idx < ns)
    {
        // TODO: different length of for loops => bad
@@ -184,6 +173,17 @@ __global__ void d_set_copy_buffer_on_dev(double *MF_dev, double *out, size_t *co
 //    }
 //    __syncthreads();
 // }
+
+extern "C"
+void set_copy_buffer(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns, cudaStream_t stream){
+    // TODO: lunch kernel with ns x ns threads
+    // size_t i = blockIdx.x*blockDim.x + threadIdx.x;
+    // and use a for loop with if(idx < column_length)
+    //                             tmp[i] = M_dev[i];
+    size_t i_ns = ns + (BLOCK_DIM-(ns%BLOCK_DIM));
+    d_set_copy_buffer_on_dev<<< i_ns/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(MF_dev, out, column_offsets, row_length, ns);
+}
+
 
 extern "C"
 void dgemm_on_dev(void *handle,char transa,char transb,int m,int n,int k,double alpha,\
