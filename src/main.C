@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include "Utilities.H"
 
 enum RGF_VERSIONS { BASELINE, ASYNCHRONOUS, ASYNCHRONOUS_2S , BANDED_COPYING};
 std::map<RGF_VERSIONS, std::string> enum_to_string{{BASELINE, "BASELINE"},
@@ -265,9 +266,9 @@ int main(int argc, char *argv[]) {
 
   std::string nu_s = std::to_string(nu);
 
-  std::cout << "./RGF CALL  " << ns_s << " " << nt_s << " " << nb_s << " "
-            << no_s << "\n"
-            << std::endl;
+  // std::cout << "./RGF CALL  " << ns_s << " " << nt_s << " " << nb_s << " "
+  //           << no_s << "\n"
+  //           << std::endl;
 
   // ------------------- construct file names and check if files exist
   // --------------------------
@@ -523,11 +524,14 @@ int main(int argc, char *argv[]) {
 
   L_factor_file.close(); */
 
+  utilities::print_header("Solve");
   t_solve = get_time(0.0);
   double flops_solve = solver->solve(x, b, 1);
   t_solve = get_time(t_solve);
   printf("flops solve:     %f\n", flops_solve);
 
+
+  utilities::print_header("RGFdiag calculated");
   t_inv = get_time(0.0);
   double flops_inv = solver->RGFdiag(invDiag);
   t_inv = get_time(t_inv);

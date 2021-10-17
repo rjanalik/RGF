@@ -137,7 +137,7 @@ __global__ void d_set_copy_buffer_on_dev(double *MF_dev, double *out, size_t *co
    {
        // TODO: different length of for loops => bad
        size_t col_offset = column_offsets[idx];
-        // TODO about a way to make this more efficient
+        // TODO find a way to make this more efficient
        for (size_t j = 0; j < column_offsets[idx+1]-column_offsets[idx]; ++j){
            out[col_offset+j] = MF_dev[idx*row_length+j];
        }
@@ -180,7 +180,7 @@ void set_copy_buffer(double *MF_dev, double *out, size_t *column_offsets, size_t
     // size_t i = blockIdx.x*blockDim.x + threadIdx.x;
     // and use a for loop with if(idx < column_length)
     //                             tmp[i] = M_dev[i];
-    size_t i_ns = ns + (BLOCK_DIM-(ns%BLOCK_DIM));
+    size_t i_ns = ns + (BLOCK_DIM - (ns % BLOCK_DIM));
     d_set_copy_buffer_on_dev<<< i_ns/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(MF_dev, out, column_offsets, row_length, ns);
 }
 
@@ -1088,6 +1088,11 @@ void z_fill_on_dev(CPX *x, const CPX value, size_t N, cudaStream_t stream)
 __device__
 inline size_t getPos(size_t r, size_t c, size_t ns, size_t nt, size_t nd)
 {
+
+/**
+ * @var ib
+ * @brief returns index of current block from last column value
+ */
    size_t ib = c / ns;
 
    // c in block2 : c in block1 or dense block

@@ -37,13 +37,14 @@ ifeq ($(DEBUG), 1)
 $(info ============== Debugging Level 1 ==============)
 CXXFLAGS     = -O0 -DMPICH_IGNORE_CXX_SEEK
 DEBUG_FLAGS  =-g
+#-Wall -fsanitize=address
 #DEBUG_FLAGS  =-g -Wall -fsanitize=address,signed-integer-overflow
-DEBUG_FLAGS_NVCC=-DDEBUG
+DEBUG_FLAGS_NVCC=-DDEBUG -O0 -G
 else ifeq ($(DEBUG), 2)
 $(info ============== Debugging Level 2 ==============)
-debug_flags  +=-ddebug -g -wall -fno-stack-protector
+DEBUG_FLAGS  +=-DDEBUG -g -Wall # -fno-stack-protector
 CXXFLAGS     += -O0
-DEBUG_FLAGS_NVCC=-DDEBUG
+DEBUG_FLAGS_NVCC=-DDEBUG -O0 -G
 else
 $(info ============== No Debugging ==============)
 CXXFLAGS     = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
@@ -54,15 +55,20 @@ endif
 
 # ASYNC, BASELINE
 ifeq ($(RGF_VERSION),)
+$(info ============== BASELINE VERSION ==============)
 	RGF_VERSION := BASE
 else ifeq ($(RGF_VERSION),BASELINE)
+$(info ============== BASELINE VERSION ==============)
 	RGF_VERSION := BASE
 else ifeq ($(RGF_VERSION),ASYNC)
+$(info ============== ASYNCHRONUOUS VERSION ==============)
 	RGF_VERSION := ASYNC
 else ifeq ($(RGF_VERSION),ASYNC_2S)
 	RGF_VERSION := ASYNC_2S
+$(info ============== ASYNCHRONUOUS VERSION 2 STRAMS ==============)
 else ifeq ($(RGF_VERSION),BANDED)
 	RGF_VERSION := BANDED
+$(info ============== BANDED VERSION ==============)
 endif
 
 .PHONY: clean
@@ -80,11 +86,11 @@ build/obj/main.o: src/main.C | $(OBJ_DIR) $(BIN_DIR)
 
 build/obj/Utilities.o: src/Utilities.C include/Utilities.H | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
-	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(FLAGS) $(DEBUG_FLAGS) $(INCLUDEDIR) -o $@
+	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(FLAGS) $(DEBUG_FLAGS) -D$(RGF_VERSION) $(INCLUDEDIR) -o $@
 
 build/obj/CWC_utility.o: src/CWC_utility.cu | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(CU_EXTEN) files"
-	$(NVCC) -c $< $(INC_CC) $(NVCCFLAGS) $(INCLUDEDIR) -o $@
+	$(NVCC) -c $< $(INC_CC) $(NVCCFLAGS) $(DEBUG_FLAGS_NVCC) -D$(RGF_VERSION) $(INCLUDEDIR) -o $@
 
 $(BIN_DIR):
 	@mkdir -p $@
