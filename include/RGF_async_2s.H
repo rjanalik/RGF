@@ -90,6 +90,7 @@ private:
 
   double FirstStageFactor();
   double SecondStageSolve(size_t);
+  double ThirdStageAsyncRGF(T *, T *);
   double ThirdStageRGF(T *, T *);
   void create_blocks();
   inline void init_supernode(T *M_dev, size_t supernode);
@@ -696,7 +697,7 @@ template <class T> double RGF<T>::SecondStageSolve(size_t nrhs) {
  * @param[inout] tmp1_dev Description
  * @param[out] tmp2_dev Description
  */
-template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
+template <class T> double RGF<T>::ThirdStageAsyncRGF(T *tmp1_dev, T *tmp2_dev) {
   int info;
   size_t IB;
   size_t NR, NM, NP, ND;
@@ -829,6 +830,115 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
   copy_supernode_diag(blockR_dev, 0);
 
   return flops;
+}
+
+/**
+ * @brief Calculates G_i i=n+1,...,1
+ * @details Description
+ * @param[inout] tmp1_dev Description
+ * @param[out] tmp2_dev Description
+ */
+template <class T>
+double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
+    int info;
+    size_t IB;
+    size_t NR, NP, ND; // NM
+    T ONE = f_one();
+    T ZERO = f_zero();
+
+    ND = matrix_nd;
+
+    double flops = 0;
+
+    if (matrix_nd > 0) {
+        // dense block
+        IB = NBlock - 1;
+        NR = Bmax[IB] - Bmin[IB];
+
+        tlacpy_dev('L', NR, NR, blockDense_dev, mf_block_lda(IB, IB), tmp1_dev, NR, magma_queue);
+        tril_dev(tmp1_dev, NR, NR);
+        ttrtri_dev('L', 'N', NR, tmp1_dev, NR, &info);
+        flops += 0.5 * NR * NR * NR;
+        tgemm_dev('T', 'N', NR, NR, NR, ONE, tmp1_dev, NR, tmp1_dev, NR, ZERO, blockDense_dev, mf_block_lda(IB, IB), magma_queue);
+        flops += 2.0 * NR * NR * NR;
+
+        // last non-dense block
+        IB = NBlock - 2;
+        NR = Bmax[IB] - Bmin[IB];
+        NP = Bmax[IB + 1] - Bmin[IB + 1];
+
+        tril_dev(blockR_dev, mf_block_lda(IB, IB), NR);
+        ttrtri_dev('L', 'N', NR, blockR_dev, mf_block_lda(IB, IB), &info);
+        flops += 0.5 * NR * NR * NR;
+        init_eye_on_dev(tmp1_dev, NR, 0);
+
+        tgemm_dev('T', 'N', NR, NP, NP, ONE, &blockR_dev[mf_dense_block_offset(IB)], mf_dense_block_lda(IB), blockDense_dev,
+                  mf_block_lda(IB + 1, IB + 1), ZERO, tmp2_dev, NR, magma_queue);
+        flops += 2.0 * NR * NP * NP;
+        tgemm_dev('N', 'N', NR, NR, NP, ONE, tmp2_dev, NR, &blockR_dev[mf_dense_block_offset(IB)], mf_dense_block_lda(IB), ONE,
+                  tmp1_dev, NR, magma_queue);
+        flops += 2.0 * NR * NR * NP;
+        tgemm_dev('T', 'N', NR, NR, NR, ONE, blockR_dev, mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR, magma_queue);
+        flops += 2.0 * NR * NR * NR;
+        tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, blockR_dev, mf_block_lda(IB, IB), ZERO, tmp1_dev, NR, magma_queue);
+        flops += 2.0 * NR * NR * NR;
+        tlacpy_dev('F', NR, NR, tmp1_dev, NR, blockR_dev, mf_block_lda(IB, IB), magma_queue);
+
+        copy_supernode_diag(blockDense_dev, NBlock - 1);
+    } else {
+        // last non-dense block
+        IB = NBlock - 1;
+        NR = Bmax[IB] - Bmin[IB];
+
+        tlacpy_dev('L', NR, NR, blockR_dev, mf_block_lda(IB, IB), tmp1_dev, NR, magma_queue);
+        tril_dev(tmp1_dev, NR, NR);
+        ttrtri_dev('L', 'N', NR, tmp1_dev, NR, &info);
+        flops += 0.5 * NR * NR * NR;
+        tgemm_dev('T', 'N', NR, NR, NR, ONE, tmp1_dev, NR, tmp1_dev, NR, ZERO, blockR_dev, mf_block_lda(IB, IB), magma_queue);
+    }
+
+    // second-last non-dense block .. 0-block
+    for (int IBi = matrix_nt - 2; IBi > -1; IBi--) {
+        IB = IBi;
+        NR = Bmax[IB] - Bmin[IB];
+        NP = Bmax[IB + 1] - Bmin[IB + 1];
+
+        // TODO: same as in first stage
+        swap_pointers(&blockR_dev, &blockP_dev);
+        copy_supernode_diag(blockP_dev, IB + 1);
+        copy_supernode_to_device(blockR_dev, IB);
+
+        tril_dev(blockR_dev, mf_block_lda(IB, IB), NR);
+        ttrtri_dev('L', 'N', NR, blockR_dev, mf_block_lda(IB, IB), &info);
+        flops += 0.5 * NR * NR * NR;
+        init_eye_on_dev(tmp1_dev, NR, 0);
+
+        tgemm_dev('T', 'N', NR, NP, NP, ONE, &blockR_dev[NR], mf_block_lda(IB + 1, IB), blockP_dev, mf_block_lda(IB + 1, IB + 1),
+                  ZERO, tmp2_dev, NR, magma_queue);
+        flops += 2.0 * NR * NP * NP;
+        tgemm_dev('N', 'N', NR, NR, NP, ONE, tmp2_dev, NR, &blockR_dev[NR], mf_block_lda(IB + 1, IB), ONE, tmp1_dev, NR,
+                  magma_queue);
+        flops += 2.0 * NR * NR * NP;
+
+        if (matrix_nd > 0) {
+            tgemm_dev('T', 'N', NR, ND, ND, ONE, &blockR_dev[mf_dense_block_offset(IB)], mf_dense_block_lda(IB), blockDense_dev,
+                      mf_block_lda(NBlock - 1, NBlock - 1), ZERO, tmp2_dev, NR, magma_queue);
+            flops += 2.0 * NR * ND * ND;
+            tgemm_dev('N', 'N', NR, NR, ND, ONE, tmp2_dev, NR, &blockR_dev[mf_dense_block_offset(IB)], mf_dense_block_lda(IB), ONE,
+                      tmp1_dev, NR, magma_queue);
+            flops += 2.0 * NR * NR * ND;
+        }
+
+        tgemm_dev('T', 'N', NR, NR, NR, ONE, blockR_dev, mf_block_lda(IB, IB), tmp1_dev, NR, ZERO, tmp2_dev, NR, magma_queue);
+        flops += 2.0 * NR * NR * NR;
+        tgemm_dev('N', 'N', NR, NR, NR, ONE, tmp2_dev, NR, blockR_dev, mf_block_lda(IB, IB), ZERO, tmp1_dev, NR, magma_queue);
+        flops += 2.0 * NR * NR * NR;
+        tlacpy_dev('F', NR, NR, tmp1_dev, NR, blockR_dev, mf_block_lda(IB, IB), magma_queue);
+    }
+
+    copy_supernode_diag(blockR_dev, 0);
+
+    return flops;
 }
 
 /************************************************************************************************/

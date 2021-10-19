@@ -141,6 +141,7 @@ __global__ void d_set_copy_buffer_on_dev(double *MF_dev, double *out, size_t *co
        for (size_t j = 0; j < column_offsets[idx+1]-column_offsets[idx]; ++j){
            out[col_offset+j] = MF_dev[idx*row_length+j];
        }
+       // TODO: add fixed effects at the end
    }
    __syncthreads();
 }

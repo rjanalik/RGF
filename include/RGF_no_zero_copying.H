@@ -39,6 +39,7 @@ private:
   size_t *Bmax;
   size_t NBlock;
   size_t *diag_pos;
+  size_t iteration_counter;
 
   size_t b_size;
   bool MF_dev_allocated = false;
@@ -75,8 +76,8 @@ private:
   inline void init_supernode(T *M_dev, size_t supernode);
   inline void copy_supernode_to_host(T *M_dev, size_t supernode);
   inline void prefix_sum(size_t *arr, size_t *prefixSum, size_t n);
-  inline void get_bandwiths(size_t *matrix_ia, size_t rows, size_t cols, size_t supernode_fc, size_t *bandwidths);
-  inline void copy_supernode_to_host_nz_band_only(T *M_dev, size_t supernode);
+  inline void get_bandwidths(size_t *matrix_ia, size_t *matrix_ja, size_t rows, size_t cols, size_t *bandwidths);
+  inline void copy_supernode_to_host_banded(T *M_dev, size_t supernode);
   inline void set_MF_from_bands(T *MF, T *tmp, size_t *bandwidth, size_t *supernode_bands_offsets,  size_t length, size_t rows);
   inline void copy_supernode_to_device(T *M_dev, size_t supernode);
   inline void copy_supernode_diag(T *src, size_t supernode);
@@ -90,6 +91,7 @@ private:
 
 template <class T>
 RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
+  iteration_counter = 0;
   matrix_ia = ia;
   matrix_ja = ja;
   matrix_a = a;
@@ -120,6 +122,9 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
   size_t IB;
   for (IB = 0; IB < nt - 1; IB++) {
     for (size_t i = 0; i < ns; i++) {
+      // IB * ns * (2 * ns + nd)
+      // Block * total_elements_per_supernode (rows of supernode = 2 * ns + nd))
+      // For each column i in a supernode jump 2*ns+nd rows i * (2 * ns + nd + 1)
       diag_pos[IB * ns + i] = IB * ns * (2 * ns + nd) + i * (2 * ns + nd + 1);
     }
   }
@@ -221,6 +226,7 @@ template <class T> inline size_t RGF<T>::mf_dense_block_lda(size_t i) {
 /************************************************************************************************/
 
 template <class T> double RGF<T>::FirstStageFactor() {
+  // TODO probably with block_Rdev first round runs but then no more.
   int info;
   size_t IB;
   size_t NR, NM;
@@ -260,12 +266,13 @@ template <class T> double RGF<T>::FirstStageFactor() {
 
   // rj IB = 1; IB < NBlock; IB++
   for (IB = 1; IB < matrix_nt - 1; IB++) {
+    iteration_counter++;
+    std::cout << "FIRST STAGE LOOP! Iterration - " << iteration_counter << "\n";
     NR = Bmax[IB] - Bmin[IB];
     NM = Bmax[IB - 1] - Bmin[IB - 1];
 
     swap_pointers(&blockR_dev, &blockM_dev);
     init_supernode(blockR_dev, IB);
-
     // UPDATE NEXT DIAGONAL BLOCK
     // rj dgemm NT M[IB,IB-1] M[IB,IB-1]
     // todo rj: 3-last parameter ZERO in PARDISO
@@ -312,7 +319,8 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // IB-1), mf_block_lda(IB, IB-1));
 
     // TODO only if lower diagonal block copy non-zero stripes back
-    copy_supernode_to_host_nz_band_only(blockR_dev, IB);
+    copy_supernode_to_host(blockR_dev, IB);
+    // copy_supernode_to_host_banded(blockR_dev, IB);
   }
 
   if (matrix_nt > 1) {
@@ -849,10 +857,13 @@ inline void RGF<T>::copy_supernode_to_host(T *M_dev, size_t supernode) {
 
 /************************************************************************************************/
 template <class T>
-inline void RGF<T>::get_bandwiths(size_t *matrix_ia, size_t rows, size_t cols, size_t supernode_fr, size_t *bandwidths){
+inline void RGF<T>::get_bandwidths(size_t *matrix_ia, size_t *matrix_ja, size_t rows, size_t cols, size_t *bandwidths){
   for (size_t col_j = 0; col_j < cols; col_j++) {
     // 0<=matrix_ia[i]<=ns+nd
-    bandwidths[col_j] = matrix_ia[supernode_fr+col_j + 1] - matrix_ia[supernode_fr+col_j];
+    bandwidths[col_j] = matrix_ja[matrix_ia[col_j + 1]-2]-matrix_ja[matrix_ia[col_j]];
+    // Or
+    // size_t last_row_idx = matrix_ja[matrix_ia[col_j + 1] -1];
+    // bandwidths[col_j] = last_row_idx-1;
     assert(0 < bandwidths[col_j] < rows && "The length of the bands cannot exceed the total number of rows");
   }
 }
@@ -867,21 +878,23 @@ inline void RGF<T>::set_MF_from_bands(T *MF, T *tmp, size_t *bandwidth, size_t *
 
 
 template <class T>
-inline void RGF<T>::prefix_sum(size_t *arr, size_t *prefixSum, size_t n)
+inline void RGF<T>::prefix_sum(size_t *arr, size_t *prefix_sum, size_t n)
 {
-    prefixSum[0] = 0;
+    prefix_sum[0] = 0;
     for (size_t i = 1; i < n; i++)
-        prefixSum[i] = prefixSum[i - 1] + arr[i];
+        prefix_sum[i] = prefix_sum[i - 1] + arr[i];
 }
 
 template <class T>
-inline void RGF<T>::copy_supernode_to_host_nz_band_only(T *M_dev,
+inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
                                                         size_t supernode) {
-  std::cout << "COPY SUPERNODE TO HOST! \n";
+  std::cout << "COPY SUPERNODE TO HOST! Iterration - " << iteration_counter << "\n";
+  std::cout << "matrix_ja[0]" << matrix_ja[0] << "\n";
   size_t supernode_fc = supernode * matrix_ns;
   size_t supernode_lc = supernode < matrix_nt
                             ? (supernode + 1) * matrix_ns
                             : matrix_ns * matrix_nt + matrix_nd;
+  size_t supernode_offset = matrix_ia[supernode_fc];
   size_t ind = mf_block_index(supernode, supernode);
   size_t rows = mf_block_lda(supernode, supernode);
   size_t cols = supernode_lc - supernode_fc;
@@ -896,19 +909,18 @@ inline void RGF<T>::copy_supernode_to_host_nz_band_only(T *M_dev,
   supernode_bands_offsets = new size_t[cols];
   // TODO:
   // 0. Callculate offsets that we need!
-  get_bandwiths(matrix_ia, rows, cols, supernode_fc, bandwidths);
-  tot_len_of_bands = std::accumulate(bandwidths, bandwidths+cols, tot_len_of_bands);
-  /** or
-      for(size_t i =0; i  < cols; i++){
-        tot_len_of_bands += bandwidths[i];
-      }
-  */
+  get_bandwidths(&matrix_ia[supernode_fc], &matrix_ja[supernode_offset], rows, cols, bandwidths);
+  // tot_len_of_bands = std::accumulate(bandwidths, bandwidths+cols, tot_len_of_bands);
+  // or
+  for(size_t i =0; i  < cols; i++){
+    tot_len_of_bands += bandwidths[i];
+  }
   assert(tot_len_of_bands <= rows * cols && "Non-zero bands cannot be larger than the whole matrix!");
-  std::cout << "Compression Ratio is = " << (double) tot_len_of_bands/(rows*cols);
+  std::cout << "Compression Ratio is = " << (double) tot_len_of_bands/(rows*cols)*100 << "%\n";
   assert(tot_len_of_bands <= max_supernode_nnz && "Calculated bands should be less or equal to the size of the supernodes");
   // allocate array on cpu where we store the copied offsets
   tmp = new T[tot_len_of_bands];
-  // Get column offsets from bandwiths
+  // Get column offsets from bandwidths
   prefix_sum(bandwidths, supernode_bands_offsets, cols);
   // Allocate array of appropriate size
   cudaMalloc(&blockM_nz_dev, tot_len_of_bands*sizeof(T));
