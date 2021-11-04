@@ -2,7 +2,9 @@
 ifeq ($(BUILD_TYPE),)
 #BUILD_TYPE = ethz-gnu64
 #BUILD_TYPE = icsmaster-gnu64
-	BUILD_TYPE = kaust
+#BUILD_TYPE = kaust
+      BUILD_TYPE = ibex
+
 endif
 
 # Default values which might be overridden
@@ -71,6 +73,54 @@ ifeq ($(BUILD_TYPE),icsmaster-gnu64)
         INCMAG        =
         MAGMA         = -lmagma
 	export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
+endif
+ifeq ($(BUILD_TYPE),kaust)
+        FLAGS         = -DAdd_ -DSOLVE_CRAY -D__MINMAX -Wno-write-strings
+        MKLHOME       = $(MKLROOT)/lib/intel64
+        BLAHOME       = $(MKLHOME)
+        LAPHOME       = $(MKLHOME)
+        SCAHOME       = $(MKLHOME)
+        CUDAHOME      = /usr/local/cuda
+        LOADER        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+        MPICXX        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+        NVCC          = nvcc
+        CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
+        LOADFLAGS     = -O3 -ffast-math -funroll-loops -L$(GNU64)/lib64 -lgfortran -L$(INTEL64)/compiler/lib/intel64 -L$(MPIHOME)/lib/ #-lmpifort
+        NVCCFLAGS     = -arch=compute_70 -code=sm_70
+        CUDA_SDK      = 3
+        COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)
+        F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
+        LAPACK        = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
+        #SCALAPACK     = -L/lib/x86_64-linux-gnu -lscalapack-openmpi #-L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
+        LINKS         = -Wl,-rpath -Wl,$(GNU64)/lib64
+        LIBSCI        =
+        BLAS          =
+        OPENMP        = -fopenmp
+        export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
+endif
+ifeq ($(BUILD_TYPE),ibex)
+        FLAGS         = -DAdd_ -DSOLVE_CRAY -D__MINMAX -Wno-write-strings
+        MKLHOME       = $(MKLROOT)/lib/intel64
+        BLAHOME       = $(MKLHOME)
+        LAPHOME       = $(MKLHOME)
+        SCAHOME       = $(MKLHOME)
+        CUDAHOME      = /usr/local/cuda
+        LOADER        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+        MPICXX        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+        NVCC          = nvcc
+        CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
+        LOADFLAGS     = -O3 -ffast-math -funroll-loops -L$(GNU64)/lib64 -lgfortran -L$(INTEL64)/compiler/lib/intel64 -L$(MPIHOME)/lib/ #-lmpifort
+        NVCCFLAGS     = -arch=compute_70 -code=sm_70
+        CUDA_SDK      = 3
+        COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)
+        F90_LIBS      = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
+        LAPACK        = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
+        #SCALAPACK     = -L/lib/x86_64-linux-gnu -lscalapack-openmpi #-L$(SCAHOME) -lmkl_scalapack_lp64 -Wl,-rpath -Wl,$(MKLHOME)
+        LINKS         = -Wl,-rpath -Wl,$(GNU64)/lib64
+        LIBSCI        =
+        BLAS          =
+        OPENMP        = -fopenmp
+        export LD_LIBRARY_PATH=$(GNU64)/lib64:$(INTEL64)/lib
 endif
 
 ifeq ($(BUILD_TYPE),kaust)

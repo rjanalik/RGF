@@ -186,18 +186,24 @@ arma::sp_mat construct_Q_spat_temp(arma::vec theta_u, \
   arma::sp_mat Qst(n_st, n_st);
 
   // g^2 * fem$c0 + fem$g1
-  arma::sp_mat q1s = pow(theta_u[2],2) * c0 + g1;
-  //std::cout << "q1s :" << std::endl;
-  //arma::mat(q1s).submat(0,0,10,10).print();
+  arma::sp_mat q1s = pow(theta_u[1],2) * c0 + g1;
+  std::cout << "q1s :" << std::endl;
+  arma::mat(q1s).submat(0,0,10,10).print();
 
   // g^4 * fem$c0 + 2 * g^2 * fem$g1 + fem$g2
-  arma::sp_mat q2s = pow(theta_u[2], 4) * c0 + 2 * pow(theta_u[2],2) * g1 + g2;
+  arma::sp_mat q2s = pow(theta_u[1], 4) * c0 + 2 * pow(theta_u[1],2) * g1 + g2;
+  std::cout << "q2s :" << std::endl;
+  arma::mat(q2s).submat(0,0,10,10).print();
 
   // g^6 * fem$c0 + 3 * g^4 * fem$g1 + 3 * g^2 * fem$g2 + fem$g3
-  arma::sp_mat q3s = pow(theta_u[2], 6) * c0 + 3 * pow(theta_u[2],4) * g1 + 3 * pow(theta_u[2],2) * g2 + g3;
+  arma::sp_mat q3s = pow(theta_u[1], 6) * c0 + 3 * pow(theta_u[1],4) * g1 + 3 * pow(theta_u[1],2) * g2 + g3;
+  std::cout << "q3s :" << std::endl;
+  arma::mat(q3s).submat(0,0,10,10).print();
 
   // assemble overall precision matrix Q.st
-  Qst = theta_u[0]*(kron(M0, q3s) + kron(M1 * 2 * theta_u[1], q2s) +  kron(M2 * theta_u[1] * theta_u[1], q1s));
+  Qst = pow(theta_u[0],2)*(kron(M0, q3s) + kron(2 * theta_u[2] * M1, q2s) +  kron(theta_u[2] * theta_u[2] * M2, q1s));
+  std::cout << "Qst :" << std::endl;
+  arma::mat(Qst).submat(0,0,10,10).print();
 
   return Qst;
 
@@ -346,9 +352,10 @@ int main(int argc, char* argv[])
   
   } else {
 
+    std::cout << "theta u : " << std::endl;
     std::cout << exp(theta(arma::span(1,3))) << std::endl;
     Qu = construct_Q_spat_temp(exp(theta(arma::span(1,3))), c0, g1, g2, g3, M0, M1, M2);
-    // arma::mat(Qu).submat(0,0,10,10).print();
+    //arma::mat(Qu).submat(0,0,10,10).print();
 
   }
 
@@ -365,16 +372,17 @@ int main(int argc, char* argv[])
   size_t n = size(Qu)[1] + size(Qb)[1];
   std::cout << "n : " << n << std::endl;
   arma::sp_mat Qx(n,n);
-  Qx(0,0, size(Qu))          = Qu;
+  Qx(0,0, size(Qu))           = Qu;
   Qx(0,nu, size(Qub0.t()))    = Qub0.t();
   Qx(nu, 0, size(Qub0))       = Qub0;
-  Qx(nu, nu, size(Qb))       = Qb;
+  Qx(nu, nu, size(Qb))        = Qb;
   //arma::mat(Qx).submat(0,0,10,10).print();
 
   // Q.x|y = Q.x + t(A.x), Q.e*A.x
   arma::sp_mat Qxy(size(Qx));
   Qxy = Qx + exp(theta[0])*Ax.t()*Ax;
-  //arma::mat(Qx).submat(0,0,10,10).print();
+  std::cout << "Qxy : " << std::endl;
+  arma::mat(Qxy).submat(0,0,10,10).print();
 
 
   arma::vec bxy = exp(theta[0])*Ax.t()*y;
