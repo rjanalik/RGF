@@ -33,9 +33,17 @@ private:
   size_t *matrix_ia;
   size_t *matrix_ja;
   T *matrix_a;
-  size_t matrix_size; /**< matrix_size: Total matrix size of size \p ns * \p
-                         nt + \p nd*/
-  size_t matrix_nnz;  /**< matrix_n_nonzeros: number of non-zeros of sparse matrix A*/
+  size_t matrix_size; /**< matrix_size: Total number of rows/columns of the big matrix
+                         \p ns * \p nt + \p nd
+                      */
+  size_t matrix_nnz;  /**< matrix_n_nonzeros: number of non-zeros of sparse matrix A
+                           matrix_nnz = 2 * (nt - 1) * ns * ns + ns * ns + matrix_size * nd;
+                           Stores the factorization and has
+                           - (nt - 1) supernodes of size (nt - 1) * ns x ns
+                           - one last dense block of size ns x ns
+                           - nd x (ns*nt+nd)
+
+                      */
   size_t matrix_ns;   /**< same as ns*/
   size_t matrix_nt;   /**< same as nt*/
   size_t matrix_nd;   /**< same as nd*/
@@ -62,7 +70,9 @@ private:
    * Description: pointers of the blocks get swaped each round.
    * @{
    */
-  T *MF;         /**< MF: Result of matrix factorization on the host: has the size of matrix_n_nonzeros */
+  T *MF;         /**< MF: Result of matrix factorization on the host: has the size of matrix_nnz
+                    It thus stores only the factorization of the supernodes!
+                  * */
   T *blockR_dev; /**< blockR_dev: is of size supernode i.e. two vertical blocks (if nt>1) plus fixed effects nd.
                     first calculates A=LL^T and stores L^T; then calculates and stores trms(L_i^T, B_i)*/
   T *blockM_dev; /**< blockM_dev: is of size supernode*/
@@ -221,7 +231,16 @@ template <class T> RGF<T>::~RGF() {
 
 /************************************************************************************************/
 
+/**
+ * @brief returns the index of the diagonal element of the matrix MF
+ * @details returns the index of memory location of MF for the diagonal element r!
+ * i.e. MF[mf_block_index(8)] returns the 8th diagonal value of MF.
+ * @param[in] r Description
+ * @param[in] c Description
+ * @return Description
+ */
 template <class T> inline size_t RGF<T>::mf_block_index(size_t r, size_t c) {
+  // Recall: b_size = ns+nd
   return diag_pos[c * b_size] + (r - c) * b_size;
 }
 
@@ -1105,7 +1124,7 @@ template <class T> double RGF<T>::residualNormNormalized(T *x, T *b) {
  * @brief Calculates the largest block size
  * @details finds maximum over all blocks and sets \p b_size to it.
  * Note: for our application the b_size is const apart from the fixed effect
- * blocks.
+ * blocks thus it is equal to ns or ns+nd
  */
 template <class T> void RGF<T>::create_blocks() {
   size_t IB;

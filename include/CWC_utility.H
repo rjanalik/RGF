@@ -115,7 +115,10 @@ void z_init_supernode_on_dev(CPX *M, size_t *ia, size_t *ja, CPX *a,
                              size_t supernode, size_t supernode_nnz,
                              size_t supernode_offset, size_t ns, size_t nt,
                              size_t nd, cudaStream_t stream = NULL);
-void set_copy_buffer(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns, cudaStream_t stream = NULL);
+
+
+void d_set_copy_buffer_on_dev(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns, size_t nd);
+void set_copy_buffer(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns, size_t nd, cudaStream_t stream = NULL);
 }
 
 #endif

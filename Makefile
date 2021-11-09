@@ -36,9 +36,9 @@ DEBUG ?= 0
 ifeq ($(DEBUG), 1)
 $(info ============== Debugging Level 1 ==============)
 CXXFLAGS     = -O0 -DMPICH_IGNORE_CXX_SEEK
-DEBUG_FLAGS  =-g -DDEBUG
+#DEBUG_FLAGS  =-g -DDEBUG
 #-Wall -fsanitize=address
-#DEBUG_FLAGS  =-g -Wall -fsanitize=address,signed-integer-overflow
+DEBUG_FLAGS  =-g -DDEBUG
 DEBUG_FLAGS_NVCC=-DDEBUG -O0 -G
 else ifeq ($(DEBUG), 2)
 $(info ============== Debugging Level 2 ==============)

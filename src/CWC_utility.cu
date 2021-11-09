@@ -12,6 +12,7 @@
 #include "cusparse_v2.h"
 #include "cuda.h"
 #include "magma_v2.h"
+#include <iostream>
 
 #ifndef max_stream
 #define max_stream 16
@@ -127,19 +128,37 @@ inline void d_scan(double *data_in, double *data_out, size_t n)
 
 }
 
-__global__ void d_set_copy_buffer_on_dev(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns)
+__global__ void d_set_copy_buffer_on_dev(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns, size_t nd)
 {
    // Note for now we only use one thread block for synchronization of the shared
    // column offsets
    // Should be ns i.e. per column one thread
-   size_t idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
-   if (idx < ns)
+   size_t col_idx = blockIdx.x * BLOCK_DIM + threadIdx.x;
+   size_t diag_pos;
+   size_t first_row_idx_fixed_effects;
+   int j =0;
+   if (col_idx < ns)
    {
        // TODO: different length of for loops => bad
-       size_t col_offset = column_offsets[idx];
-        // TODO find a way to make this more efficient
-       for (size_t j = 0; j < column_offsets[idx+1]-column_offsets[idx]; ++j){
-           out[col_offset+j] = MF_dev[idx*row_length+j];
+       size_t col_offset = column_offsets[col_idx];
+       // if(nd==0){
+       //     for (j = 0; j < column_offsets[col_idx+1]-column_offsets[col_idx]; ++j){
+       //         diag_pos = col_idx*row_length+col_idx;
+       //         out[col_offset+j] = MF_dev[diag_pos+j];
+       //     }
+       // } else{
+       // int values_per_row = column_offsets[col_idx+1]-column_offsets[col_idx]-nd;
+       int values_per_row = column_offsets[col_idx+1]-column_offsets[col_idx]-nd;
+       for (j = 0; j < values_per_row; j++){
+           diag_pos = col_idx*row_length+col_idx;
+           out[col_offset+j] = MF_dev[diag_pos+j];
+       }
+       if(nd > 0){
+           first_row_idx_fixed_effects = col_idx*row_length+row_length-nd;
+           for(size_t r = 0; r < nd; r++){
+               out[col_offset+j] = MF_dev[first_row_idx_fixed_effects+r];
+               j++;
+           }
        }
        // TODO: add fixed effects at the end
    }
@@ -176,13 +195,15 @@ __global__ void d_set_copy_buffer_on_dev(double *MF_dev, double *out, size_t *co
 // }
 
 extern "C"
-void set_copy_buffer(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns, cudaStream_t stream){
+void set_copy_buffer(double *MF_dev, double *out, size_t *column_offsets, size_t row_length, size_t ns, size_t nd, cudaStream_t stream){
     // TODO: lunch kernel with ns x ns threads
     // size_t i = blockIdx.x*blockDim.x + threadIdx.x;
     // and use a for loop with if(idx < column_length)
     //                             tmp[i] = M_dev[i];
     size_t i_ns = ns + (BLOCK_DIM - (ns % BLOCK_DIM));
-    d_set_copy_buffer_on_dev<<< i_ns/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(MF_dev, out, column_offsets, row_length, ns);
+    std::cout << "SET_COPY_BUFFER\n";
+    std::cout << "i_ns = " << i_ns << std::endl;
+    d_set_copy_buffer_on_dev<<< i_ns/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(MF_dev, out, column_offsets, row_length, ns, nd);
 }
 
 

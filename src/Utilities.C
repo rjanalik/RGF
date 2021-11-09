@@ -151,21 +151,235 @@ void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
 }
 
 namespace utilities {
-void print_header(std::string title, size_t length, char symbol,
-                  size_t sep_width, char sep, std::ostream &stream) {
-  size_t title_length = title.length();
-  size_t symbol_length = length - title.length() - 2 * sep_width;
-  // print only header line
-  if (title_length == 0) {
-    stream << std::string(length, symbol) << std::endl;
-  } else if (symbol_length <= 0) {
-    // print only title if title to long
-    stream << title << std::endl;
-  } else {
-    stream << std::string(symbol_length / 2, symbol)
-           << std::string(sep_width, sep) << title
-           << std::string(sep_width, sep)
-           << std::string(symbol_length / 2, symbol) << std::endl;
+  void print_header(std::string title, size_t length, char symbol,
+                    size_t sep_width, char sep, std::ostream &stream) {
+    size_t title_length = title.length();
+    size_t symbol_length = length - title.length() - 2 * sep_width;
+    // print only header line
+    if (title_length == 0) {
+      stream << std::string(length, symbol) << std::endl;
+    } else if (symbol_length <= 0) {
+      // print only title if title to long
+      stream << title << std::endl;
+    } else {
+      stream << std::string(symbol_length / 2, symbol)
+            << std::string(sep_width, sep) << title
+            << std::string(sep_width, sep)
+            << std::string(symbol_length / 2, symbol) << std::endl;
+    }
   }
-}
+//   enum Code {
+//   BG_BLACK    = 40,
+//   BG_RED      = 41,
+//   BG_GREEN    = 42,
+//   BG_YELLOW   = 43,
+//   BG_BLUE     = 44,
+//   BG_MAGENT   = 45,
+//   BG_CYAN     = 46,
+//   BG_WHITE    = 47,
+//   BG_DEFAULT  = 49,
+//   FG_BLACK    = 30,
+//   FG_RED      = 31,
+//   FG_GREEN    = 32,
+//   FG_YELLOW   = 33,
+//   FG_BLUE     = 34,
+//   FG_MAGENT   = 35,
+//   FG_CYAN     = 36,
+//   FG_WHITE    = 37,
+//   FG_DEFAULT  = 39
+// };
+//   class Modifier {
+//     Code code;
+//     public:
+//       Modifier(Code pCode) : code(pCode) {}
+//       friend std::ostream&
+//       operator<<(std::ostream& os, const Modifier& mod) {
+//         return os << "\033[" << mod.code << "m";
+//       }
+//   };
+// }
+
+  constexpr size_t nmax {200};
+
+  size_t number_of_digits(double n) {
+    std::ostringstream strs;
+    strs << n;
+    size_t digits = strs.str().size();
+    return n < 0 ? digits+1 : digits;
+  }
+
+  void get_max_digits_per_column(const T *M, size_t n, size_t *max_len_per_col){
+    size_t max_len;
+    size_t num_len;
+    for (size_t j = 0; j < n; ++j) {
+      max_len = 0;
+      for (size_t i = 0; i < n; ++i){
+        num_len = number_of_digits(M[i*n+j]);
+        if (max_len < num_len)
+          max_len = num_len ;
+      }
+      max_len_per_col[j] = max_len+1;
+    }
+  }
+
+
+  void print_matrix(T *M, size_t m, size_t n, bool RMO) {
+    size_t *max_len_per_col = new size_t[n];
+    get_max_digits_per_column(M, n, max_len_per_col);
+    size_t idx;
+
+    for (size_t i = 0; i < m; ++i)
+      for (size_t j = 0; j < n; ++j){
+        if(RMO)
+          idx = i*m+j;
+        else
+          idx = i+m*j;
+        std::cout << (j == 0 ? "\n| " : "") << std::setw(max_len_per_col[j]) << M[idx] << (j == n - 1 ? " |" : " ");
+      }
+        // colors \033[0;41m
+    delete[] max_len_per_col;
+    std::cout << '\n';
+  }
+
+  void print_matrix_structure(T *M, size_t m, size_t n, bool RMO) {
+    std::string s;
+    size_t idx;
+    for (size_t i = 0; i < m; ++i)
+      for (size_t j = 0; j < n; ++j){
+        if(RMO)
+          idx = i*m+j;
+        else
+          idx = i+m*j;
+        if (M[idx] < 0) {
+          s = "-";
+        } else if (M[idx] > 0){
+          s = "+";
+        } else{
+          s = "0";
+        }
+        std::cout << (j == 0 ? "\n| " : "") << std::setw(3) << s << (j == n - 1 ? " |" : " ");
+        // colors \033[0;41m
+      }
+    std::cout << '\n';
+  }
+
+  void print_matrix_structure_with_fixed_effects(T *M, size_t m, size_t n, size_t nd, bool RMO) {
+    std::string s;
+    size_t idx;
+    for (size_t i = 0; i < m; ++i)
+      for (size_t j = 0; j < n; ++j){
+        if(RMO)
+          idx = i*m+j;
+        else
+          idx = i+m*j;
+        if (j > n-nd-1 || i > n-nd-1) {
+          s = "=";
+        } else if (M[idx] < 0) {
+          s = "-";
+        } else if (M[idx] > 0){
+          s = "+";
+        } else{
+          s = "0";
+        }
+        std::cout << (j == 0 ? "\n| " : "") << std::setw(3) << s << (j == n - 1 ? " |" : " ");
+        // colors \033[0;41m
+      }
+    std::cout << '\n';
+  }
+
+
+  size_t mf_block_index(size_t supernode, size_t *diag_pos, size_t b_size) {
+    return diag_pos[supernode * b_size];
+  }
+
+  size_t mf_block_lda(size_t supernode, size_t ns, size_t nt, size_t nd) {
+    // return matrix->index_i[c*b_size];
+    // two blocks
+    if (supernode < nt - 1)
+      return 2 * ns + nd;
+    // one block
+    if (supernode < nt)
+      return ns + nd;
+    // dense block
+    else
+      return nd;
+  }
+
+  void print_MF_structure(T *MF, size_t ns, size_t nt, size_t nd, size_t *diag_pos) {
+    std::string s;
+    size_t supenode_bs = 2*ns*ns;
+    size_t fixed_effects_bs = nd*ns;
+    size_t total_rows_of_MF = nt*ns+nd;
+    size_t total_cols_of_MF = nt*ns+nd;
+    size_t col_size = ns;
+    // Initalize memory to zero
+    T *M_out = new T[total_rows_of_MF*total_cols_of_MF]();
+    std::cout << "nt-1 = " << nt-1 << std::endl;
+    std::cout << "total_rows_of_MF = " << total_rows_of_MF << std::endl;
+    std::cout << "col_size = " << col_size << std::endl;
+    for (size_t supernode = 0; supernode < nt-1; supernode++) {
+      size_t supernode_fc = supernode * ns;
+      size_t supernode_lc = supernode < nt
+                                ? (supernode + 1) * ns
+                                : ns * nt + nd;
+      size_t rows = mf_block_lda(supernode, ns, nt, nd);
+      size_t ind = mf_block_index(supernode, diag_pos, ns);
+      size_t cols = supernode_lc - supernode_fc;
+      memcpy(&M_out[supernode*(nt*ns+nd)*ns + supernode*ns*ns], &MF[ind], rows*cols*sizeof(T));
+    }
+    print_matrix_structure(M_out, total_rows_of_MF, total_cols_of_MF);
+    // for (size_t IB = 0; IB < nt - 1; IB++) {
+    //   // size_t diag_block_start = diag_pos[IB * ns];
+    //     for (size_t i = 0; i < total_rows_of_MF; i++) {
+    //       for (size_t j = 0; j < col_size; j++) {
+    //         // glb_idx = IB*(total_rows_of_MF*col_size);
+    //         // if(IB*ns < i < IB*ns+2*ns){
+    //         //   MF[diag_pos[IB*ns]];
+    //         // }
+    //       }
+    //     }
+    // }
+  }
+
+
+  void print_csr(size_t *ia, size_t *ja, double *a, size_t n, size_t nd, bool structureOnly){
+    T *M = new T[n*n]();
+    size_t elem = 0;
+    for (size_t j = 0; j < n; ++j){
+      for (size_t i = 0; i < (ia[j+1]-ia[j]); ++i){
+        size_t row_idx = ja[ia[j]+i];
+        // a stored as column major
+        T val = a[elem++];
+        M[row_idx+n*j] = val;
+        if(structureOnly)
+          M[row_idx*n+j] = val;
+      }
+    }
+    if(structureOnly){
+      if(nd>0)
+        print_matrix_structure_with_fixed_effects(M, n, n, nd, false);
+      else
+        print_matrix_structure(M, n, n, false);
+    }
+    else
+      print_matrix(M, n, n, false);
+    delete[] M;
+  }
+
+  void print_ia_ja_a(const size_t *ia, const size_t *ja, const T *a, size_t n){
+    size_t nnz = ia[n];
+    std::cout << "ia:" << std::setw(10) << " ";
+    std::cout << "ja:" << std::setw(10) << " ";
+    std::cout << "a:" << std::setw(10) << "\n";
+    for(size_t i = 0; i < nnz; i++){
+      if(i < n){
+        std::cout << ia[i] << std::setw(10) << " ";
+      } else
+        std::cout << std::setw(10) << " ";
+
+      std::cout << ja[i] << std::setw(10) << " ";
+      std::cout << a[i] << std::setw(10) << " ";
+      std::cout << "\n";
+    }
+  }
 } // namespace utilities
