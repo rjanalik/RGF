@@ -6,20 +6,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits>
-#include "RGF.H"
-
 #include <omp.h>
 #include <armadillo>
 
+#include "intermed_fct_RGF.C"
+
 using namespace std;
 
-#if 0
-typedef CPX T;
-#define assign_T(val) CPX(val, 0.0)
-#else
-typedef double T;
-#define assign_T(val) val
-#endif
 
 /*
 Start simulations with RGF NBlock Bmin.dat Bmax.dat M.dat
@@ -35,7 +28,7 @@ index_i index_j real imag (4 columns per matrix entry)
 */
 
 
-void readCSR(std::string filename, int &n, int &nnz, int* ia, int* ja, double* a)
+  void readCSR(std::string filename, int &n, int &nnz, int* ia, int* ja, double* a)
 {
 
   fstream fin(filename, ios::in);
@@ -159,25 +152,31 @@ void file_exists(std::string file_name)
 
 #if 1
 // SPDE discretisation -- matrix construction
-//void construct_Q_spatial(arma::vec& theta, arma::sp_mat* Qs, \
-//                         arma::sp_mat* c0, arma::sp_mat* g1, arma::sp_mat* g2){
-void construct_Q_spatial(arma::sp_mat& Qs, arma::vec theta_u, \
+/* void construct_Q_spatial(arma::vec& theta, arma::sp_mat* Qs, \
+                         arma::sp_mat* c0, arma::sp_mat* g1, arma::sp_mat* g2){ */
+arma::sp_mat construct_Q_spatial(arma::vec theta_u, \
                          arma::sp_mat c0, arma::sp_mat g1, arma::sp_mat g2){
 
+  arma::sp_mat Qs(c0.n_rows, c0.n_cols);
   // Qs <- g[1]^2*Qgk.fun(sfem, g[2], order)
   // return(g^4 * fem$c0 + 2 * g^2 * fem$g1 + fem$g2)
   Qs = pow(theta_u[0],2)*(pow(theta_u[1], 4) * c0 + 2*pow(theta_u[1],2) * g1 + g2);
   // extract triplet indices and insert into Qx
 
+  return Qs;
+
 }
 #endif
 
 // SPDE discretisation -- matrix construction
-//void construct_Q_spatial(arma::vec& theta, arma::sp_mat* Qs, \
-//                         arma::sp_mat* c0, arma::sp_mat* g1, arma::sp_mat* g2){
-void construct_Q_spat_temp(arma::sp_mat& Qst, arma::vec theta_u, \
+/* void construct_Q_spatial(arma::vec& theta, arma::sp_mat* Qs, \
+                        arma::sp_mat* c0, arma::sp_mat* g1, arma::sp_mat* g2){ */
+arma::sp_mat construct_Q_spat_temp(arma::vec theta_u, \
                          arma::sp_mat c0, arma::sp_mat g1, arma::sp_mat g2, arma::sp_mat g3, \
                          arma::sp_mat M0, arma::sp_mat M1, arma::sp_mat M2){
+
+  int n_st = c0.n_rows * M0.n_rows;
+  arma::sp_mat Qst(n_st, n_st);
 
   // g^2 * fem$c0 + fem$g1
   arma::sp_mat q1s = pow(theta_u[1],2) * c0 + g1;
@@ -194,13 +193,12 @@ void construct_Q_spat_temp(arma::sp_mat& Qst, arma::vec theta_u, \
   std::cout << "q3s :" << std::endl;
   arma::mat(q3s).submat(0,0,10,10).print();
 
-  std::cout << "assembling Qst now." << std::endl;
   // assemble overall precision matrix Q.st
-  Qst = pow(theta_u[0],2)*(kron(M0, q3s) + kron(M1 * 2 * theta_u[2], q2s) +  kron(M2 * theta_u[2] * theta_u[2], q1s));
+  Qst = pow(theta_u[0],2)*(kron(M0, q3s) + kron(2 * theta_u[2] * M1, q2s) +  kron(theta_u[2] * theta_u[2] * M2, q1s));
   std::cout << "Qst :" << std::endl;
   arma::mat(Qst).submat(0,0,10,10).print();
-  
-  //return Qst;
+
+  return Qst;
 
 }
 
@@ -333,24 +331,23 @@ int main(int argc, char* argv[])
     //theta.print();
   } else {
     theta = {5, -10, 2.5, 1};
-    //theta = {3, -5, 1, 2};
     //theta.print();
   }
 
 
-  arma::sp_mat Qu(nu, nu);
-  // assemble Qs for given theta
+  arma::sp_mat Qu;
 
+ // assemble Qs for given theta
   if(nt == 1){
 
-    construct_Q_spatial(Qu, exp(theta(arma::span(1,2))), c0, g1, g2);
+    Qu = construct_Q_spatial(exp(theta(arma::span(1,2))), c0, g1, g2);
     // arma::mat(Qu).submat(0,0,10,10).print();
   
   } else {
 
+    std::cout << "theta u : " << std::endl;
     std::cout << exp(theta(arma::span(1,3))) << std::endl;
-    construct_Q_spat_temp(Qu, exp(theta(arma::span(1,3))), c0, g1, g2, g3, M0, M1, M2);
-    //std::cout << "Qst : " << std::endl;
+    Qu = construct_Q_spat_temp(exp(theta(arma::span(1,3))), c0, g1, g2, g3, M0, M1, M2);
     //arma::mat(Qu).submat(0,0,10,10).print();
 
   }
@@ -368,10 +365,10 @@ int main(int argc, char* argv[])
   size_t n = size(Qu)[1] + size(Qb)[1];
   std::cout << "n : " << n << std::endl;
   arma::sp_mat Qx(n,n);
-  Qx(0,0, size(Qu))          = Qu;
+  Qx(0,0, size(Qu))           = Qu;
   Qx(0,nu, size(Qub0.t()))    = Qub0.t();
   Qx(nu, 0, size(Qub0))       = Qub0;
-  Qx(nu, nu, size(Qb))       = Qb;
+  Qx(nu, nu, size(Qb))        = Qb;
   //arma::mat(Qx).submat(0,0,10,10).print();
 
   // Q.x|y = Q.x + t(A.x), Q.e*A.x
@@ -380,197 +377,12 @@ int main(int argc, char* argv[])
   std::cout << "Qxy : " << std::endl;
   arma::mat(Qxy).submat(0,0,10,10).print();
 
-  exit(1);
 
   arma::vec bxy = exp(theta[0])*Ax.t()*y;
-  //bxy.subvec(0,10).print();
+  //bxy.print();
 
-  //std::cout << "size(Qxy)" << size(Qxy) << std::endl;
-  //std::cout << "size(bxy)" << size(bxy) << std::endl;
+  call_RGF_solver(ns, nt, nb, no, Qxy, bxy, base_path);
 
-  // TAKE ENTIRE MATRIX FOR THIS SOLVER
-  arma::sp_mat Qxy_lower = arma::trimatl(Qxy);
-
-  // require CSR format
-  size_t nnz = Qxy_lower.n_nonzero;
-
-  //std::cout << "number of non zeros : " << nnz << std::endl;
-
-  size_t* ia; 
-  size_t* ja;
-  double* a; 
-
-  // allocate memory
-  ia = new size_t [n+1];
-  ja = new size_t [nnz];
-  a = new double [nnz];
-
-  std::cout << n << std::endl;
-  std::cout << n << std::endl;
-  std::cout << nnz << std::endl;
-
-
-  for (int i = 0; i < nnz; ++i){
-    ja[i] = Qxy_lower.row_indices[i];
-    //std::cout << ja[i] << std::endl;     
-
-  } 
-
-  for (int i = 0; i < n+1; ++i){
-    ia[i] = Qxy_lower.col_ptrs[i]; 
-    //std::cout << ia[i] << std::endl;   
-  }  
-
-  for (int i = 0; i < nnz; ++i){
-    a[i] = Qxy_lower.values[i];
-    //std::cout << a[i] << std::endl;     
-
-  }  
-
-  printf("\nAll matrices assembled. Passing to RGF solver now.\n");
-
-  // ------------------------------------------------------------------------------------------- // 
-  // -------------------------------------- RGF SOLVER ----------------------------------------- //
-  // ------------------------------------------------------------------------------------------- // 
-
-  int i;
-  double data;
-  double t_factorise; double t_solve; double t_inv;
-  T *b;
-  T *x;
-  T *invDiag;
-  RGF<T> *solver;
-
-  time_t rawtime;
-  struct tm *timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-  printf ("The current date/time is: %s\n",asctime(timeinfo));
-
-  b      = new T[n];
-  x      = new T[n];
-  invDiag= new T[n];
-
-  // assign b to correct format
-  for (int i = 0; i < n; i++){
-    b[i] = bxy[i];
-    //printf("%f\n", b[i]);
-  }
-  
-  solver = new RGF<T>(ia, ja, a, ns, nt, nb);
-
-  t_factorise = get_time(0.0);
-  //solver->solve_equation(GR);
-  double flops_factorize = solver->factorize();
-  t_factorise = get_time(t_factorise);
-
-
-  double log_det = solver->logDet();
-  printf("logdet: %f\n", log_det);
-
-  printf("flops factorize: %f\n", flops_factorize);
-
-  // write this to file
-  /*std::string L_factor_file_name = base_path + "/L_factor_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s + ".dat";
-  std::ofstream L_factor_file(L_factor_file_name,    std::ios::out | std::ios::trunc);
-
-  L_factor_file << n << std::endl;
-  L_factor_file << n << std::endl;
-  L_factor_file << M->n_nonzeros << std::endl;
-
-  for (int i = 0; i < M->size+1; ++i){
-    L_factor_file << M->edge_i[i] << std::endl;
-  }
-   for (int i = 0; i < M->n_nonzeros; ++i){
-    L_factor_file << M->index_j[i] << std::endl;
-  }  
-  for (int i = 0; i < M->n_nonzeros; ++i){
-    L_factor_file << MF[i] << std::endl;
-  }  
-
-  L_factor_file.close(); */
-
-  t_solve = get_time(0.0); 
-  double flops_solve = solver->solve(x, b, 1);
-  t_solve = get_time(t_solve);
-  printf("flops solve:     %f\n", flops_solve);
-
-
-  t_inv = get_time(0.0);
-  double flops_inv = solver->RGFdiag(invDiag);
-  t_inv = get_time(t_inv);
-  printf("flops inv:      %f\n", flops_inv);
-
-
-  //exit(1);
-
-
-  printf("RGF factorise time: %lg\n",t_factorise);
-  printf("RGF solve     time: %lg\n",t_solve);
-  printf("RGF sel inv   time: %lg\n",t_inv);
-
-
-  printf("Residual norm: %e\n", solver->residualNorm(x, b));
-  printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
-
-  /*for (int i = 0; i < nrhs*ns*nt; i++){
-    printf("x[%d] = %f\n", i, b[i]);
-  }*/
-
-  // create file with solution vector
-  std::string sol_x_file_name = base_path + "/x_sol_RGF"  + "_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s +".dat";
-  std::ofstream sol_x_file(sol_x_file_name,    std::ios::out | std::ios::trunc);
-
-  for (i = 0; i < n; i++) {
-    sol_x_file << x[i] << std::endl;
-    // sol_x_file << x[i] << std::endl; 
-  }
-
-  sol_x_file.close();
-
-  std::string log_file_name = base_path + "/log_RGF_ns" + ns_s + "_nt" + nt_s + "_nb" + nb_s + "_no" + no_s +".dat";
-  std::ofstream log_file(log_file_name);
-  log_file << ns << std::endl;
-  log_file << nt << std::endl;
-  log_file << nb << std::endl;
-  log_file << no << std::endl;
-  log_file << n << std::endl;
-  log_file << nnz << std::endl;
-  log_file << "RGF" << std::endl;
-  log_file << log_det << std::endl;
-  log_file << "0.0" << std::endl;
-  log_file << t_factorise << std::endl;
-  log_file << t_solve << std::endl;
-  log_file << t_inv << std::endl;
-  log_file << flops_factorize << std::endl;
-  log_file << flops_solve << std::endl;
-  log_file << flops_inv << std::endl;
-
-  log_file.close(); 
-
-    // print/write diag 
-  string sel_inv_file_name = base_path +"/RGF_sel_inv_ns"+to_string(ns)+"_nt"+to_string(nt)+"_nb"+ nb_s + "_no" + no_s +".dat";
-  cout << sel_inv_file_name << endl;
-  ofstream sel_inv_file(sel_inv_file_name,    ios::out | ::ios::trunc);
-  
-    for (int i = 0; i < n; i++){
-      sel_inv_file << invDiag[i] << endl;
-    }
-
-  sel_inv_file.close();
-  cout << "after writing file " << endl;
-  
-  // free memory
-  delete[] invDiag;
-  delete solver;
-  delete[] ia;
-  delete[] ja;
-  delete[] a;
-  delete[] b;
-  delete[] x;
-
-  #if 0
-  #endif
     
   return 0;
 
