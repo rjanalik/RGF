@@ -23,11 +23,11 @@ year=2019
 solver_type=RGF
 
 echo "GV100"
-echo "GPU 0 ./mainConstInd ${ns} ${nt} ${nb} ${no} ${folder_path} ${solver_type} >RGF_output.txt"
+echo "GPU 0 ./main ${ns} ${nt} ${nb} ${no} ${folder_path} ${solver_type} >RGF_output.txt"
 
-CUDA_VISIBLE_DEVICES="0" ./mainEigen ${ns} ${nt} ${nb} ${no} ${folder_path} ${solver_type} #>RGF_output.txt
+#CUDA_VISIBLE_DEVICES="0" ./mainEigen ${ns} ${nt} ${nb} ${no} ${folder_path} ${solver_type} #>RGF_output.txt
 
-#CUDA_VISIBLE_DEVICES="0" ./mainConstInd ${folder_path} ${ns} ${nt} ${nb} ${no} # >${folder_path}/RGF_output.txt
+CUDA_VISIBLE_DEVICES="0" ./main ${folder_path} ${ns} ${nt} ${nb} ${no} # >${folder_path}/RGF_output.txt
 #mv ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}.dat ${folder_path}/L_factor_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_gpu0.dat
 #mv ${folder_path_data}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_year${year}.dat ${folder_path_data}/x_sol_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_year${year}_gpu0.dat
 #mv ${folder_path_data}/log_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_year${year}.dat ${folder_path_data}/log_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_year${year}_gpu0.dat
