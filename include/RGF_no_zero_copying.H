@@ -883,9 +883,8 @@ inline void RGF<T>::copy_supernode_to_host(T *M_dev, size_t supernode) {
   // utilities::print_matrix_structure_with_fixed_effects(MF, matrix_size, matrix_size, matrix_nd);
   memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T));
   std::cout << "Factorized Supernode:\n";
-  utilities::print_matrix_structure(&MF[ind], rows, cols, false);
+  // utilities::print_matrix_structure(&MF[ind], rows, cols, false);
   utilities::print_matrix(&MF[ind], rows, cols, false);
-  // utilities::print_MF_structure(MF, matrix_ns, matrix_nt, matrix_nd, diag_pos);
 }
 
 /************************************************************************************************/
@@ -916,7 +915,7 @@ inline void RGF<T>::get_bandwidths(size_t *matrix_ia, size_t *matrix_ja,
     // } else {
     r=0;
     // as long as the row_idx is inside the fixed effect blocks decrease
-    std::cout << "matrix_ja[last_idx_of_row - r] > rows-nd-1:\t" << matrix_ja[last_idx_of_row - r] << " > " << rows <<"-"<<nd<<"-"<< 1 << "\n";
+    // std::cout << "matrix_ja[last_idx_of_row - r] > rows-nd-1:\t" << matrix_ja[last_idx_of_row - r] << " > " << rows <<"-"<<nd<<"-"<< 1 << "\n";
     // TODO: need here total rows-nd-1 and not only supernode rows
     while(matrix_ja[last_idx_of_row - r] > rows-nd-1){
       // std::cout << "r = " << r << "\n";
@@ -924,7 +923,7 @@ inline void RGF<T>::get_bandwidths(size_t *matrix_ia, size_t *matrix_ja,
       r++;
     }
       // std::cout << "DONE!\n";
-      std::cout << "r = " << r << "\n";
+      // std::cout << "r = " << r << "\n";
       // std::cout << "matrix_ja[last_idx_of_row-r]" << " =  matrix_ja[" << last_idx_of_row-r << "] = " << matrix_ja[last_idx_of_row-r] << "\n";
       // std::cout << "rows-nd-1 = " << 3*3+2 << "-" << nd << "-" << 1 << " = " << 3*3+2-nd-1 << "\n";
 
@@ -932,12 +931,12 @@ inline void RGF<T>::get_bandwidths(size_t *matrix_ia, size_t *matrix_ja,
       // std::cout << "last_idx_of_row = " << last_idx_of_row << "\n";
       // std::cout << "matrix_ja[last_idx_of_row-r] = " << matrix_ja[last_idx_of_row-r] << "\n";
       // std::cout << "matrix_ja[matrix_ia[row_i]] = " << matrix_ja[matrix_ia[row_i]] << "\n";
-      std::cout << "matrix_ja[last_idx_of_row-r]-matrix_ja[matrix_ia[row_i]]+1:\t" << matrix_ja[last_idx_of_row-r]<<"-"<<matrix_ja[matrix_ia[row_i]]
-                << " = " <<matrix_ja[last_idx_of_row-r]-matrix_ja[matrix_ia[row_i]]+1 <<"\n";
-      std::cout << "nd " << nd << "\n";
+      // std::cout << "matrix_ja[last_idx_of_row-r]-matrix_ja[matrix_ia[row_i]]+1:\t" << matrix_ja[last_idx_of_row-r]<<"-"<<matrix_ja[matrix_ia[row_i]]
+      //           << " = " <<matrix_ja[last_idx_of_row-r]-matrix_ja[matrix_ia[row_i]]+1 <<"\n";
+      // std::cout << "nd " << nd << "\n";
       bandwidths[row_i-row_start] = (matrix_ja[last_idx_of_row-r]-matrix_ja[matrix_ia[row_i]])+1+nd;
   // }
-      std:: cout << "bandwidths[" << row_i-row_start << "] = "  << bandwidths[row_i-row_start] << "\n";
+      // std:: cout << "bandwidths[" << row_i-row_start << "] = "  << bandwidths[row_i-row_start] << "\n";
   // std::cout << matrix_ja[matrix_ia[row_i + 1]-2]
   // Or
   // size_t last_row_idx = matrix_ja[matrix_ia[row_i + 1] -1];
@@ -950,8 +949,16 @@ template <class T>
 inline void RGF<T>::set_MF_from_bands(T *MF, T *tmp, size_t *bandwidth, size_t *supernode_bands_offsets,  size_t length, size_t rows)
 {
   for(size_t j=0; j < matrix_ns; j++){
-    std::memcpy(&MF[j*rows+j], &tmp[supernode_bands_offsets[j]], sizeof(T)*bandwidth[j]);
+    // std::cout << "bandwidth[j]-matrix_nd" << "\t" << bandwidth[j]-matrix_nd << "\n";
+    // std::cout << "tmp[supernode_bands_offsets[j]]" << "\t" << tmp[supernode_bands_offsets[j]] << "\n";
+    std::memcpy(&MF[j*rows+j], &tmp[supernode_bands_offsets[j]], sizeof(T)*(bandwidth[j]-matrix_nd));
   }
+  if(matrix_nd>0)
+    for(size_t j=0; j < matrix_ns; j++){
+      size_t first_fixed_idx = (j+1)*rows-matrix_nd;
+      // std::cout << "first_fixed_idx = (j+1)*rows-matrix_nd\t (" << j << "+1)*" << rows << "-" << matrix_nd << "\n";
+      std::memcpy(&MF[first_fixed_idx], &tmp[supernode_bands_offsets[j]+(bandwidth[j]-matrix_nd)], sizeof(T)*matrix_nd);
+    }
 }
 
 
@@ -1004,9 +1011,9 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
   // Allocate array of appropriate size
   // tot_len_of_bands = std::accumulate(bandwidths, bandwidths+cols, tot_len_of_bands);
   tot_len_of_bands = supernode_bands_offsets[cols];
-  for(size_t i = 0; i < cols+1; i++){
-    std::cout << "supernode_bands_offsets[" << i << "]" << supernode_bands_offsets[i] << "\n";
-  }
+  // for(size_t i = 0; i < cols+1; i++){
+  //   std::cout << "supernode_bands_offsets[" << i << "]" << supernode_bands_offsets[i] << "\n";
+  // }
   assert(tot_len_of_bands <= rows * cols && "Non-zero bands cannot be larger than the whole matrix!");
   std::cout << "Compression Ratio is = " << (double) tot_len_of_bands/(rows*cols)*100 << "%\n";
   assert(tot_len_of_bands <= max_supernode_nnz && "Calculated bands should be less or equal to the size of the supernodes");
@@ -1032,6 +1039,8 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
     }
     std::cout << "\n";
   }
+  memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T));
+  std::memset(&MF[ind], 0, rows*cols*sizeof(T));
   set_MF_from_bands(&MF[ind], tmp, bandwidths, supernode_bands_offsets, tot_len_of_bands, rows);
   std::cout << "Factorized Supernode:\n";
   utilities::print_matrix(&MF[ind], rows, cols, false);
