@@ -226,15 +226,15 @@ namespace utilities {
   void print_matrix(T *M, size_t m, size_t n, bool RMO) {
     size_t *max_len_per_col = new size_t[n];
     get_max_digits_per_column(M, n, max_len_per_col);
+    size_t max_len = *std::max_element(max_len_per_col , max_len_per_col + n);
     size_t idx;
-
     for (size_t i = 0; i < m; ++i)
       for (size_t j = 0; j < n; ++j){
         if(RMO)
           idx = i*m+j;
         else
           idx = i+m*j;
-        std::cout << (j == 0 ? "\n| " : "") << std::setw(max_len_per_col[j]) << M[idx] << (j == n - 1 ? " |" : " ");
+        std::cout << (j == 0 ? "\n| " : "") << std::setw(max_len) << M[idx] << (j == n - 1 ? " |" : " ");
       }
         // colors \033[0;41m
     delete[] max_len_per_col;
