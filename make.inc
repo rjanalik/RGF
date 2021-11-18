@@ -6,7 +6,10 @@ RGF_MPICXX        = mpic++ #-Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
 RGF_FLAGS         = -DAdd_ -DSOLVE_CRAY -D__MINMAX -Wno-write-strings
 RGF_CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK #-O3
 
-LAPACK            = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
+#LAPACK            = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -Wl,-rpath -Wl,$(MKLHOME) 
+#LAPACK            = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
+LAPACK            = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl 
+
 OPENMP            = -fopenmp
 
 ###### GPU ######
@@ -25,7 +28,7 @@ CUDA              = -L/usr/lib64/ -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -
 
 # =====================================================
 
-RGF_MPICXX        = mpic++ #-Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
+#RGF_MPICXX        = mpic++ #-Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
 
 #RGF_LOADER        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
 #F90_LIBS          = -L$(GNU64)/lib64 -lgfortran -Wl,-rpath,L$(GNU64)/lib64
