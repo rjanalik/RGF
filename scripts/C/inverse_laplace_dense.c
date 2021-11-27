@@ -416,9 +416,10 @@ int main(int argc, char ** argv)
 
         fprintf (mat_file, "%d \n", NDENSE);
         fprintf (mat_file, "%d \n", NDENSE);
+        fprintf (mat_file, "%d \n", colptrD[NDENSE+1-1]-1);
         for (j = 1; j <= NDENSE+1; j++) 
 		fprintf(mat_file,"%d \n", colptrD[j-1]-1 );
-        for (j = 1; j <= colptrD[NDENSE]; j++) 
+        for (j = 1; j < colptrD[NDENSE]; j++)
 		fprintf(mat_file,"%d \n", rowindD[j-1]-1 );
         for (j = 1; j <= colptrD[NDENSE]; j++) 
 		fprintf(mat_file,"%24.16e \n", nzvalsD[j-1] );
