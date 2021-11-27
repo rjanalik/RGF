@@ -80,6 +80,9 @@ int main(int argc, char ** argv)
    int chkerr = 0, cdiag = 0, printa = 0, dumpL=0, cstore=0;
    int ierr = 0;
    double hx, hy, hz;  /* mesh size */
+   char fname[14] = "matrixRGF.mat";
+   char *fptr = fname;
+   /* char *fptr */;
 
 
    ia = 1;
@@ -119,6 +122,10 @@ int main(int argc, char ** argv)
       else if ( !strncmp(argv[ia],"-printa",7) ) {
     	 printa = atoi(&argv[ia][8]);
          if (printa != 0) printa = 1;
+      }
+      else if ( !strncmp(argv[ia],"-fname",6) ) {
+          fptr = &argv[ia][7];
+          printf("%s\n", fptr);
       }
       else {
  	 fprintf(stderr, "invalide argument!\n");
@@ -412,8 +419,7 @@ int main(int argc, char ** argv)
      if (1) 
      { 
         FILE *mat_file;
-        mat_file = fopen ("matrixRGF.mat", "w");
-
+        mat_file = fopen(fptr, "w");
         fprintf (mat_file, "%d \n", NDENSE);
         fprintf (mat_file, "%d \n", NDENSE);
         fprintf (mat_file, "%d \n", colptrD[NDENSE+1-1]-1);
