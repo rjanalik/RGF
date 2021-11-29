@@ -41,9 +41,10 @@ echo "CUDA_VISIBLE_DEVICES = " $CUDA_VISIBLE_DEVICES
 set -x
 # LD_LIBRARY_PATH=/home/x_pollakgr/RGF/external/magma-2.5.4/lib:$LD_LIBRARY_PATH
 #/home/x_pollakgr/RGF/build/bin/main 3 3 0 "/home/x_pollakgr/RGF/data/A_9_9_ns3_nt3.dat" "/home/x_pollakgr/RGF/data/rhs9.txt"
-/home/x_pollakgr/RGF/build/bin/main 3 3 2 "/home/x_pollakgr/RGF/data/A_11_11_ns3_nt3_nd2.dat" "/home/x_pollakgr/RGF/data/rhs11.txt"
+#/home/x_pollakgr/RGF/build/bin/main 3 3 2 "/home/x_pollakgr/RGF/data/A_11_11_ns3_nt3_nd2.dat" "/home/x_pollakgr/RGF/data/rhs11.txt"
+/home/x_pollakgr/RGF/build/bin/main 4 4 2 "/home/x_pollakgr/RGF/data/input/tests/spatio_temporal/ns_4_nt4/ns_4_nt4_nb2.mat" "/home/x_pollakgr/RGF/data/rhs18.txt"
 #gdb --args /home/x_pollakgr/RGF/build/bin/main 10 10 5 "/home/x_pollakgr/RGF/data/matrixRGF.mat" "/home/x_pollakgr/RGF/data/rhs105.txt"
-/home/x_pollakgr/RGF/build/bin/main 10 10 5 "/home/x_pollakgr/RGF/data/matrixRGF.mat" "/home/x_pollakgr/RGF/data/rhs105.txt"
+#/home/x_pollakgr/RGF/build/bin/main 10 10 5 "/home/x_pollakgr/RGF/data/matrixRGF.mat" "/home/x_pollakgr/RGF/data/rhs105.txt"
 #/home/x_pollakgr/RGF/build/bin/main 3 3 2 "/home/x_pollakgr/RGF/data/matrixRGF_ns3_nt3_nd2.mat" "/home/x_pollakgr/RGF/data/rhs11.txt"
 #/home/x_pollakgr/RGF/build/bin/main 1002 16 2 "/home/x_pollakgr/RGF/data/input/ghcn/2019/spatio_temporal/ns1002_nt16/Qxy_R_16034.dat" "/home/x_pollakgr/RGF/data/input/ghcn/2019/spatio_temporal/ns1002_nt16/bxy_R_16034_1.dat"
 

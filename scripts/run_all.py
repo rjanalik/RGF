@@ -18,7 +18,7 @@ def get_list_of_experiments(base_path):
     list_of_y_files = list()
     experiments = list()
     for (dirpath, dirnames, filenames) in os.walk(base_path):
-        y_files = [file for file in filenames if file.startswith('y_')]
+        y_files = [file for file in filenames if file.startswith('rhs')]
         # path_of_y_files += [os.path.join(dirpath, file) for file in filenames if file[0]=="y"]
         if y_files:
             y_file = y_files[0]
@@ -30,7 +30,7 @@ def get_list_of_experiments(base_path):
     return experiments
 
 if __name__ == '__main__':
-    base_path = "../data/input/ghcn/2019/spatio_temporal/"
+    base_path = "../data/input/tests/spatio_temporal/"
     experiments = get_list_of_experiments(base_path)
     print("Running %d experiments" % len(experiments))
 
