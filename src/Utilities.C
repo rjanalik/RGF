@@ -5,6 +5,15 @@
 #include <string>
 #include <vector>
 
+
+#if 0
+typedef CPX T;
+#define assign_T(val) CPX(val, 0.0)
+#else
+typedef double T;
+#define assign_T(val) val
+#endif
+
 void icopy(int N, int *x, int *x_copy) {
   int i;
 
@@ -121,7 +130,7 @@ void check_for_missing_option(char **begin, char **end,
 }
 
 void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
-                size_t &nt, size_t &nb, size_t &no, std::ostream &stream) {
+                size_t &nt, size_t &nb, std::ostream &stream) {
   struct option<std::string> help_option = {
     "-h", "--help", "std::string", "print this help message", false
   };
@@ -133,7 +142,6 @@ void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
       {"-s", "--ns", "integer", "number of spatial effects", true, &ns},
       {"-t", "--nt", "integer", "number of temporal effects", true, &nt},
       {"-f", "--nb", "integer", "number of fixed effects", true, &nb},
-      {"-n", "--no", "integer", "number of data samples", true, &no},
   };
   if (is_option_present(argv, argv + argc, help_option)) {
     print_help_message(string_options);
@@ -150,7 +158,51 @@ void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
   }
 }
 
+
 namespace utilities {
+
+  void read_test_matrix_nnz(size_t &nnz, std::string file_path){
+    FILE *F = fopen(file_path.c_str(),"r");
+    fscanf(F,"%zu",&nnz);
+    fscanf(F,"%zu",&nnz);
+    fscanf(F,"%zu",&nnz);
+    fclose(F);
+  }
+  void read_test_matrix(size_t *ia, size_t *ja, double *a, double *rhs, size_t rows, size_t nnz, size_t nrhs, std::string mat_path, std::string rhs_path){
+    std::cout << mat_path.c_str()<< std::endl;
+    std::cout << rhs_path.c_str()<< std::endl;
+    FILE *F = fopen(mat_path.c_str(), "r");
+    double val;
+    size_t f_rows;
+    size_t f_nnz;
+    int i;
+    /* read in matrix A, sparse matrix in CSR format */
+    fscanf(F,"%zu",&f_rows);
+    fscanf(F,"%zu",&f_rows);
+    fscanf(F,"%zu",&f_nnz);
+    for (i = 0; i <= rows; i++){
+       fscanf(F,"%zu",&ia[i]);
+    }
+    for (i = 0; i < ia[rows]; i++){
+       fscanf(F,"%zu",&ja[i]);
+    }
+    for (i = 0; i < ia[rows]; i++){
+       fscanf(F,"%lf",&val);
+       a[i] = assign_T(val);
+    }
+    fclose(F);
+    // READ RHS
+    nrhs   = 1;
+    rhs    = new T[nrhs*rows];
+
+    F = fopen(rhs_path.c_str(), "r");
+    for (int i = 0; i < nrhs*rows; i++)
+    {
+        fscanf(F,"%lf",&rhs[i]);
+    }
+    fclose(F);
+  }
+
   void print_header(std::string title, size_t length, char symbol,
                     size_t sep_width, char sep, std::ostream &stream) {
     size_t title_length = title.length();
@@ -382,4 +434,16 @@ namespace utilities {
       std::cout << "\n";
     }
   }
+
+  const std::string currentDateTime() {
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
+    // for more information about date/time format
+    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+
+    return buf;
+}
 } // namespace utilities

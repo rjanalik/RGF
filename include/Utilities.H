@@ -59,11 +59,13 @@ template <> inline CPX convert(double val) { return CPX(val, 0.0); }
 
 /************************************************************************************************/
 void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
-                size_t &nt, size_t &nb, size_t &no,
+                size_t &nt, size_t &nb,
                 std::ostream &stream = std::cout);
 
 namespace utilities {
 
+  void read_test_matrix_nnz(size_t &nnz, std::string file_path);
+  void read_test_matrix(size_t *ia, size_t *ja, double *a, double *rhs, size_t rows, size_t nnz, size_t nrhs, std::string mat_path, std::string rhs_path);
   void print_header(std::string title = "", size_t length = 100, char symbol = '=', size_t sep_width = 5, char sep = ' ', std::ostream &stream = std::cout);
   size_t mf_block_index(size_t supernode, size_t *diag_pos, size_t b_size);
   size_t mf_block_lda(size_t supernode, size_t ns, size_t nt, size_t nd);
@@ -75,6 +77,7 @@ namespace utilities {
   void print_matrix(T *M,  size_t m, size_t n, bool RMO = true);
   void print_csr(size_t *ia, size_t *ja, double *a, size_t n, size_t nd, bool structureOnly = false);
   void print_ia_ja_a(const size_t *ia, const size_t *ja, const T *a, size_t n);
+  const std::string currentDateTime();
 }
 
 #endif

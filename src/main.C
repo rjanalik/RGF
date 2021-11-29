@@ -1,10 +1,12 @@
 #include <math.h>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits>
+#include <omp.h>
 #include "Utilities.H"
 
 using namespace std;
@@ -38,117 +40,124 @@ typedef double T;
 
 int main(int argc, char *argv[])
 {
+    double overall_time = -omp_get_wtime();
+    std::string base_path;
+    size_t ns, nt, nb, rows, nnz;
+    std::string ns_s, nt_s, nb_s, no_s, nu_s;
+    size_t nrhs = 1;
+    size_t* ia;
+    size_t* ja;
+    double* a;
+    // arma::vec theta = {};
+    // ModelGenerator *model;
+    // ALLOCATE MEMORY
     int i;
     double data;
-    double t0, t1, t2, t3;
-    T *b;
+    double t_factorise; double t_solve; double t_inv;
+    T *rhs;
     T *x;
     T *invDiag;
-    int nrhs;
     RGF<T> *solver;
-
     time_t rawtime;
     struct tm *timeinfo;
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    printf ("The current date/time is: %s\n",asctime(timeinfo));
-
-    size_t ns = atoi(argv[1]);
-    size_t nt = atoi(argv[2]);
-    size_t nd = atoi(argv[3]);
-
-    size_t size = ns*nt + nd;
-
-    // load matrix from file
-    FILE *F = fopen(argv[4],"r");
-   
-    size_t fn, fnnz;
-    size_t *ia, *ja;
-    T *a;
-    double val;
-
-    /* read in matrix A, sparse matrix in CSR format */
-    fscanf(F,"%zu",&fn);
-    fscanf(F,"%zu",&fn);
-    fscanf(F,"%zu",&fnnz);
-
-    // allocate memory
+    printf("The current date/time is: %s\n",asctime(timeinfo));
+    parse_args(argc, argv, base_path, ns, nt, nb);
+    rows = ns*nt+nb;
+    rhs    = new T[rows];
+    x      = new T[rows];
+    invDiag= new T[rows];
+    std::string mat_path = base_path+"/ns"+std::to_string(ns)+"_nt"+std::to_string(nt)+"_nb"+std::to_string(nb)+".mat";
+    std::string rhs_path = base_path+"/rhs"+std::to_string(rows)+".txt";
+    std::cout << "rhs_path.c_str()" << rhs_path.c_str() << std::endl;
+    utilities::read_test_matrix_nnz(nnz, mat_path);
     if (rgf_ver != RGF_VERSIONS::BASELINE) {
-        cudaMallocHost(&ia, (fn + 1) * sizeof(size_t));
-        cudaMallocHost(&ja, fnnz * sizeof(size_t));
-        cudaMallocHost(&a, fnnz * sizeof(size_t));
+        cudaMallocHost(&ia, (rows + 1) * sizeof(size_t));
+        cudaMallocHost(&ja, nnz * sizeof(size_t));
+        cudaMallocHost(&a, nnz * sizeof(size_t));
     } else {
-        ia = new size_t[fn + 1];
-        ja = new size_t[fnnz];
-        a = new double[fnnz];
+        ia = new size_t[rows + 1];
+        ja = new size_t[nnz];
+        a = new double[nnz];
     }
-
-    for (i = 0; i <= fn; i++){
+    // utilities::read_test_matrix(ia, ja, a, rhs, rows, nnz, nrhs, mat_path, rhs_path);
+    FILE *F = fopen(mat_path.c_str(), "r");
+    double val;
+    // read in matrix A, sparse matrix in CSR format
+    fscanf(F,"%zu",&rows);
+    fscanf(F,"%zu",&rows);
+    fscanf(F,"%zu",&nnz);
+    for (i = 0; i <= rows; i++){
        fscanf(F,"%zu",&ia[i]);
     }
-
-    for (i = 0; i < ia[fn]; i++){
+    for (i = 0; i < ia[rows]; i++){
        fscanf(F,"%zu",&ja[i]);
     }
-
-    for (i = 0; i < ia[fn]; i++){
+    for (i = 0; i < ia[rows]; i++){
        fscanf(F,"%lf",&val);
        a[i] = assign_T(val);
     }
-
     fclose(F);
-
+    // READ RHS
     nrhs   = 1;
-    b      = new T[nrhs*size];
-    x      = new T[nrhs*size];
-    invDiag= new T[size];
-
-    F = fopen(argv[5],"r");
-    for (int i = 0; i < nrhs*size; i++)
+    rhs    = new T[nrhs*rows];
+    F = fopen(rhs_path.c_str(), "r");
+    for (int i = 0; i < nrhs*rows; i++)
     {
-        fscanf(F,"%lf",&b[i]);
+        fscanf(F,"%lf",&rhs[i]);
     }
     fclose(F);
     utilities::print_header("Inital Matrix Stucture");
-    utilities::print_csr(ia, ja, a, fn, nd, true);
-    utilities::print_csr(ia, ja, a, fn, nd, false);
-    solver = new RGF<T>(ia, ja, a, ns, nt, nd);
+    utilities::print_csr(ia, ja, a, rows, nb, true);
+    utilities::print_csr(ia, ja, a, rows, nb, false);
 
-    t0 = get_time(0.0);
-    solver->factorize();
-    t0 = get_time(t0);
+    // load matrix from file
+    solver = new RGF<T>(ia, ja, a, ns, nt, nb);
+    // FACTORIZATION ===========================================
+    t_factorise = get_time(0.0); //solver->solve_equation(GR);
+    double flops_factorize = solver->factorize();
+    t_factorise = get_time(t_factorise);
+    double log_det = solver->logDet();
+    printf("logdet: %f\n", log_det);
+    printf("flops factorize: %f\n", flops_factorize);
+    // SOLVE ===========================================
+    t_solve = get_time(0.0);
+    double flops_solve = solver->solve(x, rhs, 1);
+    t_solve = get_time(t_solve);
+    printf("flops solve:     %f\n", flops_solve);
+    // INVERSION ===========================================
+    t_inv = get_time(0.0);
+    double flops_inv = solver->RGFdiag(invDiag);
+    t_inv = get_time(t_inv);
+    printf("flops inv:      %f\n", flops_inv);
 
-    t1 = get_time(0.0);
-    solver->solve(x, b, nrhs);
-    t1 = get_time(t1);
+    // INVERSION save results
+    std::ofstream output_fh;
+    output_fh.open("/home/x_pollakgr/RGF/results/ghcn/results.csv", std::ofstream::app);
+    output_fh.precision(17);
+    std::string sep = "\t";
+    output_fh << std::fixed << utilities::currentDateTime() <<
+      sep << no_s <<
+      sep << ns_s <<
+      sep << nt_s <<
+      sep << t_factorise <<
+      sep << flops_factorize <<
+      sep << t_solve <<
+      sep << flops_solve <<
+      sep << t_inv <<
+      sep << flops_inv <<
+      "\n";
 
-    t2 = get_time(0.0);
-    double logdet = solver->logDet();
-    t2 = get_time(t2);
+    output_fh.close();
 
-    t3 = get_time(0.0);
-    solver->RGFdiag(invDiag);
-    t3 = get_time(t3);
-    utilities::print_matrix(invDiag, fn, 1);
+    printf("RGF factorise time: %lg\n",t_factorise);
+    printf("RGF solve     time: %lg\n",t_solve);
+    printf("RGF sel inv   time: %lg\n",t_inv);
 
-    printf("logdet: %f\n", logdet);
-    printf("\n");
 
-    printf("factorize time: %lg\n",t0);
-    printf("solve time: %lg\n",t1);
-    printf("logdet time: %lg\n",t2);
-    printf("RGF time: %lg\n",t3);
-    printf("\n");
-
-    printf("Residual norm: %e\n", solver->residualNorm(x, b));
-    printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, b));
-    printf("\n");
-
-    for (int i = 0; i < nrhs*size; i++)
-    {
-       printf("%32.24e\n", x[i]);
-       //printf("%32.24e\n", invDiag[i]);
-    }
+    printf("Residual norm: %e\n", solver->residualNorm(x, rhs));
+    printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, rhs));
 
     // free memory
     if (rgf_ver != RGF_VERSIONS::BASELINE) {
@@ -161,11 +170,11 @@ int main(int argc, char *argv[])
         delete[] a;
     }
 
-    delete[] b;
+    delete[] invDiag;
+    delete[] rhs;
     delete[] x;
     delete solver;
-    delete[] invDiag;
-    
+
     return 0;
 }
 
