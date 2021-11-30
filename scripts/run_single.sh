@@ -36,6 +36,7 @@ set -x
 export CUDA_VISIBLE_DEVICES=0
 echo "CUDA_VISIBLE_DEVICES = " $CUDA_VISIBLE_DEVICES
 CUDA_VISIBLE_DEVICES="1" /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
+#CUDA_VISIBLE_DEVICES="1" gdb --args /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
  # LD_LIBRARY_PATH=/home/x_pollakgr/RGF/external/magma-2.5.4/lib:$LD_LIBRARY_PATH
 #/home/x_pollakgr/RGF/build/bin/main 3 3 0 "/home/x_pollakgr/RGF/data/input/Radim/A_9_9_ns3_nt3.dat" "/home/x_pollakgr/RGF/data/input/Radim/rhs9.txt"
 #/home/x_pollakgr/RGF/build/bin/main 3 3 2 "/home/x_pollakgr/RGF/data/input/Radim/A_11_11_ns3_nt3_nd2.dat" "/home/x_pollakgr/RGF/data/input/Radim/rhs11.txt"
