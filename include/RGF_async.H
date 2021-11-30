@@ -132,7 +132,7 @@ private:
 template <class T>
 RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
 #ifdef DEBUG
-  print_header("RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t "
+  utilities::print_header("RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t "
                "nt, size_t nd)");
 #endif
   matrix_ia = ia;
@@ -201,7 +201,7 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
 
 template <class T> RGF<T>::~RGF() {
 #ifdef DEBUG
-  print_header("~RGF()");
+  utilities::print_header("~RGF()");
 #endif
   if (MF_dev_allocated) {
     /**< max_supernode_nnz: size of supernode blocks
