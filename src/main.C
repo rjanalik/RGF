@@ -70,7 +70,6 @@ int main(int argc, char *argv[])
     invDiag= new T[rows];
     std::string mat_path = base_path+"/ns"+std::to_string(ns)+"_nt"+std::to_string(nt)+"_nb"+std::to_string(nb)+".mat";
     std::string rhs_path = base_path+"/rhs"+std::to_string(rows)+".txt";
-    std::cout << "rhs_path.c_str()" << rhs_path.c_str() << std::endl;
     utilities::read_test_matrix_nnz(nnz, mat_path);
     if (rgf_ver != RGF_VERSIONS::BASELINE) {
         cudaMallocHost(&ia, (rows + 1) * sizeof(size_t));
@@ -81,6 +80,7 @@ int main(int argc, char *argv[])
         ja = new size_t[nnz];
         a = new double[nnz];
     }
+    // TODO why does read_test_matrix not work?
     // utilities::read_test_matrix(ia, ja, a, rhs, rows, nnz, nrhs, mat_path, rhs_path);
     FILE *F = fopen(mat_path.c_str(), "r");
     double val;
@@ -108,9 +108,11 @@ int main(int argc, char *argv[])
         fscanf(F,"%lf",&rhs[i]);
     }
     fclose(F);
+#ifdef DEBUG
     utilities::print_header("Inital Matrix Stucture");
     utilities::print_csr(ia, ja, a, rows, nb, true);
     utilities::print_csr(ia, ja, a, rows, nb, false);
+#endif
 
     // load matrix from file
     solver = new RGF<T>(ia, ja, a, ns, nt, nb);
@@ -134,13 +136,15 @@ int main(int argc, char *argv[])
 
     // INVERSION save results
     std::ofstream output_fh;
-    output_fh.open("/home/x_pollakgr/RGF/results/ghcn/results.csv", std::ofstream::app);
+    std::string results_f = "/home/x_pollakgr/RGF/results/tests.csv";
+    utilities::if_not_exists_abort(results_f);
+    output_fh.open(results_f, std::ofstream::app);
     output_fh.precision(17);
     std::string sep = "\t";
     output_fh << std::fixed << utilities::currentDateTime() <<
-      sep << no_s <<
       sep << ns_s <<
       sep << nt_s <<
+      sep << nb_s <<
       sep << t_factorise <<
       sep << flops_factorize <<
       sep << t_solve <<

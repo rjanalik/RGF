@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fstream>
 
 
 #if 0
@@ -169,8 +170,6 @@ namespace utilities {
     fclose(F);
   }
   void read_test_matrix(size_t *ia, size_t *ja, double *a, double *rhs, size_t rows, size_t nnz, size_t nrhs, std::string mat_path, std::string rhs_path){
-    std::cout << mat_path.c_str()<< std::endl;
-    std::cout << rhs_path.c_str()<< std::endl;
     FILE *F = fopen(mat_path.c_str(), "r");
     double val;
     size_t f_rows;
@@ -445,5 +444,18 @@ namespace utilities {
     strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
 
     return buf;
-}
+  }
+  bool file_exists(const std::string &file_name) { return std::fstream{file_name} ? true : false; }
+  void if_not_exists_abort(std::string const file_name) {
+      if(file_exists(file_name))
+          return;
+      std::cerr << file_name
+                << " couldn\'t be opened (not existing or failed to open)\n";
+      exit(1);
+  }
+  void if_not_exists_abort(std::initializer_list<std::string> const file_names) {
+      for (std::string file_name : file_names)
+          if_not_exists_abort(file_name);
+  }
+
 } // namespace utilities

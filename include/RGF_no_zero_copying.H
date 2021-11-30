@@ -93,8 +93,10 @@ private:
 
 template <class T>
 RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
+#ifdef DEBUG
   iteration_counter = 0;
   iteration_counter_banded = 0;
+#endif
   matrix_ia = ia;
   matrix_ja = ja;
   matrix_a = a;
@@ -230,7 +232,9 @@ template <class T> inline size_t RGF<T>::mf_dense_block_lda(size_t i) {
 /************************************************************************************************/
 
 template <class T> double RGF<T>::FirstStageFactor() {
+#ifdef DEBUG
   utilities::print_header("FirstStageFactor");
+#endif
   int info;
   size_t IB;
   size_t NR, NM;
@@ -382,7 +386,10 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // IB-1), mf_block_lda(IB, IB-1));
 
     copy_supernode_to_host(blockR_dev, IB);
+
+#ifdef DEBUG
     utilities::print_header("FirstStageFactor");
+#endif
 
   }
 
@@ -411,7 +418,10 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // IB), mf_block_lda(IB, IB));
 
     copy_supernode_to_host(blockDense_dev, IB);
+
+#ifdef DEBUG
     utilities::print_header("FirstStageFactor");
+#endif
   }
 
   return flops;
@@ -870,8 +880,10 @@ inline void RGF<T>::printCopyInfo(size_t supernode, size_t supernode_fc, size_t 
 
 template <class T>
 inline void RGF<T>::copy_supernode_to_host(T *M_dev, size_t supernode) {
+#ifdef DEBUG
   utilities::print_header("COPY_SUPERNODE_TO_HOST - "+std::to_string(iteration_counter));
   iteration_counter++;
+#endif
   size_t supernode_fc = supernode * matrix_ns;
   size_t supernode_lc = supernode < matrix_nt
                             ? (supernode + 1) * matrix_ns
@@ -879,12 +891,16 @@ inline void RGF<T>::copy_supernode_to_host(T *M_dev, size_t supernode) {
   size_t rows = mf_block_lda(supernode, supernode);
   size_t ind = mf_block_index(supernode, supernode);
   size_t cols = supernode_lc - supernode_fc;
+#ifdef DEBUG
   printCopyInfo(supernode, supernode_fc, supernode_lc, rows, cols, ind);
+#endif
   // utilities::print_matrix_structure_with_fixed_effects(MF, matrix_size, matrix_size, matrix_nd);
   memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T));
+#ifdef DEBUG
   std::cout << "Factorized Supernode:\n";
   // utilities::print_matrix_structure(&MF[ind], rows, cols, false);
   utilities::print_matrix(&MF[ind], rows, cols, false);
+#endif
 }
 
 /************************************************************************************************/
@@ -981,8 +997,10 @@ inline void RGF<T>::prefix_sum(size_t *arr, size_t *prefix_sum, size_t n)
 template <class T>
 inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
                                                         size_t supernode) {
+#ifdef DEBUG
   utilities::print_header("SUPERNODE_TO_HOST_BANDED - "+std::to_string(iteration_counter_banded));
   iteration_counter_banded++;
+#endif
 
   size_t supernode_fc = supernode * matrix_ns;
   size_t supernode_lc = supernode < matrix_nt
@@ -999,7 +1017,9 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
   size_t tot_len_of_bands = 0;
   size_t *supernode_bands_offsets;
   T *tmp; /** buffer that holds bands of the factorized matrix */
+#ifdef DEBUG
   printCopyInfo(supernode, supernode_fc, supernode_lc, rows, cols, ind);
+#endif
   bandwidths = new size_t[cols];
   // +1 for number of total elements
   supernode_bands_offsets = new size_t[cols+1]();
@@ -1015,7 +1035,9 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
   //   std::cout << "supernode_bands_offsets[" << i << "]" << supernode_bands_offsets[i] << "\n";
   // }
   assert(tot_len_of_bands <= rows * cols && "Non-zero bands cannot be larger than the whole matrix!");
+#ifdef DEBUG
   std::cout << "Compression Ratio is = " << (double) tot_len_of_bands/(rows*cols)*100 << "%\n";
+#endif
   assert(tot_len_of_bands <= max_supernode_nnz && "Calculated bands should be less or equal to the size of the supernodes");
   // allocate array on cpu where we store the copied offsets
   tmp = new T[tot_len_of_bands];
@@ -1024,14 +1046,19 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
   cudaMalloc(&supernode_bands_offsets_dev, (cols+1)*sizeof(size_t));
   // Copy column offsets to the GPU
   assert(std::any_of(supernode_bands_offsets, supernode_bands_offsets+cols+1, [&rows, &cols](size_t offset) { return 0<= offset < cols*rows; }) && "NANs inside supernode_bands_offsets");
+#ifdef DEBUG
   std::cout << "SUPERNODE_BANDS_OFFSETS[I]";
+#endif
   memcpy_to_device(supernode_bands_offsets, supernode_bands_offsets_dev, (cols+1) * sizeof(size_t));
   // 4. Use a loop to set the correct values of M_dev to the array where we copy
   // blockM_banded_dev, M_dev
   set_copy_buffer(M_dev, blockM_banded_dev, supernode_bands_offsets_dev, rows, matrix_ns, matrix_nd);
+#ifdef DEBUG
   std::cout << "set copy buffer\n";
+#endif
   // 4. Add asserts
   memcpy_to_host(tmp, blockM_banded_dev, tot_len_of_bands * sizeof(T));
+#ifdef DEBUG
   std::cout << "memcpy_to_host\n";
   for(size_t j=0; j < cols; j++){
     for(size_t i=0; i < bandwidths[j]; i++){
@@ -1039,12 +1066,14 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
     }
     std::cout << "\n";
   }
+#endif
   memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T));
   std::memset(&MF[ind], 0, rows*cols*sizeof(T));
   set_MF_from_bands(&MF[ind], tmp, bandwidths, supernode_bands_offsets, tot_len_of_bands, rows);
+#ifdef DEBUG
   std::cout << "Factorized Supernode:\n";
   utilities::print_matrix(&MF[ind], rows, cols, false);
-  // utilities::print_matrix_structure(&MF[ind], rows, cols, false);
+#endif
   delete [] tmp;
   delete [] bandwidths;
   delete [] supernode_bands_offsets;

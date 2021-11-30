@@ -78,6 +78,9 @@ namespace utilities {
   void print_csr(size_t *ia, size_t *ja, double *a, size_t n, size_t nd, bool structureOnly = false);
   void print_ia_ja_a(const size_t *ia, const size_t *ja, const T *a, size_t n);
   const std::string currentDateTime();
+  bool file_exists(const std::string &file_name);
+  void if_not_exists_abort(std::string const file_name);
+  void if_not_exists_abort(std::initializer_list<std::string> const file_names);
 }
 
 #endif

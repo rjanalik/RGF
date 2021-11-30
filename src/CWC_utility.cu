@@ -201,8 +201,8 @@ void set_copy_buffer(double *MF_dev, double *out, size_t *column_offsets, size_t
     // and use a for loop with if(idx < column_length)
     //                             tmp[i] = M_dev[i];
     size_t i_ns = ns + (BLOCK_DIM - (ns % BLOCK_DIM));
-    std::cout << "SET_COPY_BUFFER\n";
-    std::cout << "i_ns = " << i_ns << std::endl;
+    // std::cout << "SET_COPY_BUFFER\n";
+    // std::cout << "i_ns = " << i_ns << std::endl;
     d_set_copy_buffer_on_dev<<< i_ns/BLOCK_DIM, BLOCK_DIM, 0, stream >>>(MF_dev, out, column_offsets, row_length, ns, nd);
 }
 
