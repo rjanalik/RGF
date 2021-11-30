@@ -12,8 +12,8 @@ ns=${1:-500}
 nts=${2:-1}
 nb=${3:-5}
 # set -x
-#for nt in {0..4..1}
-#for nt in 50 100 200 500
+# for nt in {0..4..1}
+# for nt in 50 100 200 500
 for nt in ${nts}
 do
 let rows=$((${ns}*${nt}+${nb}))

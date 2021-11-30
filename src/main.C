@@ -11,11 +11,12 @@
 
 using namespace std;
 
-enum RGF_VERSIONS { BASELINE, ASYNCHRONOUS, ASYNCHRONOUS_2S , BANDED_COPYING};
+enum RGF_VERSIONS { BASELINE, ASYNCHRONOUS, ASYNCHRONOUS_2S , BANDED_COPYING, PARDISO_VERSION};
 std::map<RGF_VERSIONS, std::string> enum_to_string{{BASELINE, "BASELINE"},
                                                   {ASYNCHRONOUS, "ASYNC"},
                                                   {ASYNCHRONOUS_2S, "ASYNC_TWO_STREAMS"},
-                                                  {BANDED_COPYING, "COPYING_NZ_BANDS"}};
+                                                  {BANDED_COPYING, "COPYING_NZ_BANDS"},
+                                                  {PARDISO_VERSION, "PARDISO"}};
 #ifdef BASE
 #include "RGF.H"
 RGF_VERSIONS rgf_ver = BASELINE;
@@ -28,7 +29,20 @@ RGF_VERSIONS rgf_ver = ASYNCHRONOUS_2S;
 #elif defined BANDED
 #include "RGF_no_zero_copying.H"
 RGF_VERSIONS rgf_ver = BANDED_COPYING;
+#elif defined PARDISO
+#include "PARDISO.H"
+RGF_VERSIONS rgf_ver = PARDISO_VERSION;
+extern "C" void pardisoinit (void   *, int    *,   int *, int *, double *, int *);
+extern "C" void pardiso     (void   *, int    *,   int *, int *,    int *, int *,
+                  double *, int    *,    int *, int *,   int *, int *,
+                     int *, double *, double *, int *, double *);
+extern "C" void pardiso_chkmatrix  (int *, int *, double *, int *, int *, int *);
+extern "C" void pardiso_chkvec     (int *, int *, double *, int *);
+extern "C" void pardiso_printstats (int *, int *, double *, int *, int *, int *,
+                           double *, int *);
+// #define size_t int
 #endif
+
 
 #if 0
 typedef CPX T;
@@ -54,15 +68,16 @@ int main(int argc, char *argv[])
     int i;
     double data;
     double t_factorise; double t_solve; double t_inv;
+#ifdef PARDISO
+    double t_symbolic_factorise;
+#endif
     T *rhs;
     T *x;
     T *invDiag;
+#ifndef PARDISO
     RGF<T> *solver;
+#endif
     time_t rawtime;
-    struct tm *timeinfo;
-    time(&rawtime);
-    timeinfo = localtime(&rawtime);
-    printf("The current date/time is: %s\n",asctime(timeinfo));
     parse_args(argc, argv, base_path, ns, nt, nb);
     rows = ns*nt+nb;
     rhs    = new T[rows];
@@ -73,14 +88,14 @@ int main(int argc, char *argv[])
     utilities::if_not_exists_abort(mat_path);
     utilities::if_not_exists_abort(rhs_path);
     utilities::read_test_matrix_nnz(nnz, mat_path);
-    if (rgf_ver != RGF_VERSIONS::BASELINE) {
-        cudaMallocHost(&ia, (rows + 1) * sizeof(size_t));
-        cudaMallocHost(&ja, nnz * sizeof(size_t));
-        cudaMallocHost(&a, nnz * sizeof(size_t));
-    } else {
+    if (rgf_ver == RGF_VERSIONS::BASELINE || rgf_ver == RGF_VERSIONS::PARDISO_VERSION) {
         ia = new size_t[rows + 1];
         ja = new size_t[nnz];
         a = new double[nnz];
+    } else {
+        cudaMallocHost(&ia, (rows + 1) * sizeof(size_t));
+        cudaMallocHost(&ja, nnz * sizeof(size_t));
+        cudaMallocHost(&a, nnz * sizeof(size_t));
     }
     // TODO why does read_test_matrix not work?
     // utilities::read_test_matrix(ia, ja, a, rhs, rows, nnz, nrhs, mat_path, rhs_path);
@@ -115,26 +130,31 @@ int main(int argc, char *argv[])
     utilities::print_csr(ia, ja, a, rows, nb, true);
     utilities::print_csr(ia, ja, a, rows, nb, false);
 #endif
-
+double flops_factorize;
+double flops_inv;
+double flops_solve;
+#ifndef PARDISO
     // load matrix from file
     solver = new RGF<T>(ia, ja, a, ns, nt, nb);
     // FACTORIZATION ===========================================
     t_factorise = get_time(0.0); //solver->solve_equation(GR);
-    double flops_factorize = solver->factorize();
+    flops_factorize = solver->factorize();
     t_factorise = get_time(t_factorise);
     double log_det = solver->logDet();
     printf("logdet: %f\n", log_det);
     printf("flops factorize: %f\n", flops_factorize);
     // SOLVE ===========================================
     t_solve = get_time(0.0);
-    double flops_solve = solver->solve(x, rhs, 1);
+    flops_solve = solver->solve(x, rhs, 1);
     t_solve = get_time(t_solve);
     printf("flops solve:     %f\n", flops_solve);
     // INVERSION ===========================================
     t_inv = get_time(0.0);
-    double flops_inv = solver->RGFdiag(invDiag);
+    flops_inv = solver->RGFdiag(invDiag);
     t_inv = get_time(t_inv);
     printf("flops inv:      %f\n", flops_inv);
+#else
+#endif
 
     // INVERSION save results
     std::ofstream output_fh;
@@ -153,6 +173,7 @@ int main(int argc, char *argv[])
       sep << flops_solve <<
       sep << t_inv <<
       sep << flops_inv <<
+    // TODO add type
       "\n";
 
     output_fh.close();
@@ -162,24 +183,28 @@ int main(int argc, char *argv[])
     printf("RGF sel inv   time: %lg\n",t_inv);
 
 
+#ifndef PARDISO
     printf("Residual norm: %e\n", solver->residualNorm(x, rhs));
     printf("Residual norm normalized: %e\n", solver->residualNormNormalized(x, rhs));
+#endif
 
     // free memory
-    if (rgf_ver != RGF_VERSIONS::BASELINE) {
-        cudaFreeHost(ia);
-        cudaFreeHost(ja);
-        cudaFreeHost(a);
-    } else {
+    if (rgf_ver == RGF_VERSIONS::BASELINE || rgf_ver == RGF_VERSIONS::PARDISO_VERSION) {
         delete[] ia;
         delete[] ja;
         delete[] a;
+    } else {
+        cudaFreeHost(ia);
+        cudaFreeHost(ja);
+        cudaFreeHost(a);
     }
 
     delete[] invDiag;
     delete[] rhs;
     delete[] x;
+#ifndef PARDISO
     delete solver;
+#endif
 
     return 0;
 }

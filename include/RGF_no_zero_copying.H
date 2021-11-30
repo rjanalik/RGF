@@ -1035,9 +1035,7 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
   //   std::cout << "supernode_bands_offsets[" << i << "]" << supernode_bands_offsets[i] << "\n";
   // }
   assert(tot_len_of_bands <= rows * cols && "Non-zero bands cannot be larger than the whole matrix!");
-#ifdef DEBUG
   std::cout << "Compression Ratio is = " << (double) tot_len_of_bands/(rows*cols)*100 << "%\n";
-#endif
   assert(tot_len_of_bands <= max_supernode_nnz && "Calculated bands should be less or equal to the size of the supernodes");
   // allocate array on cpu where we store the copied offsets
   tmp = new T[tot_len_of_bands];
@@ -1067,7 +1065,7 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
     std::cout << "\n";
   }
 #endif
-  memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T));
+  // memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T));
   std::memset(&MF[ind], 0, rows*cols*sizeof(T));
   set_MF_from_bands(&MF[ind], tmp, bandwidths, supernode_bands_offsets, tot_len_of_bands, rows);
 #ifdef DEBUG

@@ -294,12 +294,13 @@ template <class T> double RGF<T>::FirstStageFactor() {
   T ONE = f_one();
 
   cudaStream_t init_stream1, init_stream2, d2h_stream;
-  cudaEvent_t h2d_event, computation_event;
+  cudaEvent_t h2d_event1, h2d_event2, computation_event;
 
   cudaStreamCreate(&init_stream1);
   cudaStreamCreate(&init_stream2);
   cudaStreamCreate(&d2h_stream);
-  cudaEventCreate(&h2d_event);
+  cudaEventCreate(&h2d_event1);
+  cudaEventCreate(&h2d_event2);
   cudaEventCreate(&computation_event);
   // count floating point operations
   double flops = 0;
@@ -357,7 +358,8 @@ template <class T> double RGF<T>::FirstStageFactor() {
 
   copy_supernode_to_host(blockR_dev, IB);
   // NOTE:
-  init_supernode(blockR_dev1, 1);
+  init_supernode(blockR_dev1, 1, init_stream2);
+  cudaStreamSynchronize(init_stream2);
   // For the other Blocks /////////////////////////////////////////////////////
   // rj IB = 1; IB < NBlock; IB++
   for (IB = 1; IB < matrix_nt - 1; IB++) {
@@ -375,15 +377,13 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // init_supernode(blockR_dev2, IB+1, init_stream2);
     swap_pointers(&blockM_dev, &blockR_dev);
     if(IB % 2 == 1){
-      init_supernode(blockR_dev2, IB+1);
+      init_supernode(blockR_dev2, IB+1, init_stream1);
+      cudaStreamSynchronize(init_stream2);
       swap_pointers(&blockR_dev, &blockR_dev1);
-      // cudaEventRecord(h2d_event, init_stream1);
-      // cudaStreamWaitEvent(NULL, h2d_event, 0);
     } else{
-      init_supernode(blockR_dev1, IB+1);
+      init_supernode(blockR_dev1, IB+1, init_stream2);
+      cudaStreamSynchronize(init_stream1);
       swap_pointers(&blockR_dev, &blockR_dev2);
-      // cudaEventRecord(h2d_event, init_stream2);
-      // cudaStreamWaitEvent(NULL, h2d_event, 0);
     }
     /** Note: init_supernode does the following
     // KERNEL
@@ -476,10 +476,10 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // copying copy_supernode_to_host(blockR_dev, IB, STREAM); -> uses
     // cudaMemcpyAsync already in background with NULL stream enqueue event in
     // stream
-    // cudaEventRecord(computation_event, NULL);
-    // cudaStreamWaitEvent(d2h_stream, computation_event, 0);
-    // copy_supernode_to_host(blockR_dev, IB, d2h_stream);
-    copy_supernode_to_host(blockR_dev, IB);
+    cudaEventRecord(computation_event, NULL);
+    cudaStreamWaitEvent(d2h_stream, computation_event, 0);
+    copy_supernode_to_host(blockR_dev, IB, d2h_stream);
+    // copy_supernode_to_host(blockR_dev, IB);
     /** Note:
     // Calls:
     // memcpy_to_host(&MF[ind], M_dev=blockR_dev, rows * cols * sizeof(T));
@@ -580,7 +580,8 @@ template <class T> double RGF<T>::FirstStageFactor() {
   cudaStreamDestroy(init_stream1);
   cudaStreamDestroy(init_stream2);
   cudaStreamDestroy(d2h_stream);
-  cudaEventDestroy(h2d_event);
+  cudaEventDestroy(h2d_event1);
+  cudaEventDestroy(h2d_event2);
   cudaEventDestroy(computation_event);
 
   return flops;

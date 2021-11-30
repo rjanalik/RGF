@@ -69,6 +69,14 @@ $(info ============== ASYNCHRONUOUS VERSION 2 STRAMS ==============)
 else ifeq ($(RGF_VERSION),BANDED)
 	RGF_VERSION := BANDED
 $(info ============== BANDED VERSION ==============)
+else ifeq ($(RGF_VERSION),PARDISO)
+	RGF_VERSION := PARDISO
+	CXX_FLAGS+=-lpthread -lm -lgomp -lgfortran -fopenmp -fPIC
+	DEBUG= #-g -O0 -fsanitize=address
+	LIBMKL=-L$(MKLROOT)/lib/intel64 -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core
+	LIBPARDISO=-lpardiso700-GNU840-X86-64-RINLA
+	LIBS+=$(LIBPARDISO) $(LIBMKL)
+$(info ============== PARDISO VERSION ==============)
 endif
 
 .PHONY: clean
@@ -82,7 +90,7 @@ $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
 # 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
 build/obj/main.o: src/main.C | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
-	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(FLAGS) $(INCLUDEDIR) $(DEBUG_FLAGS) -D$(RGF_VERSION) -o $@
+	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(FLAGS) $(INCLUDEDIR) $(LIBS) $(DEBUG_FLAGS) -D$(RGF_VERSION) -o $@
 
 build/obj/Utilities.o: src/Utilities.C include/Utilities.H | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
