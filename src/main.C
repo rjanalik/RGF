@@ -70,6 +70,8 @@ int main(int argc, char *argv[])
     invDiag= new T[rows];
     std::string mat_path = base_path+"/ns"+std::to_string(ns)+"_nt"+std::to_string(nt)+"_nb"+std::to_string(nb)+".mat";
     std::string rhs_path = base_path+"/rhs"+std::to_string(rows)+".txt";
+    utilities::if_not_exists_abort(mat_path);
+    utilities::if_not_exists_abort(rhs_path);
     utilities::read_test_matrix_nnz(nnz, mat_path);
     if (rgf_ver != RGF_VERSIONS::BASELINE) {
         cudaMallocHost(&ia, (rows + 1) * sizeof(size_t));
