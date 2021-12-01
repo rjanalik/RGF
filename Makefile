@@ -27,7 +27,9 @@ $(info $(CU_OBJECTS))
 
 
 INCLUDEDIR  = $(INCCUD) $(INCMAG)
-LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
+#LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
+LIBS	    = $(LAPACK) $(OPENMP) $(CUDA) $(MAGMA) 
+
 
 CC_FILES   = Utilities.o main.o
 CU_FILES   = CWC_utility.o
@@ -72,17 +74,16 @@ $(info ============== BANDED VERSION ==============)
 else ifeq ($(RGF_VERSION),PARDISO)
 	RGF_VERSION := PARDISO
 	CXX_FLAGS+=-lpthread -lm -lgomp -lgfortran -fopenmp -fPIC
-	DEBUG= #-g -O0 -fsanitize=address
+	DEBUG= -g -O0 -fsanitize=address
 	LIBMKL=-L$(MKLROOT)/lib/intel64 -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core
-	LIBPARDISO=-lpardiso700-GNU840-X86-64-RINLA
-	LIBS+=$(LIBPARDISO) $(LIBMKL)
+	LIBPARDISO=-lpardiso700-GNU840-X86-64-RINLA $(LIBMKL)
 $(info ============== PARDISO VERSION ==============)
 endif
 
 .PHONY: clean
 
 $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
-	$(LOADER) $(CC_OBJECTS) $(CU_OBJECTS) $(LOADFLAGS) $(LIBS) -lm -o $(BIN_DIR)/$@
+	mpic++ $(CC_OBJECTS) $(CU_OBJECTS) $(LIBPARDISO) $(LIBS) $(CXX_FLAGS) -lm -o $(BIN_DIR)/$@
 
 # canned old version of:  %.o : %.c
 # $(CC_OBJECTS): $(CC_SRC)
@@ -90,7 +91,7 @@ $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
 # 	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(DEBUG) $(FLAGS) $(INCLUDEDIR)
 build/obj/main.o: src/main.C | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
-	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(FLAGS) $(INCLUDEDIR) $(LIBS) $(DEBUG_FLAGS) -D$(RGF_VERSION) -o $@
+	$(CXX) -c $< $(CXXFLAGS) $(INC_CC) $(FLAGS) $(INCLUDEDIR) $(DEBUG_FLAGS) -D$(RGF_VERSION) -o $@
 
 build/obj/Utilities.o: src/Utilities.C include/Utilities.H | $(OBJ_DIR) $(BIN_DIR)
 	@echo "Compiling .$(C_EXTEN) files"
