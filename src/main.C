@@ -33,6 +33,8 @@ RGF_VERSIONS rgf_ver = BANDED_COPYING;
 #include "PARDISO.H"
 RGF_VERSIONS rgf_ver = PARDISO_VERSION;
 // #define size_t int
+#else
+    #error UNKOWN RGF_VERSION specified make RGF_VERSION=<UNKOWN>
 #endif
 
 
