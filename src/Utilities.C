@@ -116,6 +116,18 @@ void set_cml_option(char *begin[], char *end[], option<size_t> &option) {
       *(option.value_ptr_) = atoi(*itr);
   }
 }
+template <>
+void set_cml_option(char *begin[], char *end[], option<bool> &option) {
+  char **itr;
+  itr = std::find(begin, end, option.short_name_);
+  if (itr != end)
+    *(option.value_ptr_) = true;
+  else {
+    itr = std::find(begin, end, option.long_name_);
+    if (itr != end)
+      *(option.value_ptr_) = true;
+  }
+}
 
 template <class T>
 void check_for_missing_option(char **begin, char **end,
@@ -131,7 +143,7 @@ void check_for_missing_option(char **begin, char **end,
 }
 
 void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
-                size_t &nt, size_t &nb, std::ostream &stream) {
+                size_t &nt, size_t &nb, bool &overwrite_results, std::ostream &stream) {
   struct option<std::string> help_option = {
     "-h", "--help", "std::string", "print this help message", false
   };
@@ -144,18 +156,26 @@ void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
       {"-t", "--nt", "integer", "number of temporal effects", true, &nt},
       {"-f", "--nb", "integer", "number of fixed effects", true, &nb},
   };
+  std::vector<option<bool>> bool_options = {
+      {"-o", "--overwrite", "bool", "overwrite resutls file", false, &overwrite_results},
+  };
   if (is_option_present(argv, argv + argc, help_option)) {
     print_help_message(string_options);
     print_help_message(number_options);
+    print_help_message(bool_options);
     exit(0);
   }
   check_for_missing_option(argv, argv + argc, string_options);
   check_for_missing_option(argv, argv + argc, number_options);
+  check_for_missing_option(argv, argv + argc, bool_options);
   for (auto opt : string_options) {
     set_cml_option<std::string>(argv, argv + argc, opt);
   }
   for (auto opt : number_options) {
     set_cml_option<size_t>(argv, argv + argc, opt);
+  }
+  for (auto opt : bool_options) {
+    set_cml_option<bool>(argv, argv + argc, opt);
   }
 }
 

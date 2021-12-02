@@ -32,7 +32,8 @@ if __name__ == '__main__':
     #     os.mkdir(FLAGS.logdir)
 
     x_var = 'no'
-    df = pd.read_csv ('../../results/ghcn/results.csv', sep="\t")
+    df = pd.read_csv ('../../results/tests.csv', sep="\t")
+    # df = pd.read_csv ('../../results/ghcn/results.csv', sep="\t")
     df = df.sort_values(["ns", "no"], ascending=False)
     df = df.loc[df["ns"]==4002]
     TYPE = "t"
