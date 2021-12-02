@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     size_t ns, nt, nb, n, rows, nnz;
     bool overwrite_results;
     // std::string ns_s, nt_s, nb_s, no_s, nu_s;
-    std::string ns_s, nt_s, nb_s, no_s, nu_s;
+    std::string ns_s, nt_s, nb_s, no_s, nu_s, results_file;
     size_t nrhs = 1;
     size_t* ia;
     size_t* ja;
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
     RGF<T> *solver;
 #endif
     time_t rawtime;
-    parse_args(argc, argv, base_path, ns, nt, nb, overwrite_results);
+    parse_args(argc, argv, base_path, ns, nt, nb, overwrite_results, results_file);
     rows = ns*nt+nb;
     n    = rows;
     rhs    = new T[rows];
@@ -83,8 +83,8 @@ int main(int argc, char *argv[])
     invDiag= new T[rows];
     std::string mat_path = base_path+"/ns"+std::to_string(ns)+"_nt"+std::to_string(nt)+"_nb"+std::to_string(nb)+".mat";
     std::string rhs_path = base_path+"/rhs"+std::to_string(rows)+".txt";
-    utilities::if_not_exists_abort(mat_path);
     utilities::if_not_exists_abort(rhs_path);
+    utilities::if_not_exists_abort(mat_path);
     utilities::read_test_matrix_nnz(nnz, mat_path);
     if (rgf_ver == RGF_VERSIONS::BASELINE || rgf_ver == RGF_VERSIONS::PARDISO_VERSION) {
         ia = new size_t[rows + 1];
@@ -185,10 +185,8 @@ double flops_solve;
 
     // SAVE THE RESULTS ===========================================
     std::ofstream output_fh;
-    std::string results_f = "/home/x_gaedkelb/georg/RGF/results/tests.csv";
-    //std::string results_f = "/home/x_pollakgr/RGF/results/tests.csv";
-    utilities::if_not_exists_abort(results_f);
-    output_fh.open(results_f, overwrite_results ? std::ofstream::trunc : std::ofstream::app);
+    utilities::if_not_exists_abort(results_file);
+    output_fh.open(results_file, overwrite_results ? std::ofstream::trunc : std::ofstream::app);
     output_fh.precision(17);
     std::string sep = "\t";
     if(overwrite_results){

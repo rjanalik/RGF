@@ -7,6 +7,7 @@
 #include <fstream>
 
 
+
 #if 0
 typedef CPX T;
 #define assign_T(val) CPX(val, 0.0)
@@ -143,14 +144,17 @@ void check_for_missing_option(char **begin, char **end,
 }
 
 void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
-                size_t &nt, size_t &nb, bool &overwrite_results, std::ostream &stream) {
+                size_t &nt, size_t &nb, bool &overwrite_results, std::string &results_file, std::ostream &stream) {
   struct option<std::string> help_option = {
     "-h", "--help", "std::string", "print this help message", false
   };
   std::vector<option<std::string>> string_options = {
       help_option,
       {"-p", "--path", "std::string",
-       "base path to folder containing all files", true, &base_path}};
+       "base path to folder containing all files", true, &base_path},
+      {"-r", "--results", "std::string",
+       "path of file where to store results", true, &results_file}
+};
   std::vector<option<size_t>> number_options = {
       {"-s", "--ns", "integer", "number of spatial effects", true, &ns},
       {"-t", "--nt", "integer", "number of temporal effects", true, &nt},
@@ -465,7 +469,10 @@ namespace utilities {
 
     return buf;
   }
-  bool file_exists(const std::string &file_name) { return std::fstream{file_name} ? true : false; }
+  bool file_exists(const std::string &file_name) {
+    std::ifstream f(file_name.c_str());
+    return f.good();
+  }
   void if_not_exists_abort(std::string const file_name) {
       if(file_exists(file_name))
           return;

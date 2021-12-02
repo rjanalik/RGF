@@ -61,6 +61,7 @@ template <> inline CPX convert(double val) { return CPX(val, 0.0); }
 void parse_args(int argc, char *argv[], std::string &base_path, size_t &ns,
                 size_t &nt, size_t &nb,
                 bool &overwrite_results,
+                std::string &results_file,
                 std::ostream &stream = std::cout);
 
 namespace utilities {
