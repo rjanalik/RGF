@@ -168,7 +168,7 @@ template <class T> RGF<T>::~RGF() {
     deallocate_data_on_dev(blockM_dev, max_supernode_nnz * sizeof(T));
     deallocate_data_on_dev(blockP_dev, max_supernode_nnz * sizeof(T));
     deallocate_data_on_dev(blockDense_dev, dense_supernode_nnz * sizeof(T));
-    delete[] MF;
+    cudaFreeHost(MF);
   }
 
   magma_queue_destroy(magma_queue);
@@ -652,7 +652,7 @@ template <class T> double RGF<T>::factorize() {
 
   // Data allocation
   if (!MF_dev_allocated) {
-    MF = new T[matrix_n_nonzeros];
+    cudaMallocHost(&MF, (matrix_n_nonzeros) * sizeof(T));
     size_t max_supernode_nnz = matrix_nt > 1
                                    ? matrix_ns * (2 * matrix_ns + matrix_nd)
                                    : matrix_ns * (matrix_ns + matrix_nd);
