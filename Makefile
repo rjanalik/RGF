@@ -28,7 +28,7 @@ $(info $(CU_OBJECTS))
 
 INCLUDEDIR  = $(INCCUD) $(INCMAG)
 # LIBS	    = $(LAPACK) $(OPENMP) $(CUDA) $(MAGMA) $(MKL)
-# LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(MKL) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
+LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(MKL) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
 
 CC_FILES   = Utilities.o main.o
 CU_FILES   = CWC_utility.o
