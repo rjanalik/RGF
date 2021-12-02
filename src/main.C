@@ -32,14 +32,6 @@ RGF_VERSIONS rgf_ver = BANDED_COPYING;
 #elif defined PARDISO
 #include "PARDISO.H"
 RGF_VERSIONS rgf_ver = PARDISO_VERSION;
-extern "C" void pardisoinit (void   *, int    *,   int *, int *, double *, int *);
-extern "C" void pardiso     (void   *, int    *,   int *, int *,    int *, int *,
-                  double *, int    *,    int *, int *,   int *, int *,
-                     int *, double *, double *, int *, double *);
-extern "C" void pardiso_chkmatrix  (int *, int *, double *, int *, int *, int *);
-extern "C" void pardiso_chkvec     (int *, int *, double *, int *);
-extern "C" void pardiso_printstats (int *, int *, double *, int *, int *, int *,
-                           double *, int *);
 // #define size_t int
 #endif
 
@@ -56,9 +48,10 @@ int main(int argc, char *argv[])
 {
     double overall_time = -omp_get_wtime();
     std::string base_path;
-    size_t ns, nt, nb, rows, nnz;
+    size_t ns, nt, nb, n, rows, nnz;
     bool overwrite_results;
     // std::string ns_s, nt_s, nb_s, no_s, nu_s;
+    std::string ns_s, nt_s, nb_s, no_s, nu_s;
     size_t nrhs = 1;
     size_t* ia;
     size_t* ja;
@@ -82,6 +75,7 @@ int main(int argc, char *argv[])
     time_t rawtime;
     parse_args(argc, argv, base_path, ns, nt, nb, overwrite_results);
     rows = ns*nt+nb;
+    n    = rows;
     rhs    = new T[rows];
     x      = new T[rows];
     invDiag= new T[rows];
@@ -131,6 +125,20 @@ int main(int argc, char *argv[])
     utilities::print_header("Inital Matrix Stucture");
     utilities::print_csr(ia, ja, a, rows, nb, true);
     utilities::print_csr(ia, ja, a, rows, nb, false);
+
+    std::cout << "ia : ";
+    for(int i=0; i<rows+1; i++){
+        std::cout << ia[i] << " ";
+    }
+    std::cout << "\nja : ";
+    for(int i=0; i<ia[rows]; i++){
+        std::cout << ja[i] << " ";
+    }
+    std::cout << "\na : ";
+    for(int i=0; i<ia[rows]; i++){
+        std::cout << a[i] << " ";
+    }
+
 #endif
 double flops_factorize;
 double flops_inv;
@@ -155,11 +163,28 @@ double flops_solve;
     flops_inv = solver->RGFdiag(invDiag);
     t_inv = get_time(t_inv);
     printf("flops inv:      %f\n", flops_inv);
+#else
+    int* ia_;
+    int* ja_;
+
+    ia_ = new int[n+1];
+    ja_ = new int[nnz];
+
+    for(int i=0; i<n+1; i++){
+        ia_[i] = ia[i];
+    }
+
+    for(int i=0; i<nnz; i++){
+        ja_[i] = ja[i];
+    }
+
+    pardiso(ia_, ja_, a, int(nnz), int(n), rhs, x, t_factorise, t_solve, t_inv);
 #endif
 
     // SAVE THE RESULTS ===========================================
     std::ofstream output_fh;
-    std::string results_f = "/home/x_pollakgr/RGF/results/tests.csv";
+    std::string results_f = "/home/x_gaedkelb/georg/RGF/results/tests.csv";
+    //std::string results_f = "/home/x_pollakgr/RGF/results/tests.csv";
     utilities::if_not_exists_abort(results_f);
     output_fh.open(results_f, overwrite_results ? std::ofstream::trunc : std::ofstream::app);
     output_fh.precision(17);

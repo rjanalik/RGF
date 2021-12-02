@@ -2,11 +2,23 @@
 #define __PARDISO_H_
 
 
-bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, int nrhs = 1){
+extern "C" void pardisoinit (void   *, int    *,   int *, int *, double *, int *);
+extern "C" void pardiso     (void   *, int    *,   int *, int *,    int *, int *,
+                  double *, int    *,    int *, int *,   int *, int *,
+                     int *, double *, double *, int *, double *);
+extern "C" void pardiso_chkmatrix  (int *, int *, double *, int *, int *, int *);
+extern "C" void pardiso_chkvec     (int *, int *, double *, int *);
+extern "C" void pardiso_printstats (int *, int *, double *, int *, int *, int *,
+                           double *, int *);
+
+
+bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, \
+                double &t_factorise, double &t_solve, double &t_inv){
+
     // ============================= CALL PARDISO ============================ //
     std::cout << "Setting up PARDISO parameters." << std::endl;
 
-    //int nrhs = 1;          /* Number of right hand sides. */
+    int nrhs = 1;          /* Number of right hand sides. */
 
     // must choose -2 for iterative solver
     int      mtype = -2;        /* Symmetric positive definite matrix */
@@ -34,14 +46,11 @@ bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, 
     /* -------------------------------------------------------------------- */
     /* ..  Setup Pardiso control parameters.                                */
     /* -------------------------------------------------------------------- */
-    std::cout << "Calling PARDISO init." << std::endl;
 
     error  = 0;
     solver = 0;
 
     pardisoinit (pt,  &mtype, &solver, iparm, dparm, &error);
-
-    std::cout << "error : " << error << std::endl;
 
     if (error != 0)
     {
@@ -53,8 +62,6 @@ bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, 
             printf("Wrong username or hostname \n");
         return 1;
     }
-
-    std::cout << "[PARDISO]: License check was successful ... " << std::endl;
 
     /* Numbers of processors, value of OMP_NUM_THREADS */
     var = getenv("OMP_NUM_THREADS");
@@ -70,9 +77,8 @@ bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, 
     maxfct = 1;         /* Maximum number of numerical factorizations.  */
     mnum   = 1;         /* Which factorization to use. */
 
-    msglvl = 1;         /* Print statistical information  */
+    msglvl = 0;         /* Print statistical information  */
     error  = 0;         /* Initialize error flag */
-
 
     /* -------------------------------------------------------------------- */
     /* ..  Convert matrix from 0-based C-notation to Fortran 1-based        */
@@ -85,9 +91,6 @@ bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, 
     for (int i = 0; i < nnz; i++) {
         ja[i] += 1;
     }
-
-    std::cout << "after 1 based conversion" << std::endl;
-
 
     /* -------------------------------------------------------------------- */
     /*  .. pardiso_chk_matrix(...)                                          */
@@ -131,10 +134,7 @@ bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, 
     /*     all memory that is necessary for the factorization.              */
     /* -------------------------------------------------------------------- */
 
-    std::cout << "After PARDISO checks." << std::endl;
-
     iparm[19-1] = -1; // in order to compute Gflops
-    printf("\nGFlops factorisation : %i", iparm[19-1]);
 
     // start timer phase 1
     double timespent_p11 = -omp_get_wtime();
@@ -177,16 +177,15 @@ bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, 
     timespent_p22 += omp_get_wtime();
 
     // printf("\nFactorization completed ...\n ");
-    printf("\nFactorization completed .. \n");
 
     double log_det = dparm[32];
-    printf("\nPardiso   log(det) = %f ", log_det);
+    //printf("\nPardiso   log(det) = %f ", log_det);
 
     int gflops_fact = iparm[19-1];
     int mem_fact_solve = iparm[17-1];
 
-    printf("\nGFlops factorisation : %i", iparm[19-1]);
-    printf("\nMem fact + solve     : %i", mem_fact_solve);
+    //printf("\nGFlops factorisation : %i", iparm[19-1]);
+    //printf("\nMem fact + solve     : %i", mem_fact_solve);
 
     /* -------------------------------------------------------------------- */
     /* ..  Back substitution and iterative refinement.                      */
@@ -212,8 +211,6 @@ bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, 
     // get time phase 3
     timespent_p33 += omp_get_wtime();
 
-    printf("\nSolve completed ... ");
-
     /* -------------------------------------------------------------------- */
     /* ... Inverse factorization.                                           */
     /* -------------------------------------------------------------------- */
@@ -222,7 +219,7 @@ bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, 
 
     if (solver == 0)
     {
-    printf("\nCompute Diagonal Elements of the inverse of A ... \n");
+    //printf("\nCompute Diagonal Elements of the inverse of A ... \n");
     timespent_sel_inv = -omp_get_wtime();
 
     phase = -22;
@@ -250,10 +247,17 @@ bool pardiso(int *ia, int *ja, double *a, int nnz, int n, double *b, double *x, 
     /* ..  Print statistics                                                 */
     /* -------------------------------------------------------------------- */
 
+    t_factorise = timespent_p22;
+    t_solve     = timespent_p33;
+    t_inv       = timespent_sel_inv;
+
+    /*
     printf("\nTime spent on phase 1 : %f s", timespent_p11);
-    printf("\nTime spent on phase 2 : %f s", timespent_p22);
-    printf("\nTime spent on phase 3 : %f s", timespent_p33);
-    printf("\nTime spent on sel inv : %f s\n", timespent_sel_inv);
+    printf("\nTime spent on phase 2 : %f s", t_factorise);
+    printf("\nTime spent on phase 3 : %f s", t_solve);
+    printf("\nTime spent on sel inv : %f s\n", t_inv);
+    */
+
     return 0;
 }
 
