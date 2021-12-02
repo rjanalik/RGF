@@ -1,8 +1,10 @@
 #!/bin/bash
 #mpirun -np 2 ./RGFSolver 42 3 data/A_126_126_ns42_nt3.dat
 source /opt/intel/oneapi/mkl/latest/env/vars.sh  intel64
-export LD_LIBRARY_PATH=/home/x_pollakgr/RGF/applications/magma-2.5.4/lib:$LD_LIBRARY_PATH
-export MAGMA_DIR=/home/x_pollakgr/RGF/applications
+
+####### CHANGED THIS
+#export LD_LIBRARY_PATH=/home/x_pollakgr/RGF/applications/magma-2.5.4/lib:$LD_LIBRARY_PATH
+#export MAGMA_DIR=/home/x_pollakgr/RGF/applications
 
 # ns = 500, nt = {50, 100, 200, 500}, nb = 5
 # ns = 1000, nt = {50, 100, 200, 500}, nb = 5
@@ -23,10 +25,12 @@ done
 
 #folder_path=/home/x_gaedkelb/RGF/data/ns${ns}
 if [[ "$nt" == 1 ]];
-then
-	folder_path=/home/x_pollakgr/RGF/data/input/tests/spatial/ns${ns}_nt${nt}_nb${nb}
+then  
+   folder_path=/home/x_gaedkelb/georg/RGF/data/input/tests/spatial/ns${ns}_nt${nt}_nb${nb}
+	#folder_path=/home/x_pollakgr/RGF/data/input/tests/spatial/ns${ns}_nt${nt}_nb${nb}
  else
-	folder_path=/home/x_pollakgr/RGF/data/input/tests/spatio_temporal/ns${ns}_nt${nt}_nb${nb}
+	folder_path=/home/x_gaedkelb/georg/RGF/data/input/tests/spatio_temporal/ns${ns}_nt${nt}_nb${nb}
+   #folder_path=/home/x_pollakgr/RGF/data/input/tests/spatio_temporal/ns${ns}_nt${nt}_nb${nb}
  fi
 
  echo "GV100"
@@ -35,7 +39,8 @@ set -x
 # CUDA_VISIBLE_DEVICES="1" /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb} --no ${no}
 export CUDA_VISIBLE_DEVICES=0
 echo "CUDA_VISIBLE_DEVICES = " $CUDA_VISIBLE_DEVICES
-CUDA_VISIBLE_DEVICES="0" /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
+CUDA_VISIBLE_DEVICES="0" /home/x_gaedkelb/georg/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
+#CUDA_VISIBLE_DEVICES="0" /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
 # CUDA_VISIBLE_DEVICES="0" nvprof -f -o result.nvvp /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
 # CUDA_VISIBLE_DEVICES="1" gdb --args /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
  # LD_LIBRARY_PATH=/home/x_pollakgr/RGF/external/magma-2.5.4/lib:$LD_LIBRARY_PATH
