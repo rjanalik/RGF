@@ -1,9 +1,9 @@
 #!/bin/bash
 #mpirun -np 2 ./RGFSolver 42 3 data/A_126_126_ns42_nt3.dat
 source /opt/intel/oneapi/mkl/latest/env/vars.sh  intel64
-export LD_LIBRARY_PATH=/home/x_pollakgr/RGF/applications/magma-2.5.4/lib:$LD_LIBRARY_PATH
-export MAGMA_DIR=/home/x_pollakgr/RGF/applications
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+# export LD_LIBRARY_PATH=${SCRIPT_DIR}/RGF/applications/magma-2.5.4/lib:$LD_LIBRARY_PATH
+# export MAGMA_DIR=${SCRIPT_DIR}/RGF/applications
 
 # ns = 500, nt = {50, 100, 200, 500}, nb = 5
 # ns = 1000, nt = {50, 100, 200, 500}, nb = 5
@@ -25,17 +25,20 @@ done
 
 #folder_path=/home/x_gaedkelb/RGF/data/ns${ns}
 if [[ "$nt" == 1 ]];
-then
-	folder_path=/home/x_pollakgr/RGF/data/input/tests/spatial/ns${ns}_nt${nt}_nb${nb}
+then  
+   folder_path=/home/x_gaedkelb/georg/RGF/data/input/tests/spatial/ns${ns}_nt${nt}_nb${nb}
+	#folder_path=/home/x_pollakgr/RGF/data/input/tests/spatial/ns${ns}_nt${nt}_nb${nb}
  else
-	folder_path=/home/x_pollakgr/RGF/data/input/tests/spatio_temporal/ns${ns}_nt${nt}_nb${nb}
+	folder_path=/home/x_gaedkelb/georg/RGF/data/input/tests/spatio_temporal/ns${ns}_nt${nt}_nb${nb}
+   #folder_path=/home/x_pollakgr/RGF/data/input/tests/spatio_temporal/ns${ns}_nt${nt}_nb${nb}
  fi
 
 #echo "GPU 1 ./main -path ${folder_path} -ns ${ns} -nt ${nt} -nb ${nb} -no ${no} >${folder_path}/RGF_output_sel_inv.txt"
 # CUDA_VISIBLE_DEVICES="1" /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb} --no ${no}
 export CUDA_VISIBLE_DEVICES=0
 echo "CUDA_VISIBLE_DEVICES = " $CUDA_VISIBLE_DEVICES
-set -x
+CUDA_VISIBLE_DEVICES="0" /home/x_gaedkelb/georg/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
+#set -x
 #CUDA_VISIBLE_DEVICES="0" /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
 if [ -z "$nvvp_file" ]
 then
@@ -43,6 +46,7 @@ then
 else
     CUDA_VISIBLE_DEVICES="0" nvprof -f -o ${file}.nvvp /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb} --results ${SCRIPT_DIR}/../results/tests.csv
 fi
+#CUDA_VISIBLE_DEVICES="0" nvprof -f -o ${file}.nvvp /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
 # CUDA_VISIBLE_DEVICES="1" gdb --args /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
  # LD_LIBRARY_PATH=/home/x_pollakgr/RGF/external/magma-2.5.4/lib:$LD_LIBRARY_PATH
 #/home/x_pollakgr/RGF/build/bin/main 3 3 0 "/home/x_pollakgr/RGF/data/input/Radim/A_9_9_ns3_nt3.dat" "/home/x_pollakgr/RGF/data/input/Radim/rhs9.txt"
