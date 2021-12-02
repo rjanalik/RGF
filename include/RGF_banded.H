@@ -1041,7 +1041,8 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
 #endif
   assert(tot_len_of_bands <= max_supernode_nnz && "Calculated bands should be less or equal to the size of the supernodes");
   // allocate array on cpu where we store the copied offsets
-  tmp = new T[tot_len_of_bands];
+  // TODO: should be pinned as well
+  cudaMallocHost(&tmp, (tot_len_of_bands) * sizeof(T));
   // Get column offsets from bandwidths
   cudaMalloc(&blockM_banded_dev, tot_len_of_bands*sizeof(T));
   cudaMalloc(&supernode_bands_offsets_dev, (cols+1)*sizeof(size_t));
@@ -1069,13 +1070,13 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
   }
 #endif
   // memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T));
-  std::memset(&MF[ind], 0, rows*cols*sizeof(T));
+  // std::memset(&MF[ind], 0, rows*cols*sizeof(T));
   set_MF_from_bands(&MF[ind], tmp, bandwidths, supernode_bands_offsets, tot_len_of_bands, rows);
 #ifdef DEBUG_L2
   std::cout << "Factorized Supernode:\n";
   utilities::print_matrix(&MF[ind], rows, cols, false);
 #endif
-  delete [] tmp;
+  cudaFreeHost(tmp);
   delete [] bandwidths;
   delete [] supernode_bands_offsets;
 
