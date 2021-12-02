@@ -27,7 +27,7 @@ RGF_VERSIONS rgf_ver = ASYNCHRONOUS;
 #include "RGF_async_2s.H"
 RGF_VERSIONS rgf_ver = ASYNCHRONOUS_2S;
 #elif defined BANDED
-#include "RGF_no_zero_copying.H"
+#include "RGF_banded.H"
 RGF_VERSIONS rgf_ver = BANDED_COPYING;
 #elif defined PARDISO
 #include "PARDISO.H"
