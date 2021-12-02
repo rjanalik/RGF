@@ -23,7 +23,7 @@ RGF_VERSIONS rgf_ver = BASELINE;
 #elif defined ASYNC
 #include "RGF_async.H"
 RGF_VERSIONS rgf_ver = ASYNCHRONOUS;
-#elif defined ASYNC_2S
+#elif defined ASYNC2S
 #include "RGF_async_2s.H"
 RGF_VERSIONS rgf_ver = ASYNCHRONOUS_2S;
 #elif defined BANDED
@@ -49,6 +49,8 @@ int main(int argc, char *argv[])
     double overall_time = -omp_get_wtime();
     std::string base_path;
     size_t ns, nt, nb, n, rows, nnz;
+    bool overwrite_results;
+    // std::string ns_s, nt_s, nb_s, no_s, nu_s;
     std::string ns_s, nt_s, nb_s, no_s, nu_s;
     size_t nrhs = 1;
     size_t* ia;
@@ -59,9 +61,10 @@ int main(int argc, char *argv[])
     // ALLOCATE MEMORY
     int i;
     double data;
-    double t_factorise; double t_solve; double t_inv;
-#ifdef PARDISO
-    double t_symbolic_factorise;
+    double t_factorise; double t_solve; double t_inv, t_symbolic_factorise;
+#ifndef PARDISO
+    // TODO: maybe make nan
+    t_symbolic_factorise = 0;
 #endif
     T *rhs;
     T *x;
@@ -70,7 +73,7 @@ int main(int argc, char *argv[])
     RGF<T> *solver;
 #endif
     time_t rawtime;
-    parse_args(argc, argv, base_path, ns, nt, nb);
+    parse_args(argc, argv, base_path, ns, nt, nb, overwrite_results);
     rows = ns*nt+nb;
     n    = rows;
     rhs    = new T[rows];
@@ -118,7 +121,7 @@ int main(int argc, char *argv[])
         fscanf(F,"%lf",&rhs[i]);
     }
     fclose(F);
-#ifdef DEBUG
+#ifdef DEBUG_L2
     utilities::print_header("Inital Matrix Stucture");
     utilities::print_csr(ia, ja, a, rows, nb, true);
     utilities::print_csr(ia, ja, a, rows, nb, false);
@@ -178,32 +181,55 @@ double flops_solve;
     pardiso(ia_, ja_, a, int(nnz), int(n), rhs, x, t_factorise, t_solve, t_inv);
 #endif
 
-    // INVERSION save results
+    // SAVE THE RESULTS ===========================================
     std::ofstream output_fh;
     std::string results_f = "/home/x_gaedkelb/georg/RGF/results/tests.csv";
     //std::string results_f = "/home/x_pollakgr/RGF/results/tests.csv";
     utilities::if_not_exists_abort(results_f);
-    output_fh.open(results_f, std::ofstream::app);
+    output_fh.open(results_f, overwrite_results ? std::ofstream::trunc : std::ofstream::app);
     output_fh.precision(17);
     std::string sep = "\t";
+    if(overwrite_results){
+        // WRITE HEADER
+        output_fh << "Date/Time"
+         << sep << "ns" <<
+            sep << "nt" <<
+            sep << "nb" <<
+            sep << "t_factorize" <<
+            sep << "flops_factorize" <<
+            sep << "t_solve" <<
+            sep << "flops_solve" <<
+            sep << "t_inv" <<
+            sep << "flops_inv" <<
+            sep << "t_symbolic_factorise" <<
+            sep << "RGF_Version" << "\n";
+    }
     output_fh << std::fixed << utilities::currentDateTime() <<
-      sep << ns_s <<
-      sep << nt_s <<
-      sep << nb_s <<
+      sep << std::to_string(ns) <<
+      sep << std::to_string(nt) <<
+      sep << std::to_string(nb) <<
       sep << t_factorise <<
       sep << flops_factorize <<
       sep << t_solve <<
       sep << flops_solve <<
       sep << t_inv <<
       sep << flops_inv <<
-    // TODO add type
+      sep << t_symbolic_factorise <<
+      sep << enum_to_string[rgf_ver] <<
       "\n";
 
     output_fh.close();
 
-    printf("factorise time: %lg\n",t_factorise);
-    printf("solve     time: %lg\n",t_solve);
-    printf("sel inv   time: %lg\n",t_inv);
+#ifdef PARDISO
+    printf("PARDISO factorise time: %lg\n",t_factorise);
+    printf("PARDISO solve     time: %lg\n",t_solve);
+    printf("PARDISO sel inv   time: %lg\n",t_inv);
+    printf("PARDISO symbolic factorse time: %lg\n",t_symbolic_factorise);
+#else
+    printf("RGF factorise time: %lg\n",t_factorise);
+    printf("RGF solve     time: %lg\n",t_solve);
+    printf("RGF sel inv   time: %lg\n",t_inv);
+#endif
 
 
 #ifndef PARDISO

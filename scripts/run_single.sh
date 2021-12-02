@@ -12,6 +12,7 @@ source /opt/intel/oneapi/mkl/latest/env/vars.sh  intel64
 ns=${1:-4}
 nt=${2:-8}
 nb=${3:-2}
+file=${4:-results}
 #year=${5:-2019}
 
 while [ $# -gt 0 ]; do
@@ -33,15 +34,14 @@ then
    #folder_path=/home/x_pollakgr/RGF/data/input/tests/spatio_temporal/ns${ns}_nt${nt}_nb${nb}
  fi
 
- echo "GV100"
- #echo "GPU 1 ./main -path ${folder_path} -ns ${ns} -nt ${nt} -nb ${nb} -no ${no} >${folder_path}/RGF_output_sel_inv.txt"
-set -x
+#echo "GPU 1 ./main -path ${folder_path} -ns ${ns} -nt ${nt} -nb ${nb} -no ${no} >${folder_path}/RGF_output_sel_inv.txt"
 # CUDA_VISIBLE_DEVICES="1" /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb} --no ${no}
 export CUDA_VISIBLE_DEVICES=0
 echo "CUDA_VISIBLE_DEVICES = " $CUDA_VISIBLE_DEVICES
 CUDA_VISIBLE_DEVICES="0" /home/x_gaedkelb/georg/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
+#set -x
 #CUDA_VISIBLE_DEVICES="0" /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
-# CUDA_VISIBLE_DEVICES="0" nvprof -f -o result.nvvp /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
+#CUDA_VISIBLE_DEVICES="0" nvprof -f -o ${file}.nvvp /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
 # CUDA_VISIBLE_DEVICES="1" gdb --args /home/x_pollakgr/RGF/build/bin/main --path ${folder_path} --ns ${ns} --nt ${nt} --nb ${nb}
  # LD_LIBRARY_PATH=/home/x_pollakgr/RGF/external/magma-2.5.4/lib:$LD_LIBRARY_PATH
 #/home/x_pollakgr/RGF/build/bin/main 3 3 0 "/home/x_pollakgr/RGF/data/input/Radim/A_9_9_ns3_nt3.dat" "/home/x_pollakgr/RGF/data/input/Radim/rhs9.txt"
@@ -55,3 +55,4 @@ CUDA_VISIBLE_DEVICES="0" /home/x_gaedkelb/georg/RGF/build/bin/main --path ${fold
 #/home/x_pollakgr/RGF/build/bin/main --path /home/x_pollakgr/RGF/data/input/ghcn/2019/spatio_temporal/ns1002_nt16 --ns 1002 --nt 16 --nb 2 --no 188242
 #nvprof -f -o result.nvvp /home/x_pollakgr/RGF/build/bin/main --path /home/x_pollakgr/RGF/data/input/ghcn/2019/spatio_temporal/ns4002_nt10 --ns 4002 --nt 10 --nb 2 --no 118459
 #mv ${folder_path_data}/log_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_year${year}.dat ${folder_path_data}/log_RGF_ns${ns}_nt${nt}_nb${nb}_no${no}_year${year}_gpu0.dat
+

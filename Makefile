@@ -27,9 +27,8 @@ $(info $(CU_OBJECTS))
 
 
 INCLUDEDIR  = $(INCCUD) $(INCMAG)
-#LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
-LIBS	    = $(LAPACK) $(OPENMP) $(CUDA) $(MAGMA) 
-
+# LIBS	    = $(LAPACK) $(OPENMP) $(CUDA) $(MAGMA) $(MKL)
+# LIBS	    = $(SCALAPACK) $(BLACS) $(LAPACK) $(MKL) $(BLAS) $(LINKS) $(OPENMP) $(CUDA) $(MAGMA) $(F90_LIBS)
 
 CC_FILES   = Utilities.o main.o
 CU_FILES   = CWC_utility.o
@@ -44,7 +43,7 @@ DEBUG_FLAGS  =-g -DDEBUG
 DEBUG_FLAGS_NVCC=-DDEBUG -O0 -G
 else ifeq ($(DEBUG), 2)
 $(info ============== Debugging Level 2 ==============)
-DEBUG_FLAGS  +=-DDEBUG -g -Wall # -fno-stack-protector
+DEBUG_FLAGS  +=-DDEBUG_L2 -g -Wall # -fno-stack-protector
 CXXFLAGS     += -O0
 DEBUG_FLAGS_NVCC=-DDEBUG -O0 -G
 else
@@ -65,8 +64,8 @@ $(info ============== BASELINE VERSION ==============)
 else ifeq ($(RGF_VERSION),ASYNC)
 $(info ============== ASYNCHRONUOUS VERSION ==============)
 	RGF_VERSION := ASYNC
-else ifeq ($(RGF_VERSION),ASYNC_2S)
-	RGF_VERSION := ASYNC_2S
+else ifeq ($(RGF_VERSION),ASYNC2S)
+	RGF_VERSION := ASYNC2S
 $(info ============== ASYNCHRONUOUS VERSION 2 STRAMS ==============)
 else ifeq ($(RGF_VERSION),BANDED)
 	RGF_VERSION := BANDED
@@ -79,7 +78,6 @@ else ifeq ($(RGF_VERSION),PARDISO)
 	LIBPARDISO=-lpardiso700-GNU840-X86-64-RINLA $(LIBMKL)
 $(info ============== PARDISO VERSION ==============)
 endif
-
 .PHONY: clean
 
 $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
