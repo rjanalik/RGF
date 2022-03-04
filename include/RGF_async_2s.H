@@ -7,6 +7,38 @@
 #include "Types.H"
 #include "Utilities.H"
 #include "cublas_v2.h"
+#include "nvToolsExt.h"
+#include "nvToolsExtCuda.h"
+
+
+// Color definitions for nvtx calls
+#define CLR_RED 0xFFFF0000
+#define CLR_BLUE 0xFF0000FF
+#define CLR_GREEN 0xFF008000
+#define CLR_YELLOW 0xFFFFFF00
+#define CLR_CYAN 0xFF00FFFF
+#define CLR_MAGENTA 0xFFFF00FF
+#define CLR_ORANGE 0xFFA500
+#define CLR_GRAY 0xFF808080
+#define CLR_PURPLE 0xFF800080
+// Macro for calling nvtxRangePushEx
+#define RANGE_PUSH(range_title, range_color) { \
+  nvtxEventAttributes_t eventAttrib = {0}; \
+  eventAttrib.version = NVTX_VERSION; \
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE; \
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;\
+  eventAttrib.colorType = NVTX_COLOR_ARGB; \
+  eventAttrib.color = range_color; \
+  eventAttrib.message.ascii = range_title; \
+  nvtxRangePushEx(&eventAttrib); \
+}
+
+#define RANGE_POP {\
+  nvtxRangePop();\
+}
+
+#define EVENT_START(range_title,range_color) { \
+}
 
 template <class T> class RGF {
   /**
@@ -28,6 +60,7 @@ public:
   double residualNorm(T *, T *);
   double residualNormNormalized(T *, T *);
   double flop_count_factorise();
+  nvtxRangeId_t nvtx_RGF_id;
 
 private:
   size_t *matrix_ia;
@@ -125,6 +158,14 @@ private:
 // size_t size = ns * nt + nd;
 template <class T>
 RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
+  nvtxEventAttributes_t eventAttrib = {0};
+  eventAttrib.version = NVTX_VERSION;
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  eventAttrib.colorType = NVTX_COLOR_ARGB;
+  eventAttrib.color = CLR_YELLOW;
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventAttrib.message.ascii = "RGF";
+  this->nvtx_RGF_id = nvtxRangeStartEx(&eventAttrib);
 #ifdef DEBUG
   utilities::print_header("RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t "
                "nt, size_t nd)");
@@ -222,6 +263,7 @@ template <class T> RGF<T>::~RGF() {
   delete[] Bmin;
   delete[] Bmax;
   delete[] diag_pos;
+  nvtxRangeEnd(this->nvtx_RGF_id);
 }
 
 /************************************************************************************************/
@@ -285,6 +327,15 @@ template <class T> inline size_t RGF<T>::mf_dense_block_lda(size_t i) {
 /************************************************************************************************/
 
 template <class T> double RGF<T>::FirstStageFactor() {
+  nvtxEventAttributes_t eventAttrib = {0};
+  eventAttrib.version = NVTX_VERSION;
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  eventAttrib.colorType = NVTX_COLOR_ARGB;
+  eventAttrib.color = CLR_GREEN;
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventAttrib.message.ascii = "FirstStageFactor";
+  nvtxRangeId_t nvtx_firstStage_id = nvtxRangeStartEx(&eventAttrib);
+
   int info;
   /**< TODO IB: index of block*/
   size_t IB;
@@ -296,9 +347,15 @@ template <class T> double RGF<T>::FirstStageFactor() {
   cudaStream_t init_stream1, init_stream2, d2h_stream;
   cudaEvent_t h2d_event1, h2d_event2, computation_event;
 
+  nvtxNameCuDeviceA(0, "0:NVIDIA QUADRO GV100");
+
   cudaStreamCreate(&init_stream1);
+  nvtxNameCuStreamA(init_stream1, "init_stream1");
   cudaStreamCreate(&init_stream2);
+  nvtxNameCuStreamA(init_stream2, "init_stream2");
   cudaStreamCreate(&d2h_stream);
+  nvtxNameCuStreamA(d2h_stream, "d2h_stream");
+
   cudaEventCreate(&h2d_event1);
   cudaEventCreate(&h2d_event2);
   cudaEventCreate(&computation_event);
@@ -311,7 +368,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
 
   IB = 0;
   NR = Bmax[0] - Bmin[0];
-
+  RANGE_PUSH("Factorize First Block", CLR_ORANGE);
   // Allocate inital block and if exist fixed effect blocks
   init_supernode(blockR_dev, IB);
   if (matrix_nd > 0) {
@@ -362,6 +419,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
   cudaStreamSynchronize(init_stream2);
   // For the other Blocks /////////////////////////////////////////////////////
   // rj IB = 1; IB < NBlock; IB++
+  RANGE_POP;
   for (IB = 1; IB < matrix_nt - 1; IB++) {
     NR = Bmax[IB] - Bmin[IB];
     NM = Bmax[IB - 1] - Bmin[IB - 1];
@@ -377,10 +435,12 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // init_supernode(blockR_dev2, IB+1, init_stream2);
     swap_pointers(&blockM_dev, &blockR_dev);
     if(IB % 2 == 1){
+      RANGE_PUSH("Factorize for IB % 2 == 1", CLR_CYAN);
       init_supernode(blockR_dev2, IB+1, init_stream1);
       cudaStreamSynchronize(init_stream2);
       swap_pointers(&blockR_dev, &blockR_dev1);
     } else{
+      RANGE_PUSH("Factorize for IB % 2 == 0", CLR_MAGENTA);
       init_supernode(blockR_dev1, IB+1, init_stream2);
       cudaStreamSynchronize(init_stream1);
       swap_pointers(&blockR_dev, &blockR_dev2);
@@ -487,8 +547,10 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // cudaMemcpyAsync(host_data=&MF[ind], device_data=blockR_dev,
     size_element,cudaMemcpyDeviceToHost, NULL);
     */
+    RANGE_POP;
   }
 
+  RANGE_PUSH("Factorize Last Block", CLR_MAGENTA);
   if (matrix_nt > 1) {
     IB = matrix_nt - 1;
     NR = Bmax[IB] - Bmin[IB];
@@ -549,7 +611,8 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // blockRdev
     // CudaMemcpyAsync is copying tmp_buffer
   }
-
+  RANGE_POP;
+  RANGE_PUSH("Factorize nd Block", CLR_ORANGE);
   if (matrix_nd > 0) {
     IB = NBlock - 1;
     NR = Bmax[IB] - Bmin[IB];
@@ -576,6 +639,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
 
     copy_supernode_to_host(blockDense_dev, IB);
   }
+  RANGE_POP;
 
   cudaStreamDestroy(init_stream1);
   cudaStreamDestroy(init_stream2);
@@ -583,7 +647,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
   cudaEventDestroy(h2d_event1);
   cudaEventDestroy(h2d_event2);
   cudaEventDestroy(computation_event);
-
+  nvtxRangeEnd(nvtx_firstStage_id);
   return flops;
 }
 
@@ -596,6 +660,14 @@ template <class T> double RGF<T>::FirstStageFactor() {
  * @param[in] nrhs Description
  */
 template <class T> double RGF<T>::SecondStageSolve(size_t nrhs) {
+  nvtxEventAttributes_t eventAttrib = {0};
+  eventAttrib.version = NVTX_VERSION;
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  eventAttrib.colorType = NVTX_COLOR_ARGB;
+  eventAttrib.color = CLR_PURPLE;
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventAttrib.message.ascii = "Second Stage Solve";
+  nvtxRangeId_t nvtx_secondStage_id = nvtxRangeStartEx(&eventAttrib);
   size_t IB;
   size_t NR, NM; // NP;
   T ONE = f_one();
@@ -688,6 +760,7 @@ template <class T> double RGF<T>::SecondStageSolve(size_t nrhs) {
           mf_block_lda(IB, IB), &rhs[Bmin[IB]], matrix_size);
   flops += 2.0 * NR * NR * nrhs;
 
+  nvtxRangeEnd(nvtx_secondStage_id);
   return flops;
 }
 
@@ -829,7 +902,6 @@ template <class T> double RGF<T>::ThirdStageAsyncRGF(T *tmp1_dev, T *tmp2_dev) {
   }
 
   copy_supernode_diag(blockR_dev, 0);
-
   return flops;
 }
 
@@ -841,6 +913,15 @@ template <class T> double RGF<T>::ThirdStageAsyncRGF(T *tmp1_dev, T *tmp2_dev) {
  */
 template <class T>
 double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
+    nvtxEventAttributes_t eventAttrib = {0};
+    eventAttrib.version = NVTX_VERSION;
+    eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+    eventAttrib.colorType = NVTX_COLOR_ARGB;
+    eventAttrib.color = CLR_BLUE;
+    eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+    eventAttrib.message.ascii = "Third Stage Solve";
+    nvtxRangeId_t nvtx_thirdStage_id = nvtxRangeStartEx(&eventAttrib);
+
     int info;
     size_t IB;
     size_t NR, NP, ND; // NM
@@ -939,6 +1020,7 @@ double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
 
     copy_supernode_diag(blockR_dev, 0);
 
+    nvtxRangeEnd(nvtx_thirdStage_id);
     return flops;
 }
 
