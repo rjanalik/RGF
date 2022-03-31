@@ -660,20 +660,20 @@ inline void zgetrs_nopiv_dev(char transa, int n, int nrhs, CPX *a, int lda,
 
 /************************************************************************************************/
 
-template <typename T>
-inline void tpotrf_dev(char uplo, int n, T *a, int lda, int *info);
-
-template <>
-
 /**
- * @brief Summary
- * @details Description
+ * @brief type t Choleksy Factorisation: positive triangular factorization
+ * @details Hybrid CPU GPU factorization, that creates and destroys streams on its own.
  * @param[in] uplo: use upper "U" or lower "L" matrix.
  * @param[in] n: number of matrix elements
  * @param[out] a Description
  * @param[in] lda Description
  * @param[out] info Description
  */
+template <typename T>
+inline void tpotrf_dev(char uplo, int n, T *a, int lda, int *info);
+
+template <>
+
 inline void tpotrf_dev(char uplo, int n, double *a, int lda, int *info) {
   // Convert LAPACK character constants to MAGMA constants
   // I.e. for user who a comfortable with LAPACK conventions.
@@ -690,6 +690,37 @@ inline void tpotrf_dev(char uplo, int n, CPX *a, int lda, int *info) {
 }
 
 /************************************************************************************************/
+
+/**
+ * @brief type t Choleksy Factorisation: positive triangular factorization
+ * @details Hybrid CPU GPU factorization, that creates and destroys streams on its own.
+ * @param[in] uplo: use upper "U" or lower "L" matrix.
+ * @param[in] n: number of matrix elements limited to 512
+ * @param[out] a Description
+ * @param[in] lda Description
+ * @param[out] info Description
+ */
+template <typename T>
+inline void tpotrf2_dev(char uplo, int n, T *a, int lda, magma_queue_t stream, int *info);
+
+template <>
+
+inline void tpotrf2_dev(char uplo, int n, double *a, int lda, magma_queue_t stream, int *info) {
+  // Convert LAPACK character constants to MAGMA constants
+  // I.e. for user who a comfortable with LAPACK conventions.
+  magma_uplo_t magma_uplo = magma_uplo_const(uplo);
+  magma_dpotf2_gpu(magma_uplo, n, a, lda, stream, info);
+}
+
+template <>
+inline void tpotrf2_dev(char uplo, int n, CPX *a, int lda, magma_queue_t stream, int *info) {
+  magma_uplo_t magma_uplo = magma_uplo_const(uplo);
+
+  magma_zpotf2_gpu(magma_uplo, n, (magmaDoubleComplex_ptr)a, lda, stream, info);
+}
+
+/************************************************************************************************/
+
 
 template <typename T>
 inline void ttrsm_dev(char side, char uplo, char trans, char diag, int m, int n,

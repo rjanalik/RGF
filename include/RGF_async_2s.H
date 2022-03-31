@@ -11,35 +11,6 @@
 #include "nvToolsExtCuda.h"
 
 
-// Color definitions for nvtx calls
-#define CLR_RED 0xFFFF0000
-#define CLR_BLUE 0xFF0000FF
-#define CLR_GREEN 0xFF008000
-#define CLR_YELLOW 0xFFFFFF00
-#define CLR_CYAN 0xFF00FFFF
-#define CLR_MAGENTA 0xFFFF00FF
-#define CLR_ORANGE 0xFFA500
-#define CLR_GRAY 0xFF808080
-#define CLR_PURPLE 0xFF800080
-// Macro for calling nvtxRangePushEx
-#define RANGE_PUSH(range_title, range_color) { \
-  nvtxEventAttributes_t eventAttrib = {0}; \
-  eventAttrib.version = NVTX_VERSION; \
-  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE; \
-  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;\
-  eventAttrib.colorType = NVTX_COLOR_ARGB; \
-  eventAttrib.color = range_color; \
-  eventAttrib.message.ascii = range_title; \
-  nvtxRangePushEx(&eventAttrib); \
-}
-
-#define RANGE_POP {\
-  nvtxRangePop();\
-}
-
-#define EVENT_START(range_title,range_color) { \
-}
-
 template <class T> class RGF {
   /**
    * @brief Solves blockdiagonal (arrow) matrices using the RGF algorithm
@@ -226,8 +197,11 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
   magma_device_t device;
   magma_getdevice(&device);
   // TODO: maybe create different queues already here?
-  magma_queue_create_from_cuda(device, NULL, NULL, NULL, &magma_queue);
+  cudaStream_t computation_stream;
+  cudaStreamCreate(&computation_stream);
+  magma_queue_create_from_cuda(device, computation_stream, NULL, NULL, &magma_queue);
   stream_c = magma_queue_get_cuda_stream(magma_queue);
+  nvtxNameCuStreamA(stream_c, "Computation Stream");
   cublas_handle = magma_queue_get_cublas_handle(magma_queue);
 }
 
@@ -345,6 +319,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
   T ONE = f_one();
 
   cudaStream_t init_stream1, init_stream2, d2h_stream;
+  cudaEvent_t d2h_event;
   cudaEvent_t h2d_event1, h2d_event2, computation_event;
 
   nvtxNameCuDeviceA(0, "0:NVIDIA QUADRO GV100");
@@ -358,6 +333,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
 
   cudaEventCreate(&h2d_event1);
   cudaEventCreate(&h2d_event2);
+  cudaEventCreate(&d2h_event);
   cudaEventCreate(&computation_event);
   // count floating point operations
   double flops = 0;
@@ -429,7 +405,6 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // In the first round blockM_dev=blockR_dev=C_1
     // and blockR_dev=0
     // CPU call
-    // TODO maybecreate many with a for loop
     // init_supernode(blockR_dev1, IB, init_stream1);
     // // init_supernode(blockR_dev1, IB, init_stream1);
     // init_supernode(blockR_dev2, IB+1, init_stream2);
@@ -437,12 +412,14 @@ template <class T> double RGF<T>::FirstStageFactor() {
     if(IB % 2 == 1){
       RANGE_PUSH("Factorize for IB % 2 == 1", CLR_CYAN);
       init_supernode(blockR_dev2, IB+1, init_stream1);
-      cudaStreamSynchronize(init_stream2);
+      // cudaStreamSynchronize(init_stream2);
+      cudaStreamWaitEvent(init_stream2, d2h_event, 0);
       swap_pointers(&blockR_dev, &blockR_dev1);
     } else{
       RANGE_PUSH("Factorize for IB % 2 == 0", CLR_MAGENTA);
       init_supernode(blockR_dev1, IB+1, init_stream2);
-      cudaStreamSynchronize(init_stream1);
+      // cudaStreamSynchronize(init_stream1);
+      cudaStreamWaitEvent(init_stream1, d2h_event, 0);
       swap_pointers(&blockR_dev, &blockR_dev2);
     }
     /** Note: init_supernode does the following
@@ -485,6 +462,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
      * C=beta C+alpha*AB
      * ...,alpha,A,...,B,...,beta,C
      */
+    RANGE_PUSH("Computations", CLR_RED);
     tgemm_dev('N', 'T', NR, NR, NM, -ONE, &blockM_dev[NM],
               mf_block_lda(IB, IB - 1), &blockM_dev[NM],
               mf_block_lda(IB, IB - 1), ONE, blockR_dev, mf_block_lda(IB, IB),
@@ -515,7 +493,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // %d, ldc: %d\n", NR, NM, mf_block_index(IB, IB-1), mf_block_lda(IB,
     // IB-1), mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1),
     // mf_block_index(IB, IB), mf_block_lda(IB, IB)); rj dpotrf MF[IB,IB]
-    tpotrf_dev('L', NR, blockR_dev, mf_block_lda(IB, IB), &info);
+    tpotrf2_dev('L', NR, blockR_dev, mf_block_lda(IB, IB), magma_queue, &info);
     flops += 0.5 * NR * NR * NR;
     // printf("RJ: tpotrf NR: %d, a: %d, lda: %d\n\n", NR,
     // mf_block_index(IB, IB), mf_block_lda(IB, IB)); rj dtrsm RLTN
@@ -526,6 +504,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
               mf_block_lda(IB, IB), &blockR_dev[NR], mf_block_lda(IB + 1, IB),
               magma_queue);
     flops += 2.0 * (NR + matrix_nd) * NR * NR;
+    RANGE_POP;
     // printf("RJ: ttrsm NR: %d, a: %d, lda: %d, b: %d, ldb: %d\n", NR,
     // mf_block_index(IB-1, IB-1), mf_block_lda(IB-1, IB-1),
     // mf_block_index(IB, IB-1), mf_block_lda(IB, IB-1));
@@ -536,9 +515,11 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // copying copy_supernode_to_host(blockR_dev, IB, STREAM); -> uses
     // cudaMemcpyAsync already in background with NULL stream enqueue event in
     // stream
-    cudaEventRecord(computation_event, NULL);
+    nvtxNameCuStreamA(this->stream_c, "Computation Stream");
+    cudaEventRecord(computation_event, this->stream_c);
     cudaStreamWaitEvent(d2h_stream, computation_event, 0);
     copy_supernode_to_host(blockR_dev, IB, d2h_stream);
+    cudaEventRecord(d2h_event, d2h_stream);
     // copy_supernode_to_host(blockR_dev, IB);
     /** Note:
     // Calls:

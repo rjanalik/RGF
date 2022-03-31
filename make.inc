@@ -19,7 +19,7 @@ ifeq ($(BUILD_TYPE),kaust)
         LAPHOME       = $(MKLHOME)
         SCAHOME       = $(MKLHOME)
         CUDAHOME      = /usr/local/cuda
-		MKL           = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
+        MKL           = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
         LOADER        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
         MPICXX        = mpic++ -Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
         NVCC          = nvcc
@@ -43,7 +43,8 @@ INCMAG        = -I/home/x_pollakgr/RGF/applications/magma-2.5.4/include
 MAGMA         = -L/home/x_pollakgr/applications/magma-2.5.4/lib -lmagma
 
 INCCUD	      = -I$(CUDAHOME)/include
-CUDA          = -L/usr/lib64/ -lcuda -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcufft -lcusparse -Wl,-rpath,$(CUDAHOME)/lib64
+# -lcufft -lcuda (Cuda Driver API) not need we use (cuda runtime library)
+CUDA          = -L$(CUDAHOME)/lib64 -lcudart -lcublas -lcusparse -lnvToolsExt -Wl,-rpath,$(CUDAHOME)/lib64
 #INCMAG        ?= -I./magma-1.6.2p4/include/
 #MAGMA         ?= -L./magma-1.6.2p4/lib/ -lmagma
 

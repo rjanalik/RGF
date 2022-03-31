@@ -9,7 +9,7 @@ HOME=/home/x_pollakgr/RGF
 DATA_FOLDER=${HOME}/data/input/tests
 
 ns=${1:-500}
-nts=${2:-1}
+nts=${2:-5}
 nb=${3:-5}
 # set -x
 # for nt in {0..4..1}

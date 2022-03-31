@@ -10,6 +10,8 @@
 #include <numeric>
 #include <cmath>
 #include <algorithm>
+#include "nvToolsExt.h"
+#include "nvToolsExtCuda.h"
 
 template <class T> class RGF {
 
@@ -25,6 +27,7 @@ public:
   double residualNorm(T *, T *);
   double residualNormNormalized(T *, T *);
   double flop_count_factorise();
+  nvtxRangeId_t nvtx_RGF_id;
 
 private:
   size_t *matrix_ia;
@@ -96,6 +99,14 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
 #ifdef DEBUG
   iteration_counter = 0;
   iteration_counter_banded = 0;
+  nvtxEventAttributes_t eventAttrib = {0};
+  eventAttrib.version = NVTX_VERSION;
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  eventAttrib.colorType = NVTX_COLOR_ARGB;
+  eventAttrib.color = CLR_YELLOW;
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventAttrib.message.ascii = "RGF";
+  this->nvtx_RGF_id = nvtxRangeStartEx(&eventAttrib);
 #endif
   matrix_ia = ia;
   matrix_ja = ja;
@@ -151,14 +162,21 @@ RGF<T>::RGF(size_t *ia, size_t *ja, T *a, size_t ns, size_t nt, size_t nd) {
   magma_init();
   magma_device_t device;
   magma_getdevice(&device);
-  magma_queue_create_from_cuda(device, NULL, NULL, NULL, &magma_queue);
+  cudaStream_t computation_stream;
+  cudaStreamCreate(&computation_stream);
+  magma_queue_create_from_cuda(device, computation_stream, NULL, NULL, &magma_queue);
   stream_c = magma_queue_get_cuda_stream(magma_queue);
+  nvtxNameCuStreamA(stream_c, "Computation Stream");
   cublas_handle = magma_queue_get_cublas_handle(magma_queue);
 }
 
 /************************************************************************************************/
 
 template <class T> RGF<T>::~RGF() {
+#ifdef DEBUG
+  utilities::print_header("~RGF()");
+  nvtxRangeEnd(this->nvtx_RGF_id);
+#endif
   if (MF_dev_allocated) {
     size_t max_supernode_nnz = matrix_nt > 1
                                    ? matrix_ns * (2 * matrix_ns + matrix_nd)
@@ -234,6 +252,14 @@ template <class T> inline size_t RGF<T>::mf_dense_block_lda(size_t i) {
 template <class T> double RGF<T>::FirstStageFactor() {
 #ifdef DEBUG
   utilities::print_header("FirstStageFactor");
+  nvtxEventAttributes_t eventAttrib = {0};
+  eventAttrib.version = NVTX_VERSION;
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  eventAttrib.colorType = NVTX_COLOR_ARGB;
+  eventAttrib.color = CLR_GREEN;
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventAttrib.message.ascii = "FirstStageFactor";
+  nvtxRangeId_t nvtx_firstStage_id = nvtxRangeStartEx(&eventAttrib);
 #endif
   int info;
   size_t IB;
@@ -327,10 +353,31 @@ template <class T> double RGF<T>::FirstStageFactor() {
     // mf_block_index(IB-1, IB-1), mf_block_lda(IB-1, IB-1), mf_block_index(IB,
     // IB-1), mf_block_lda(IB, IB-1));
 
-    // TODO only if lower diagonal block copy non-zero stripes back
+#ifdef DEBUG
+  nvtxEventAttributes_t eventCopy = {0};
+  eventCopy.version = NVTX_VERSION;
+  eventCopy.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  eventCopy.colorType = NVTX_COLOR_ARGB;
+  eventCopy.color = CLR_CYAN;
+  eventCopy.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventCopy.message.ascii = "D2H banded supernodes";
+  nvtxRangeId_t nvtx_copy_banded = nvtxRangeStartEx(&eventCopy);
+#endif
     copy_supernode_to_host_banded(blockR_dev, IB);
-    // copy_supernode_to_host(blockR_dev, IB);
+#ifdef DEBUG
+  nvtxRangeEnd(nvtx_copy_banded);
+#endif
+
+#ifdef DEBUG
+  eventCopy.message.ascii = "D2H supernodes";
+  eventCopy.color = CLR_GRAY;
+  nvtxRangeId_t nvtx_copy_normal = nvtxRangeStartEx(&eventCopy);
+#endif
+    copy_supernode_to_host(blockR_dev, IB);
     // utilities::print_matrix_structure(MF, matrix_size, matrix_size, matrix_nd);
+#ifdef DEBUG
+  nvtxRangeEnd(nvtx_copy_normal);
+#endif
   }
 
   if (matrix_nt > 1) {
@@ -389,6 +436,7 @@ template <class T> double RGF<T>::FirstStageFactor() {
 
 #ifdef DEBUG
     utilities::print_header("FirstStageFactor");
+    RANGE_POP;
 #endif
 
   }
@@ -430,6 +478,16 @@ template <class T> double RGF<T>::FirstStageFactor() {
 /************************************************************************************************/
 
 template <class T> double RGF<T>::SecondStageSolve(size_t nrhs) {
+#ifdef DEBUG
+  nvtxEventAttributes_t eventAttrib = {0};
+  eventAttrib.version = NVTX_VERSION;
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  eventAttrib.colorType = NVTX_COLOR_ARGB;
+  eventAttrib.color = CLR_PURPLE;
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventAttrib.message.ascii = "Second Stage Solve";
+  nvtxRangeId_t nvtx_secondStage_id = nvtxRangeStartEx(&eventAttrib);
+#endif
   int info;
   size_t IB;
   size_t NR, NM, NP;
@@ -522,13 +580,25 @@ template <class T> double RGF<T>::SecondStageSolve(size_t nrhs) {
   c_ttrsm('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF[mf_block_index(IB, IB)],
           mf_block_lda(IB, IB), &rhs[Bmin[IB]], matrix_size);
   flops += 2.0 * NR * NR * nrhs;
-
+#ifdef DEBUG
+  nvtxRangeEnd(nvtx_secondStage_id);
+#endif
   return flops;
 }
 
 /************************************************************************************************/
 
 template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
+#ifdef DEBUG
+    nvtxEventAttributes_t eventAttrib = {0};
+    eventAttrib.version = NVTX_VERSION;
+    eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+    eventAttrib.colorType = NVTX_COLOR_ARGB;
+    eventAttrib.color = CLR_BLUE;
+    eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+    eventAttrib.message.ascii = "Third Stage Solve";
+    nvtxRangeId_t nvtx_thirdStage_id = nvtxRangeStartEx(&eventAttrib);
+#endif
   int info;
   size_t IB;
   size_t NR, NM, NP, ND;
@@ -642,6 +712,9 @@ template <class T> double RGF<T>::ThirdStageRGF(T *tmp1_dev, T *tmp2_dev) {
 
   copy_supernode_diag(blockR_dev, 0);
 
+#ifdef DEBUG
+  nvtxRangeEnd(nvtx_thirdStage_id);
+#endif
   return flops;
 }
 
@@ -998,6 +1071,14 @@ template <class T>
 inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
                                                         size_t supernode) {
 #ifdef DEBUG
+  nvtxEventAttributes_t d2hAtt = {0};
+  d2hAtt.version = NVTX_VERSION;
+  d2hAtt.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  d2hAtt.colorType = NVTX_COLOR_ARGB;
+  d2hAtt.color = CLR_BLUE;
+  d2hAtt.messageType = NVTX_MESSAGE_TYPE_ASCII;
+#endif
+#ifdef DEBUG_L2
   utilities::print_header("SUPERNODE_TO_HOST_BANDED - "+std::to_string(iteration_counter_banded));
   iteration_counter_banded++;
 #endif
@@ -1017,7 +1098,7 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
   size_t tot_len_of_bands = 0;
   size_t *supernode_bands_offsets;
   T *tmp; /** buffer that holds bands of the factorized matrix */
-#ifdef DEBUG
+#ifdef DEBUG_L2
   printCopyInfo(supernode, supernode_fc, supernode_lc, rows, cols, ind);
 #endif
   bandwidths = new size_t[cols];
@@ -1035,31 +1116,50 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
   //   std::cout << "supernode_bands_offsets[" << i << "]" << supernode_bands_offsets[i] << "\n";
   // }
   assert(tot_len_of_bands <= rows * cols && "Non-zero bands cannot be larger than the whole matrix!");
-#ifdef DEBUG
+#ifdef DEBUG_L2
   double compresssion_ratio = (1.0-(double) tot_len_of_bands/(rows*cols))*100.0;
   std::cout << "Compression Ratio is = " << compresssion_ratio << "%\n";
 #endif
   assert(tot_len_of_bands <= max_supernode_nnz && "Calculated bands should be less or equal to the size of the supernodes");
   // allocate array on cpu where we store the copied offsets
-  // TODO: should be pinned as well
   cudaMallocHost(&tmp, (tot_len_of_bands) * sizeof(T));
   // Get column offsets from bandwidths
   cudaMalloc(&blockM_banded_dev, tot_len_of_bands*sizeof(T));
   cudaMalloc(&supernode_bands_offsets_dev, (cols+1)*sizeof(size_t));
   // Copy column offsets to the GPU
+#ifdef DEBUG_L2
   assert(std::any_of(supernode_bands_offsets, supernode_bands_offsets+cols+1, [&rows, &cols](size_t offset) { return 0<= offset < cols*rows; }) && "NANs inside supernode_bands_offsets");
-#ifdef DEBUG
   std::cout << "SUPERNODE_BANDS_OFFSETS[I]";
 #endif
+#ifdef DEBUG
+  d2hAtt.message.ascii = "memcpy_to_device";
+  nvtxRangeId_t nvtx_banded_id = nvtxRangeStartEx(&d2hAtt);
+#endif
   memcpy_to_device(supernode_bands_offsets, supernode_bands_offsets_dev, (cols+1) * sizeof(size_t));
+#ifdef DEBUG
+  nvtxRangeEnd(nvtx_banded_id);
+#endif
   // 4. Use a loop to set the correct values of M_dev to the array where we copy
   // blockM_banded_dev, M_dev
+#ifdef DEBUG
+  d2hAtt.message.ascii = "set_copy_buffer";
+  nvtx_banded_id = nvtxRangeStartEx(&d2hAtt);
+#endif
   set_copy_buffer(M_dev, blockM_banded_dev, supernode_bands_offsets_dev, rows, matrix_ns, matrix_nd);
 #ifdef DEBUG
+  nvtxRangeEnd(nvtx_banded_id);
+#endif
+#ifdef DEBUG_L2
   std::cout << "set copy buffer\n";
 #endif
-  // 4. Add asserts
+#ifdef DEBUG
+  d2hAtt.message.ascii = "memcpy_to_host(tmp,...)";
+  nvtx_banded_id = nvtxRangeStartEx(&d2hAtt);
+#endif
   memcpy_to_host(tmp, blockM_banded_dev, tot_len_of_bands * sizeof(T));
+#ifdef DEBUG
+  nvtxRangeEnd(nvtx_banded_id);
+#endif
 #ifdef DEBUG_L2
   std::cout << "memcpy_to_host\n";
   for(size_t j=0; j < cols; j++){
@@ -1071,7 +1171,14 @@ inline void RGF<T>::copy_supernode_to_host_banded(T *M_dev,
 #endif
   // memcpy_to_host(&MF[ind], M_dev, rows * cols * sizeof(T));
   // std::memset(&MF[ind], 0, rows*cols*sizeof(T));
+#ifdef DEBUG
+  d2hAtt.message.ascii = "set_MF_from_bands";
+  nvtx_banded_id = nvtxRangeStartEx(&d2hAtt);
+#endif
   set_MF_from_bands(&MF[ind], tmp, bandwidths, supernode_bands_offsets, tot_len_of_bands, rows);
+#ifdef DEBUG
+  nvtxRangeEnd(nvtx_banded_id);
+#endif
 #ifdef DEBUG_L2
   std::cout << "Factorized Supernode:\n";
   utilities::print_matrix(&MF[ind], rows, cols, false);
