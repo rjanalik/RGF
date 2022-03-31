@@ -48,7 +48,7 @@ CXXFLAGS     += -O0
 DEBUG_FLAGS_NVCC=-DDEBUG -O0 -G
 else
 $(info ============== No Debugging ==============)
-CXXFLAGS     = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK
+CXXFLAGS     = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK -lineinfo
 NVCC_FLAGS   +=
 DEBUG_FLAGS=-DNDEBUG
 DEBUG_FLAGS_NVCC=-DNDEBUG
@@ -66,7 +66,7 @@ $(info ============== ASYNCHRONUOUS VERSION ==============)
 	RGF_VERSION := ASYNC
 else ifeq ($(RGF_VERSION),ASYNC2S)
 	RGF_VERSION := ASYNC2S
-$(info ============== ASYNCHRONUOUS VERSION 2 STRAMS ==============)
+$(info ============== ASYNCHRONUOUS VERSION 2 STREAMS ==============)
 else ifeq ($(RGF_VERSION),BANDED)
 	RGF_VERSION := BANDED
 $(info ============== BANDED VERSION ==============)
@@ -81,7 +81,8 @@ endif
 .PHONY: clean
 
 $(EXEC): $(CC_OBJECTS) $(CU_OBJECTS)
-	mpic++ $(CC_OBJECTS) $(CU_OBJECTS) $(LIBPARDISO) $(LIBS) $(CXX_FLAGS) -lm -o $(BIN_DIR)/$@
+	g++ $(CC_OBJECTS) $(CU_OBJECTS) $(LIBPARDISO) $(LIBS) $(CXX_FLAGS) -lm -o $(BIN_DIR)/$@
+## mpic++ links to g++ on KAUST
 
 # canned old version of:  %.o : %.c
 # $(CC_OBJECTS): $(CC_SRC)
