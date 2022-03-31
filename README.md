@@ -6,17 +6,24 @@
     │   └── bin                 # Binary 
     ├── data                    # Data files 
     │   ├── input               # Input files/matrices
-    │   │   └── ghcn            # Global Historical Climatology Network (GHCN)
-    │   │        ├── 2018 
-    │   │        ├── 2019
-    │   │        └── ...
+    │   │   │── ghcn            # Global Historical Climatology Network (GHCN)
+    │   │   │    ├── 2018 
+    │   │   │    ├── 2019
+    │   │   │    └── ...
+    │   │   │── Radim           # Original test files 
+    │   │   │
+    │   │   │
+    │   │   └── tests           # test files created with helper script
+    │   │
     │   └── output              # Output Files From ./main
-    ├── external                # External Libraries s.a. magma
+    ├── applications            # External Libraries s.a. magma
     ├── include                 # Header Files
-    ├── lib                     # Libraries
     ├── scripts                 # Scripts i.e. for setting up the environment
-    │   ├── R                   # R script, mainly for data generation
-    │   └── ...
+    │   ├── R                   # R script, mainly for data generation of ghcn
+    │   ├── C                   # C script, for data generation of test data
+    │   ├── setup_kaust.sh      # C script, for data generation of test data
+    │   ├── C                   # C script, for data generation of test data
+    │   └── run_single.sh
     └── src                    # Source files
 ## TODO:
 - Check version conflicts:  
@@ -51,14 +58,22 @@
    ```
 2. Run the makefile:
     ``` sh
-    make RGF_VERSION=<BASE,ASYNC,ASYNC_2S,BANDED,PARDISO> [DEBUG=1] -B 
+    make RGF_VERSION=<BASE,ASYNC,ASYNC_2S,BANDED,PARDISO> [DEBUG=Level i.e. 1 or 2] -B 
     ```
 ### Running the code 
 #### KAUST
+##### To run single test file: 
+Helper script to run the code, hard coded for test files (adapt as fit):
     ```sh
     ./scripts/run_single.sh ns nt nb
     ```
-    to run all:
+##### To run single test file and profile it using nvvp/nsys (comment/uncomment line 34)
+Helper script to profile the code, hard coded for test files (adapt as fit):
+    ```sh
+    sudo ./scripts/run_single.sh ns nt nb nvvp_file_name
+    ```
+##### To run all test files from a folder using the previous script:
+    to run all version from a given folder:
     ```sh
     python ./scripts/run_all.py
     ```

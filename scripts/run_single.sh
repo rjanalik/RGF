@@ -14,14 +14,14 @@ nb=${3:-2}
 nvvp_file=${4}
 #year=${5:-2019}
 
-while [ $# -gt 0 ]; do
-   if [[ $1 == *"b'--"* ]]; then
-        param="${1/--/}"
-        declare $param="$2"
-        echo $1 $2 "success"
-   fi
-  shift
-done
+#while [ $# -gt 0 ]; do
+#   if [[ $1 == *"b'--"* ]]; then
+#        param="${1/--/}"
+#        declare $param="$2"
+#        echo $1 $2 "success"
+#   fi
+#  shift
+#done
 
 #folder_path=/home/x_gaedkelb/RGF/data/ns${ns}
 if [[ "$nt" == 1 ]];
