@@ -66,12 +66,12 @@ Helper script to run the code, hard coded for test files (adapt as fit):
     ./scripts/run_single.sh ns nt nb
     ```
 ##### To run single test file and profile it using nvvp/nsys (comment/uncomment line 34)
-Helper script to profile the code, hard coded for test files (adapt as fit):
+Helper script to profile the code, hard coded for test files (adapt as fit):   
     ```sh
     sudo ./scripts/run_single.sh ns nt nb nvvp_file_name
     ```
 ##### To run all test files from a folder using the previous script:
-    to run all version from a given folder:
+    to run all version from a given folder:   
     ```sh
     python ./scripts/run_all.py
     ```
