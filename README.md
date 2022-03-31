@@ -26,12 +26,10 @@
     │   └── run_single.sh
     └── src                    # Source files
 ## TODO:
-- Check version conflicts:  
-`warning: libcusparse.so.11, needed by /home/x_pollakgr/applications/magma-2.5.4/lib/libmagma.so, may conflict with libcusparse.so.10`
-- CUDA header dependencies not in makefile included
+- Replace cholesky factorization with cublas version in 2s_asynchronus version.
 ## Installation
 ## Fetching the data & Creating the Model
-### Fetching the data 
+### Fetching the GHCN data 
 1. Change to:
     ``` sh
     <project root>/scripts/R
