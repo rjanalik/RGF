@@ -1,5 +1,7 @@
 # make.inc for RGF solver
 
+BASE_PATH=/home/x_gaedkelb
+
 ###### CPU ######
 RGF_MPICXX        = mpic++ #-Wl,-rpath -Wl,$(INTEL64)/compiler/lib/intel64
 
@@ -10,6 +12,7 @@ RGF_CXXFLAGS      = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK #-O3
 #LAPACK            = -L$(LAPHOME) -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core -Wl,-rpath -Wl,$(MKLHOME)
 LAPACK            = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl 
 
+
 OPENMP            = -fopenmp
 
 ###### GPU ######
@@ -19,8 +22,10 @@ RGF_NVCCFLAGS     = -arch=compute_70 -code=sm_70
 RGF_CUDA_SDK      = 3
 RGF_COMMONFLAGS   = -DCUDA_SDK=$(CUDA_SDK)
 
-INCMAG            = -I/home/x_gaedkelb/applications/magma-2.5.4/include
-MAGMA             = -L/home/x_gaedkelb/applications/magma-2.5.4/lib -lmagma
+#INCMAG            = -I/home/x_gaedkelb/applications/magma-2.5.4/include
+#MAGMA             = -L/home/x_gaedkelb/applications/magma-2.5.4/lib -lmagma
+INCMAG            = -I$(BASE_PATH)/applications/magma-2.6.1/include
+MAGMA             = -L$(BASE_PATH)/applications/magma-2.6.1/lib -lmagma
 
 CUDAHOME          = /usr/local/cuda
 INCCUD	          = -I$(CUDAHOME)/include

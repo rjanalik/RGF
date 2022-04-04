@@ -8,6 +8,8 @@
 #include "Utilities.H"
 #include "CWC_utility.H"
 
+#include "time.h"  // only necessary for timer
+
 template <class T>
 class RGF{
 	
@@ -375,6 +377,7 @@ double RGF<T>::FirstStageFactor()
 
 /************************************************************************************************/
 
+// After factorisation of A = L*L^T solve (L*L^T) x = b by : forward pass L*y = b, backward pass L^T x = y
 template <class T>
 double RGF<T>::SecondStageSolve(size_t nrhs)
 {
@@ -389,10 +392,20 @@ double RGF<T>::SecondStageSolve(size_t nrhs)
     // counting FLOPS
     double flops = 0;
 
+   double t_forw_pass = get_time(0.0); 
+   double t_forw_pass_fixed_eff;
+
+
+   double t_1st_tri_for_solve = get_time(0.0);
     //rj dtrsm LLNN MF[0,0] rhs[0]
-    // solve for first diagonal block 
+    // solve for first diagonal block (using solve for tridiagonal matrix), ie. x_0 = D^-0*b_0
     c_ttrsm('L', 'L', 'N', 'N', NR, nrhs, ONE, &MF[mf_block_index(0, 0)], mf_block_lda(0, 0), &rhs[Bmin[0]], matrix_size);
     flops += 2.0 * NR * NR * nrhs;
+
+    t_1st_tri_for_solve = get_time(t_1st_tri_for_solve);
+
+    // testing
+    //for(int i=0; i<50; i++){
 
     //rj IB = 1; IB < NBlock; IB++
     for (IB = 1; IB < matrix_nt; IB++)
@@ -400,23 +413,30 @@ double RGF<T>::SecondStageSolve(size_t nrhs)
        NR  = Bmax[IB]-Bmin[IB];
        NM  = Bmax[IB-1]-Bmin[IB-1];
 
+       // compute b_i = b_i - E_i-1 * x_i-1
+       // E1 * x1 + D2*x2 = b2
        //rj dgemm NN M[IB,IB-1] rhs[IB-1] rhs[IB]
        c_tgemm('N', 'N', NR, nrhs, NM, -ONE, &MF[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &rhs[Bmin[IB-1]], matrix_size, ONE, &rhs[Bmin[IB]], matrix_size);
        flops += 2.0 * NR * nrhs * NM;
+       // solve for x_i = D^-1_i*b_i (which was updated before)
        //rj dtrsm LLNN MF[IB,IB] rhs[IB]
        c_ttrsm('L', 'L', 'N', 'N', NR, nrhs, ONE, &MF[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs[Bmin[IB]], matrix_size);
        flops += 2.0*NR * NR * nrhs; 
     }
 
+      //t_forw_pass_fixed_eff = get_time(0.0);
+
+    // dense rows at the end
     if (matrix_nd > 0)
     {
        IB = NBlock-1;
        NR  = Bmax[IB]-Bmin[IB];
        NM  = Bmax[IB-1]-Bmin[IB-1];
 
+       // compute b_n = b_n - (F_1*x_1 + F_2*x_2 + ... F_n-1*x_n-1)
        //rj dgemm NN M[IB,IB-1] rhs[IB-1] rhs[IB]
        for (size_t i = 0; i < NBlock-1; i++)
-       {
+       {    
           c_tgemm('N', 'N', NR, nrhs, NM, -ONE, &MF[mf_dense_block_index(i)], mf_dense_block_lda(i), &rhs[Bmin[i]], matrix_size, ONE, &rhs[Bmin[IB]], matrix_size);
           flops += 2.0*NR * nrhs * NM;
        }
@@ -425,6 +445,16 @@ double RGF<T>::SecondStageSolve(size_t nrhs)
        flops += 2.0*NR * NR * nrhs;
     }
 
+   //} // end testing loop
+
+      //t_forw_pass_fixed_eff = get_time(t_forw_pass_fixed_eff);
+      t_forw_pass = get_time(t_forw_pass);
+      printf("forward pass time 1st: %lg sec\n",t_1st_tri_for_solve);
+      //printf("forward pass time FE : %lg sec\n",t_forw_pass_fixed_eff);
+      printf("forward pass time    : %lg sec\n",t_forw_pass);
+
+      double t_backw_pass = get_time(0.0);
+
     //Backward pass
     if (matrix_nd > 0)
     {
@@ -432,9 +462,11 @@ double RGF<T>::SecondStageSolve(size_t nrhs)
        NR  = Bmax[IB]-Bmin[IB];
        NM  = Bmax[IB-1]-Bmin[IB-1];
 
+       // solve D^T_n*x_n = y_n for x_n
        //rj dtrsm LLTN MF[NBlock-1,NBlock-1] rhs[NBlock-1]
        c_ttrsm('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs[Bmin[IB]], matrix_size);
        flops += 2.0*NR * NR * nrhs;
+       // now update y everywhere : y_i = y_i - F^T_i * x_n
        //rj dgemm TN M[IB,IB-1] rhs[IB] rhs[IB-1]
        for (size_t i = 0; i < NBlock-1; i++)
        {
@@ -443,14 +475,17 @@ double RGF<T>::SecondStageSolve(size_t nrhs)
        }
     }
 
+    // loop for tridiagonal block structure (right-hand side y already includes updates from dense rows/columns)
     for (IB = matrix_nt-1; IB > 0; IB--)
     {
        NR  = Bmax[IB]-Bmin[IB];
        NM  = Bmax[IB-1]-Bmin[IB-1];
 
+       // compute D^T_i x_i = y_i
        //rj dtrsm LLTN MF[IB,IB] rhs[IB]
        c_ttrsm('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs[Bmin[IB]], matrix_size);
        flops += 2.0* NR * NR * nrhs;
+       // compute y_i = y_i - E_i^T * x_i+1
        //rj dgemm TN M[IB,IB-1] rhs[IB] rhs[IB-1]
        c_tgemm('T', 'N', NM, nrhs, NR, -ONE, &MF[mf_block_index(IB, IB-1)], mf_block_lda(IB, IB-1), &rhs[Bmin[IB]], matrix_size, ONE, &rhs[Bmin[IB-1]], matrix_size);
        flops += 2.0 * NM * nrhs * NR; 
@@ -459,9 +494,14 @@ double RGF<T>::SecondStageSolve(size_t nrhs)
     IB = 0;
     NR = Bmax[IB]-Bmin[IB];
 
+   // compute D^T_0 x_0 = y_0
     //rj dtrsm LLTN MF[NBlock-1,NBlock-1] rhs[NBlock-1]
     c_ttrsm('L', 'L', 'T', 'N', NR, nrhs, ONE, &MF[mf_block_index(IB, IB)], mf_block_lda(IB, IB), &rhs[Bmin[IB]], matrix_size);
     flops += 2.0 * NR * NR * nrhs;
+
+   t_backw_pass = get_time(t_backw_pass);
+   printf("backward pass time   : %lg sec\n",t_backw_pass);
+
 
     return flops;
 }

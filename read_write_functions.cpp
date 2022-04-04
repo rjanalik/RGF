@@ -82,16 +82,64 @@ SpMat read_sym_CSC(std::string filename)
   fin >> n;
   fin >> nnz;
 
-   // allocate memory
-  int outerIndexPtr[n+1];
-  int innerIndices[nnz];
-  double values[nnz];
+  int* outerIndexPtr;
+  int* innerIndices;
+  double* values;
+
+  outerIndexPtr = new int [n+1];
+  innerIndices  = new int [nnz];
+  values        = new double [nnz];
 
   for (int i = 0; i < nnz; i++){
     fin >> innerIndices[i];}
 
   for (int i = 0; i < n+1; i++){
     fin >> outerIndexPtr[i];}
+
+  for (int i = 0; i < nnz; i++){
+    fin >> values[i];}
+
+  fin.close();
+
+  //
+  SpMat A_lower =  Eigen::Map<Eigen::SparseMatrix<double> >(n,n,nnz,outerIndexPtr, // read-write
+                               innerIndices,values);
+
+  // TODO: more efficient way to do this?
+  SpMat A = A_lower.selfadjointView<Lower>();
+  //std::cout << "input A : " << std::endl;
+  //std::cout << A << std::endl;
+
+  return A;
+} 
+
+
+// expects indices for lower triangular matrix
+SpMat read_sym_CSR(std::string filename)
+{
+
+  int n;
+  int nnz;
+
+  fstream fin(filename, ios::in);
+  fin >> n;
+  fin >> n;
+  fin >> nnz;
+
+   // allocate memory
+  int* outerIndexPtr;
+  int* innerIndices;
+  double* values;
+
+  outerIndexPtr = new int [n+1];
+  innerIndices  = new int [nnz];
+  values        = new double [nnz];
+
+  for (int i = 0; i < n+1; i++){
+    fin >> outerIndexPtr[i];}
+
+  for (int i = 0; i < nnz; i++){
+    fin >> innerIndices[i];}
 
   for (int i = 0; i < nnz; i++){
     fin >> values[i];}
