@@ -51,17 +51,17 @@ void generate_adapt_poisson_mat(SpMat& Q, int ns, int nb){
 	// assemble using kronecker products (requires ns=nt)
 	//A = kron(A_ns, I) + kron(I, A_ns);
 	SpMat A = KroneckerProductSparse<SpMat, SpMat>(A_ns, D) + KroneckerProductSparse<SpMat, SpMat>(D, A_ns);
+	A = A + nb*MatrixXd::Identity(ns*ns, ns*ns); // to ensure positive definiteness !!
 
 	// add random "fixed effects"
 	MatrixXd randMat = 0.5*(MatrixXd::Random(nb, ns*ns)-MatrixXd::Ones(nb, ns*ns));
 	//std::cout << "randMat:\n" << randMat << std::endl;
 
 	MatrixXd randDiagBl =  0.5*(MatrixXd::Random(nb, nb)-MatrixXd::Ones(nb, nb)) + (n+1)*MatrixXd::Identity(nb,nb);
+	randDiagBl.triangularView<Upper>() = randDiagBl.transpose(); // make this block symmetric!!
 	//std::cout << "randDiagBl:\n" << randDiagBl << std::endl;
 
 	// assemble everything together .. make everything dense to make it easier ....
-	//MatrixXd A_dense = MatrixXd(A);
-
 	MatrixXd Q_dense(n,n);
 	Q_dense << MatrixXd(A), randMat.transpose(), randMat, randDiagBl;
 	//std::cout << "Q dense :\n" << Q_dense << std::endl; 
@@ -77,7 +77,7 @@ void generate_int_rhs(MatrixXi& B, int n, int nb){
 
   	MatrixXd temp = (MatrixXd::Random(n,nb)+MatrixXd::Ones(n,nb))*5;  
   	B = temp.cast<int>();    
-  	std::cout << "B:\n" << B << std::endl;
+  	//std::cout << "B:\n" << B << std::endl;
 }
 
 

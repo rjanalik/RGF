@@ -59,14 +59,10 @@ extern "C" {
   void z_tril_on_dev(CPX *A, int lda, int N);
   void d_indexed_copy_on_dev(double *src, double *dst, size_t *index, size_t N);
   void z_indexed_copy_on_dev(CPX *src, CPX *dst, size_t *index, size_t N);
-  void d_indexed_copy_offset_on_dev(double *src, double *dst, size_t *index, size_t N, size_t offset);
-  void z_indexed_copy_offset_on_dev(CPX *src, CPX *dst, size_t *index, size_t N, size_t offset);
   void d_log_on_dev(double *x, size_t N);
   void z_log_on_dev(CPX *x, size_t N);
   void d_fill_on_dev(double *x, const double value, size_t N);
   void z_fill_on_dev(CPX *x, const CPX value, size_t N);
   void d_init_block_matrix_on_dev(double *M, size_t *ia, size_t *ja, double *a, size_t nnz, size_t ns, size_t nt, size_t nd);
   void z_init_block_matrix_on_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t nnz, size_t ns, size_t nt, size_t nd);
-  void d_init_supernode_on_dev(double *M, size_t *ia, size_t *ja, double *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd);
-  void z_init_supernode_on_dev(CPX *M, size_t *ia, size_t *ja, CPX *a, size_t supernode, size_t supernode_nnz, size_t supernode_offset, size_t ns, size_t nt, size_t nd);
 }

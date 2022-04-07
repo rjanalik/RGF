@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
     if(argc != 1 + 3){
         std::cout << "wrong number of input parameters. " << std::endl;
 
-        std::cerr << "INLA Call : ns nt nb noRhs" << std::endl;
+        std::cerr << "RGF Call : ns nt nb noRhs" << std::endl;
 
         std::cerr << "[integer:ns]                number of spatial grid points " << std::endl;
         //std::cerr << "[integer:nt]                number of temporal grid points " << std::endl;
@@ -65,12 +65,15 @@ int main(int argc, char* argv[])
     size_t nt = ns;
     //size_t nt = atoi(argv[2]);
     size_t nb = atoi(argv[2]);
-    size_t noRhs = atoi(argv[3]);
+    size_t noRhs = atoi(argv[3]);    
+    size_t n  = ns*nt + nb;
 
     std::cout << "ns = " << ns << ", nt = " << nt << ", nb = " << nb << ", noRhs = " << noRhs << std::endl;
 
-    size_t n  = ns*nt + nb;
-
+    if(ns < nb){
+        std::cerr << "INVALID PARAMETER CONFIGURATION! ns >= nb required!" << std::endl;
+        exit(1);
+    }
 
     // set nt = 1 if ns > 0 & nt = 0
     if(ns > 0 && nt == 0){
@@ -86,7 +89,7 @@ int main(int argc, char* argv[])
     /* ---------------- generate matrix & rhs ---------------- */
     SpMat Q(n,n);
     generate_adapt_poisson_mat(Q, ns, nb);
-    std::cout << "Q:\n" << MatrixXd(Q) << std::endl;
+    //std::cout << "Q:\n" << MatrixXd(Q) << std::endl;
 
     MatrixXi B(n, noRhs);
     generate_int_rhs(B, n, noRhs);
@@ -163,17 +166,25 @@ int main(int argc, char* argv[])
     MatrixXd X(n, noRhs);
     for (int i = 0; i < n*noRhs; i++){
         X.data()[i] = x[i];
-        //printf("%f\n", b[i]);
+        //printf("%f\n", x[i]);
     }
 
-    std::cout << "X:\n" << X << std::endl;
-    MatrixXd res1 = MatrixXd(Q)*X;
-    std::cout << "Q*X:\n" << res1 << std::endl;
-    std::cout << "B:\n" << B << std::endl;
+    /*MatrixXd Q_dense = MatrixXd(Q);
+    LLT<MatrixXd> lltOfA(Q_dense); // compute the Cholesky decomposition of A
+    MatrixXd L = lltOfA.matrixL();*/
+    //std::cout << "chol(Q) =\n" << L << std::endl;
+    //std::cout << L * L.transpose() << std::endl;
 
-    //MatrixXd Bd = MatrixXd(B);
-    //MatrixXd res2 = res1 - Bd;
-    //std::cout << "Q*X - B = " << (res - B).eval() << std::endl;
+    /*MatrixXd Bd = B.cast <double> ();
+    Vect X_eigen = Q_dense.llt().solve(Bd);
+    std::cout << "X eigen = " << X_eigen.transpose() << std::endl;
+
+    std::cout << "X       = " << X.transpose() << std::endl;
+    MatrixXd res1 = Q_dense*X;
+    std::cout << "Q*X:\n" << res1.transpose() << std::endl;
+    MatrixXd res2 = Q_dense*X_eigen;
+    std::cout << "Q*X_eigen :\n" << res2.transpose() << std::endl;
+    std::cout << "B       = " << B.transpose() << std::endl;*/
 
   #endif
   

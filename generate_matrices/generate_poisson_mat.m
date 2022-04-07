@@ -14,7 +14,7 @@ I = speye(ns);
 
 A = kron(A_ns, I) + kron(I, A_ns);
 %full(A)
-B = -rand(nb, ns*nt);
+B = -rand(nb, ns*nt); % PROBLEM!!!! NOT SYMMETRIC.
 D = -rand(nb, nb) + (n+1)*speye(nb,nb);
 
 Q = [A, B'; B, D];
